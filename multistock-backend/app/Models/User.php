@@ -4,13 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Laravel\Sanctum\HasApiTokens; // Importa el trait de Sanctum
 
 class User extends Authenticatable
 {
-    use HasFactory;
+    use HasApiTokens, HasFactory; // HashApiTokens for API tokens
 
     /**
-    * The attributes that are mass assignable.
+     * The attributes that are mass assignable.
      *
      * @var array
      */
@@ -24,7 +25,7 @@ class User extends Authenticatable
     ];
 
     /**
-    * The attributes that should be hidden for arrays.
+     * The attributes that should be hidden for arrays.
      *
      * @var array
      */
@@ -34,7 +35,7 @@ class User extends Authenticatable
     ];
 
     /**
-    * The attributes that should be cast.
+     * The attributes that should be cast.
      *
      * @var array
      */
