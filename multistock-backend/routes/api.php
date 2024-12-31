@@ -11,10 +11,10 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login']); // Login user
+Route::post('/users', [UserController::class, 'store']); // Create user
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users', [UserController::class, 'index']); // Get full users list
-    Route::post('/users', [UserController::class, 'store']); // Create user
     Route::post('/logout', [AuthController::class, 'logout']); // Logout user
 });
