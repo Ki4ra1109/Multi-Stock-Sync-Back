@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
 
 class UserController extends Controller
 {
@@ -22,15 +23,22 @@ class UserController extends Controller
      */
     public function store(Request $request)
     {
-        // Valitade request
-        $validated = $request->validate([
+        // Validate request
+        $validator = Validator::make($request->all(), [
             'nombre' => 'required|string|max:255',
             'apellidos' => 'required|string|max:255',
             'telefono' => 'required|string|max:20',
             'email' => 'required|string|email|max:255|unique:users',
             'nombre_negocio' => 'required|string|max:255',
             'password' => 'required|string|min:6|confirmed',
+            'password_confirmation' => 'required|string|min:6', // Add this line
         ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $validated = $validator->validated();
 
         // Create user
         $user = User::create([
