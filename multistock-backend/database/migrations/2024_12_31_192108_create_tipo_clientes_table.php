@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -15,7 +16,12 @@ return new class extends Migration
             $table->id(); // 'id' field with type bigint unsigned
             $table->string('tipo'); // empresa/persona
             $table->timestamps();
-        });        
+        });
+        
+        DB::table('tipo_clientes')->insert([
+            ['tipo' => 'Empresa'],
+            ['tipo' => 'Persona'],
+        ]);
     }
 
     /**
