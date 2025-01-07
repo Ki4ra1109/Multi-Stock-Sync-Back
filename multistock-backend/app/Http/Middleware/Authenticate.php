@@ -3,15 +3,24 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Auth\Middleware\Authenticate as Middleware;
-use Illuminate\Http\Request;
 
 class Authenticate extends Middleware
 {
     /**
-     * Get the path the user should be redirected to when they are not authenticated.
+     * Manejar solicitudes no autenticadas.
      */
-    protected function redirectTo(Request $request): ?string
+    protected function unauthenticated($request, array $guards)
     {
-        return $request->expectsJson() ? null : route('login');
+        // Retorna un mensaje JSON para solicitudes no autenticadas
+        abort(response()->json(['message' => 'No autenticado'], 401));
+    }
+
+    /**
+     * Este método no será necesario en una API pura, pero Laravel lo requiere.
+     */
+    protected function redirectTo($request)
+    {
+        // Este método no será utilizado, ya que es una API pura
+        return null;
     }
 }
