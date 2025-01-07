@@ -9,6 +9,7 @@ use App\Http\Controllers\ClientesController;
 use App\Http\Controllers\TipoProductoController;
 use App\Http\Controllers\MarcasController;
 use App\Http\Controllers\PackProductosController;
+use App\Http\Controllers\StockController;
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
@@ -51,6 +52,13 @@ Route::post('/pack-productos', [PackProductosController::class, 'store']); // Cr
 Route::get('/pack-productos/{id}', [PackProductosController::class, 'show']); // Get a pack
 Route::put('/pack-productos/{id}', [PackProductosController::class, 'update']); // Update a pack
 Route::delete('/pack-productos/{id}', [PackProductosController::class, 'destroy']); // Delete a pack
+
+// CRUD routes for Stock
+Route::get('/stock', [StockController::class, 'index']); // Get all stock records
+Route::post('/stock', [StockController::class, 'store']); // Create a new stock record
+Route::get('/stock/{id}', [StockController::class, 'show']); // Get a stock record by ID
+Route::put('/stock/{id}', [StockController::class, 'update']); // Update stock (add/subtract units)
+Route::delete('/stock/{id}', [StockController::class, 'destroy']); // Delete a stock record
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
