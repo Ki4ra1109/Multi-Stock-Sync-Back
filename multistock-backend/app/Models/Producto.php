@@ -17,6 +17,7 @@ class Producto extends Model
         'control_stock',
         'precio',
         'permitir_venta_no_stock',
+        'nombre_variante',
         'control_series',
         'permitir_venta_decimales'
     ];

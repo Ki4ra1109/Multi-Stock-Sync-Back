@@ -20,6 +20,7 @@ return new class extends Migration
             $table->boolean('control_stock');
             $table->decimal('precio', 10, 2);
             $table->boolean('permitir_venta_no_stock');
+            $table->string('nombre_variante')->nullable();
             $table->boolean('control_series');
             $table->boolean('permitir_venta_decimales');
             $table->timestamps();

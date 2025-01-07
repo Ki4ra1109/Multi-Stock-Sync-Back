@@ -24,6 +24,7 @@ class ProductosController extends Controller
             'control_stock' => 'required|boolean',
             'precio' => 'required|numeric',
             'permitir_venta_no_stock' => 'required|boolean',
+            'nombre_variante' => 'nullable|string|max:255',
             'control_series' => 'required|boolean',
             'permitir_venta_decimales' => 'required|boolean',
         ]);
