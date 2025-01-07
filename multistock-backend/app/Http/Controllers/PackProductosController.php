@@ -21,14 +21,19 @@ class PackProductosController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'sku_pack' => 'required|integer|unique:pack_productos,sku_pack',
+            'sku_pack' => 'nullable|string|unique:pack_productos,sku_pack|max:255', // Optional SKU
             'nombre' => 'required|string|max:255',
             'composicion' => 'required|array',
-            'composicion.*.sku_producto' => 'required|exists:productos,id',
+            'composicion.*.sku_producto' => 'required|exists:productos,sku', // Validate SKU
             'composicion.*.cantidad_pack' => 'required|integer|min:1',
         ]);
 
-        // Crear el pack
+        // Generate SKU automatically if not sent
+        if (empty($validated['sku_pack'])) {
+            $validated['sku_pack'] = $this->generateSku($validated['nombre']);
+        }
+
+        // Create pack
         $pack = PackProducto::create([
             'sku_pack' => $validated['sku_pack'],
             'nombre' => $validated['nombre'],
@@ -36,11 +41,13 @@ class PackProductosController extends Controller
             'updated_at' => now(),
         ]);
 
-        // Guardar la composición del pack
+        // Save pack composition
         foreach ($validated['composicion'] as $componente) {
+            $producto = Producto::where('sku', $componente['sku_producto'])->firstOrFail();
+
             PackComposicion::create([
-                'sku_pack' => $pack->id,
-                'sku_producto' => $componente['sku_producto'],
+                'sku_pack' => $pack->sku_pack,
+                'sku_producto' => $producto->sku,
                 'cantidad_pack' => $componente['cantidad_pack'],
             ]);
         }
@@ -66,27 +73,36 @@ class PackProductosController extends Controller
 
         $validated = $request->validate([
             'nombre' => 'sometimes|string|max:255',
+            'sku_pack' => 'nullable|string|unique:pack_productos,sku_pack|max:255', // Validate SKU if not sent
             'composicion' => 'sometimes|array',
-            'composicion.*.sku_producto' => 'required_with:composicion|exists:productos,id',
+            'composicion.*.sku_producto' => 'required_with:composicion|exists:productos,sku', // Validate product SKU
             'composicion.*.cantidad_pack' => 'required_with:composicion|integer|min:1',
         ]);
 
-        // Actualizar el pack
+        // Generate auto SKU if not sent and name is sent  
+        if (empty($validated['sku_pack']) && isset($validated['nombre'])) {
+            $validated['sku_pack'] = $this->generateSku($validated['nombre']);
+        }
+
+        // Update Pack
         $pack->update([
             'nombre' => $validated['nombre'] ?? $pack->nombre,
+            'sku_pack' => $validated['sku_pack'] ?? $pack->sku_pack,
             'updated_at' => now(),
         ]);
 
-        // Si se envía una nueva composición, actualizarla
+        // If sent new composition, update it
         if (isset($validated['composicion'])) {
-            // Eliminar la composición existente
-            PackComposicion::where('sku_pack', $pack->id)->delete();
+            // Delete the old composition
+            PackComposicion::where('sku_pack', $pack->sku_pack)->delete();
 
-            // Crear la nueva composición
+            // Create new composition
             foreach ($validated['composicion'] as $componente) {
+                $producto = Producto::where('sku', $componente['sku_producto'])->firstOrFail();
+
                 PackComposicion::create([
-                    'sku_pack' => $pack->id,
-                    'sku_producto' => $componente['sku_producto'],
+                    'sku_pack' => $pack->sku_pack,
+                    'sku_producto' => $producto->sku,
                     'cantidad_pack' => $componente['cantidad_pack'],
                 ]);
             }
@@ -103,12 +119,21 @@ class PackProductosController extends Controller
     {
         $pack = PackProducto::findOrFail($id);
 
-        // Eliminar la composición del pack
-        PackComposicion::where('sku_pack', $pack->id)->delete();
+        // Delete pack composition
+        PackComposicion::where('sku_pack', $pack->sku_pack)->delete();
 
-        // Eliminar el pack
+        // Delete pack
         $pack->delete();
 
         return response()->json(['message' => 'Pack eliminado correctamente'], 200);
+    }
+
+    //Generate new SKU
+    private function generateSku($nombre)
+    {
+        // Create SKU based in the first 3 letters of the name and a random number
+        $baseSku = strtoupper(substr($nombre, 0, 3)); // 3 first letters of the name
+        $randomNumber = rand(1000, 9999); // Generate 4 random numbers
+        return "{$baseSku}-{$randomNumber}";
     }
 }
