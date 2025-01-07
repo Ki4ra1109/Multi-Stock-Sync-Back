@@ -20,12 +20,16 @@ class StockController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'sku_producto' => 'required|exists:productos,id',
+            'sku_producto' => 'required|exists:productos,sku', // Check SKU exists in productos table
             'cantidad' => 'required|integer|min:0',
         ]);
 
+        // Search producto by SKU
+        $producto = Producto::where('sku', $validated['sku_producto'])->firstOrFail();
+
+        // Create stock record
         $stock = StockProducto::create([
-            'sku_producto' => $validated['sku_producto'],
+            'sku_producto' => $producto->sku, // Use producto SKU
             'cantidad' => $validated['cantidad'],
             'created_at' => now(),
             'updated_at' => now(),
@@ -46,7 +50,7 @@ class StockController extends Controller
             'cantidad' => 'required|integer',
         ]);
 
-        // Update stock ammount
+        // Update stock amount
         $stock->update([
             'cantidad' => $stock->cantidad + $validated['cantidad'], // Add or subtract units
             'updated_at' => now(),
