@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ProductosController;
+use App\Http\Controllers\ClientesController;
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
@@ -17,6 +18,11 @@ Route::get('/productos', [ProductosController::class, 'index']); // Get all prod
 Route::post('/productos', [ProductosController::class, 'store']); // Create a product
 Route::get('/productos/{id}', [ProductosController::class, 'show']); // Get a product
 Route::delete('/productos/{id}', [ProductosController::class, 'destroy']); // Delete a product
+Route::get('/clientes', [ClientesController::class, 'index']); // Get all clients
+Route::post('/clientes', [ClientesController::class, 'store']); // Create a client
+Route::get('/clientes/{id}', [ClientesController::class, 'show']); // Get a client
+Route::put('/clientes/{id}', [ClientesController::class, 'update']); // Update a client
+Route::delete('/clientes/{id}', [ClientesController::class, 'destroy']); // Delete a client
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
