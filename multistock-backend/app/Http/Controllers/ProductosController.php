@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Producto;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class ProductosController extends Controller
 {
@@ -16,9 +17,10 @@ class ProductosController extends Controller
     // Create producto
     public function store(Request $request)
     {
-        $validated = $request->validate([
+        // Validate request
+        $validator = Validator::make($request->all(), [
             'nombre' => 'required|string|max:255',
-            'sku' => 'nullable|string|unique:productos,sku|max:255', // SKU opcional
+            'sku' => 'string|unique:productos,sku|max:255', // SKU no obligatorio
             'tipo' => 'required|exists:tipo_productos,id',
             'marca' => 'required|exists:marcas,id',
             'control_stock' => 'required|boolean',
@@ -27,9 +29,22 @@ class ProductosController extends Controller
             'nombre_variante' => 'nullable|string|max:255',
             'control_series' => 'required|boolean',
             'permitir_venta_decimales' => 'required|boolean',
+        ], [
+            'required' => 'El campo :attribute es obligatorio.',
+            'string' => 'El campo :attribute debe ser una cadena de texto.',
+            'max' => 'El campo :attribute no debe ser mayor que :max caracteres.',
+            'unique' => 'El campo :attribute debe ser único.',
+            'exists' => 'El campo :attribute seleccionado no es válido.',
+            'boolean' => 'El campo :attribute debe ser verdadero o falso.',
+            'numeric' => 'El campo :attribute debe ser un número.',
         ]);
 
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
         // Generar SKU automáticamente si no se proporciona
+        $validated = $validator->validated();
         if (empty($validated['sku'])) {
             $validated['sku'] = $this->generateSku($validated['nombre']);
         }
@@ -55,18 +70,32 @@ class ProductosController extends Controller
     {
         $producto = Producto::findOrFail($id);
 
-        $validated = $request->validate([
+        // Validate request
+        $validator = Validator::make($request->all(), [
             'nombre' => 'string|max:255',
-            'sku' => 'nullable|string|unique:productos,sku|max:255', // Validar SKU único
+            'sku' => 'string|unique:productos,sku|max:255', // SKU no obligatorio
             'tipo' => 'exists:tipo_productos,id',
             'marca' => 'exists:marcas,id',
             'control_stock' => 'boolean',
             'permitir_venta_no_stock' => 'boolean',
             'control_series' => 'boolean',
             'permitir_venta_decimales' => 'boolean',
+        ], [
+            'required' => 'El campo :attribute es obligatorio.',
+            'string' => 'El campo :attribute debe ser una cadena de texto.',
+            'max' => 'El campo :attribute no debe ser mayor que :max caracteres.',
+            'unique' => 'El campo :attribute debe ser único.',
+            'exists' => 'El campo :attribute seleccionado no es válido.',
+            'boolean' => 'El campo :attribute debe ser verdadero o falso.',
+            'numeric' => 'El campo :attribute debe ser un número.',
         ]);
 
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
         // Generar SKU automáticamente si no se proporciona
+        $validated = $validator->validated();
         if (empty($validated['sku']) && isset($validated['nombre'])) {
             $validated['sku'] = $this->generateSku($validated['nombre']);
         }
