@@ -1,6 +1,5 @@
 <?php
 
-// Modelo: Producto.php
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,6 +11,7 @@ class Producto extends Model
 
     protected $fillable = [
         'nombre',
+        'sku', // Agregamos el SKU
         'tipo',
         'marca',
         'control_stock',
@@ -32,6 +32,6 @@ class Producto extends Model
 
     public function stock()
     {
-        return $this->hasOne(StockProducto::class, 'sku_producto', 'id');
+        return $this->hasOne(StockProducto::class, 'sku_producto', 'sku');
     }
 }
