@@ -7,6 +7,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ProductosController;
 use App\Http\Controllers\ClientesController;
 use App\Http\Controllers\TipoProductoController;
+use App\Http\Controllers\MarcasController;
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
@@ -29,6 +30,13 @@ Route::post('/tipo-productos', [TipoProductoController::class, 'store']); // Cre
 Route::get('/tipo-productos/{id}', [TipoProductoController::class, 'show']); // Get a tipo producto
 Route::put('/tipo-productos/{id}', [TipoProductoController::class, 'update']); // Update a tipo producto
 Route::delete('/tipo-productos/{id}', [TipoProductoController::class, 'destroy']); // Delete a tipo producto
+
+// CRUD routes for Marcas
+Route::get('/marcas', [MarcasController::class, 'index']); // Get all marcas
+Route::post('/marcas', [MarcasController::class, 'store']); // Create a marca
+Route::get('/marcas/{id}', [MarcasController::class, 'show']); // Get a marca
+Route::put('/marcas/{id}', [MarcasController::class, 'update']); // Update a marca
+Route::delete('/marcas/{id}', [MarcasController::class, 'destroy']); // Delete a marca
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
