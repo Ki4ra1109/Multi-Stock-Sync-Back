@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\TipoProducto;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class TipoProductoController extends Controller
 {
@@ -16,11 +17,20 @@ class TipoProductoController extends Controller
     // Create a new tipo producto
     public function store(Request $request)
     {
-        $request->validate([
+        // Validate request
+        $validator = Validator::make($request->all(), [
             'producto' => 'required|string|max:255',
+        ], [
+            'required' => 'El campo :attribute es obligatorio.',
+            'string' => 'El campo :attribute debe ser una cadena de texto.',
+            'max' => 'El campo :attribute no debe ser mayor que :max caracteres.',
         ]);
 
-        $tipoProducto = TipoProducto::create($request->all());
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $tipoProducto = TipoProducto::create($validator->validated());
 
         return response()->json([
             'message' => 'Tipo de producto creado exitosamente',
@@ -39,12 +49,22 @@ class TipoProductoController extends Controller
     // Update a tipo producto
     public function update(Request $request, $id)
     {
-        $request->validate([
+        $tipoProducto = TipoProducto::findOrFail($id);
+
+        // Validate request
+        $validator = Validator::make($request->all(), [
             'producto' => 'required|string|max:255',
+        ], [
+            'required' => 'El campo :attribute es obligatorio.',
+            'string' => 'El campo :attribute debe ser una cadena de texto.',
+            'max' => 'El campo :attribute no debe ser mayor que :max caracteres.',
         ]);
 
-        $tipoProducto = TipoProducto::findOrFail($id);
-        $tipoProducto->update($request->all());
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $tipoProducto->update($validator->validated());
 
         return response()->json([
             'message' => 'Tipo de producto actualizado exitosamente',
