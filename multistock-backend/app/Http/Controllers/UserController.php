@@ -31,7 +31,15 @@ class UserController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'nombre_negocio' => 'required|string|max:255',
             'password' => 'required|string|min:6|confirmed',
-            'password_confirmation' => 'required|string|min:6', // Add this line
+            'password_confirmation' => 'required|string|min:6',
+        ], [
+            'required' => 'El campo :attribute es obligatorio.',
+            'string' => 'El campo :attribute debe ser una cadena de texto.',
+            'max' => 'El campo :attribute no debe ser mayor que :max caracteres.',
+            'email' => 'El campo :attribute debe ser una dirección de correo válida.',
+            'unique' => 'El campo :attribute ya ha sido registrado.',
+            'min' => 'El campo :attribute debe tener al menos :min caracteres.',
+            'confirmed' => 'La confirmación de :attribute no coincide.',
         ]);
 
         if ($validator->fails()) {
