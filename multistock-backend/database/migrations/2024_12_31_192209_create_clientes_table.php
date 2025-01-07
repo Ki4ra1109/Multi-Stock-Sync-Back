@@ -13,7 +13,6 @@ return new class extends Migration
     {
         Schema::create('clientes', function (Blueprint $table) {
             $table->id();
-            $table->string('cliente');
             $table->foreignId('tipo_cliente_id') // Foreign bigint key
                   ->constrained('tipo_clientes') // Relates to the 'tipo_clientes' table
                   ->onDelete('cascade'); // Deletes clients if the tipo_cliente is deleted

@@ -10,7 +10,6 @@ class cliente extends Model
     use HasFactory;
 
     // New properties
-    public $cliente;
     public $tipo_cliente; // empresa/persona
     public $extranjero; // si/no
     public $rut;
