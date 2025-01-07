@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('productos', function (Blueprint $table) {
             $table->id();
             $table->string('nombre');
-            $table->string('sku')->unique()->nullable(); //Unique SKU
+            $table->string('sku')->unique();
             $table->foreignId('tipo')->constrained('tipo_productos')->onDelete('cascade');
             $table->foreignId('marca')->constrained('marcas')->onDelete('cascade');
             $table->boolean('control_stock');

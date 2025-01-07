@@ -13,11 +13,13 @@ return new class extends Migration
     {
         Schema::create('pack_productos', function (Blueprint $table) {
             $table->id();
-            $table->string('sku_pack')->unique()->nullable(false); // String SKU
+            $table->string('sku_pack')->unique()->nullable(); // Permitir valores nulos inicialmente
             $table->string('nombre');
             $table->timestamps();
         });
+        
     }
+    
 
     /**
      * Reverse the migrations.

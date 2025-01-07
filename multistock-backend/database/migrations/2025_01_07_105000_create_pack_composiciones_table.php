@@ -13,16 +13,15 @@ return new class extends Migration
     {
         Schema::create('pack_composiciones', function (Blueprint $table) {
             $table->id();
-            $table->string('sku_pack'); // SKU como string
-            $table->string('sku_producto'); // SKU como string
+            $table->string('sku_pack'); // Definimos como string
+            $table->foreign('sku_pack')->references('sku_pack')->on('pack_productos')->onDelete('cascade');
+            $table->string('sku_producto'); // También como string
+            $table->foreign('sku_producto')->references('sku')->on('productos')->onDelete('cascade');
             $table->integer('cantidad_pack');
             $table->timestamps();
-
-            // Definir claves foráneas basadas en columnas string
-            $table->foreign('sku_pack')->references('sku_pack')->on('pack_productos')->onDelete('cascade');
-            $table->foreign('sku_producto')->references('sku')->on('productos')->onDelete('cascade');
         });
     }
+
 
     /**
      * Reverse the migrations.

@@ -15,16 +15,22 @@ class PackComposicion extends Model
     protected $fillable = [
         'sku_pack',
         'sku_producto',
-        'cantidad_pack'
+        'cantidad_pack',
     ];
 
+    /**
+     * Relación con PackProducto
+     */
     public function pack()
     {
-        return $this->belongsTo(PackProducto::class, 'sku_pack', 'sku'); // SKU string
+        return $this->belongsTo(PackProducto::class, 'sku_pack', 'sku_pack');
     }
 
+    /**
+     * Relación con Producto
+     */
     public function producto()
     {
-        return $this->belongsTo(Producto::class, 'sku_producto', 'sku'); // SKU string
+        return $this->belongsTo(Producto::class, 'sku_producto', 'sku');
     }
 }

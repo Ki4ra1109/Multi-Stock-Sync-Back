@@ -21,42 +21,38 @@ class PackProductosController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'sku_pack' => 'nullable|string|unique:pack_productos,sku_pack|max:255', // Optional SKU
+            'sku_pack' => 'nullable|string|unique:pack_productos,sku_pack|max:255', // SKU opcional
             'nombre' => 'required|string|max:255',
             'composicion' => 'required|array',
-            'composicion.*.sku_producto' => 'required|exists:productos,sku', // Validate SKU
+            'composicion.*.sku_producto' => 'required|exists:productos,sku',
             'composicion.*.cantidad_pack' => 'required|integer|min:1',
         ]);
-
-        // Generate SKU automatically if not sent
+    
+        // Generar SKU automáticamente si no se proporciona
         if (empty($validated['sku_pack'])) {
             $validated['sku_pack'] = $this->generateSku($validated['nombre']);
         }
-
-        // Create pack
+    
         $pack = PackProducto::create([
-            'sku_pack' => $validated['sku_pack'], // Ensure sku_pack is included
+            'sku_pack' => $validated['sku_pack'],
             'nombre' => $validated['nombre'],
-            'created_at' => now(),
-            'updated_at' => now(),
         ]);
-
-        // Save pack composition
+    
         foreach ($validated['composicion'] as $componente) {
-            $producto = Producto::where('sku', $componente['sku_producto'])->firstOrFail();
-
             PackComposicion::create([
                 'sku_pack' => $pack->sku_pack,
-                'sku_producto' => $producto->sku,
+                'sku_producto' => $componente['sku_producto'],
                 'cantidad_pack' => $componente['cantidad_pack'],
             ]);
         }
-
+    
         return response()->json([
             'message' => 'Pack creado correctamente',
-            'pack' => $pack->load('composiciones.producto'),
+            'pack' => $pack->load('composiciones.producto'), // Asegurarse de que la relación sea válida
         ], 201);
     }
+    
+    
 
     // Get a single pack by id
     public function show($id)
