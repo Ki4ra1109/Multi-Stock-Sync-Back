@@ -15,6 +15,7 @@ class Producto extends Model
         'tipo',
         'marca',
         'control_stock',
+        'precio',
         'permitir_venta_no_stock',
         'control_series',
         'permitir_venta_decimales'

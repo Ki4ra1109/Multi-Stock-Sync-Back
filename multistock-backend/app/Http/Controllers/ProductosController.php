@@ -22,6 +22,7 @@ class ProductosController extends Controller
             'tipo' => 'required|exists:tipo_productos,id',
             'marca' => 'required|exists:marcas,id',
             'control_stock' => 'required|boolean',
+            'precio' => 'required|numeric',
             'permitir_venta_no_stock' => 'required|boolean',
             'control_series' => 'required|boolean',
             'permitir_venta_decimales' => 'required|boolean',

@@ -18,6 +18,7 @@ return new class extends Migration
             $table->foreignId('tipo')->constrained('tipo_productos')->onDelete('cascade');
             $table->foreignId('marca')->constrained('marcas')->onDelete('cascade');
             $table->boolean('control_stock');
+            $table->decimal('precio', 10, 2);
             $table->boolean('permitir_venta_no_stock');
             $table->boolean('control_series');
             $table->boolean('permitir_venta_decimales');
