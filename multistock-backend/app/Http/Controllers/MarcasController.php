@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Marca;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class MarcasController extends Controller
 {
@@ -16,10 +17,21 @@ class MarcasController extends Controller
     // Create marca
     public function store(Request $request)
     {
-        $validated = $request->validate([
+        // Validate request
+        $validator = Validator::make($request->all(), [
             'nombre' => 'required|string|max:255',
             'imagen' => 'nullable|string',
+        ], [
+            'required' => 'El campo :attribute es obligatorio.',
+            'string' => 'El campo :attribute debe ser una cadena de texto.',
+            'max' => 'El campo :attribute no debe ser mayor que :max caracteres.',
         ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $validated = $validator->validated();
 
         if (empty($validated['imagen'])) {
             $validated['imagen'] = 'https://example.com/default-image.png'; // Change this URL later
@@ -46,10 +58,21 @@ class MarcasController extends Controller
     {
         $marca = Marca::findOrFail($id);
 
-        $validated = $request->validate([
+        // Validate request
+        $validator = Validator::make($request->all(), [
             'nombre' => 'string|max:255',
             'imagen' => 'nullable|string',
+        ], [
+            'required' => 'El campo :attribute es obligatorio.',
+            'string' => 'El campo :attribute debe ser una cadena de texto.',
+            'max' => 'El campo :attribute no debe ser mayor que :max caracteres.',
         ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $validated = $validator->validated();
 
         if (empty($validated['imagen'])) {
             $validated['imagen'] = 'https://example.com/default-image.png';
