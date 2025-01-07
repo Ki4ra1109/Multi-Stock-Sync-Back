@@ -19,8 +19,8 @@ return new class extends Migration
         });
         
         DB::table('tipo_clientes')->insert([
-            ['tipo' => 'Empresa'],
-            ['tipo' => 'Persona'],
+            ['tipo' => 'Empresa', 'created_at' => now(), 'updated_at' => now()],
+            ['tipo' => 'Persona', 'created_at' => now(), 'updated_at' => now()],
         ]);
     }
 
