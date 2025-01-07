@@ -28,7 +28,10 @@ class ProductosController extends Controller
 
         $producto = Producto::create($validated);
 
-        return response()->json($producto, 201);
+        return response()->json([
+            'message' => 'Producto creado correctamente',
+            'producto' => $producto
+        ], 201);
     }
 
     // Show producto by id
@@ -56,7 +59,10 @@ class ProductosController extends Controller
 
         $producto->update($validated);
 
-        return response()->json($producto);
+        return response()->json([
+            'message' => 'Producto actualizado correctamente',
+            'producto' => $producto
+        ]);
     }
 
     // Delete producto
@@ -65,6 +71,6 @@ class ProductosController extends Controller
         $producto = Producto::findOrFail($id);
         $producto->delete();
 
-        return response()->json(['message' => 'Producto eliminado correctamente'], 204);
+        return response()->json(['message' => 'Producto eliminado correctamente'], 200);
     }
 }
