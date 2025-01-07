@@ -12,7 +12,7 @@ class PackProductosController extends Controller
     // Get all packs with their compositions
     public function index()
     {
-        $packs = PackProducto::with('composicion.producto')->get();
+        $packs = PackProducto::with('composiciones.producto')->get();
 
         return response()->json($packs, 200);
     }
@@ -47,14 +47,14 @@ class PackProductosController extends Controller
 
         return response()->json([
             'message' => 'Pack creado correctamente',
-            'pack' => $pack->load('composicion.producto'),
+            'pack' => $pack->load('composiciones.producto'),
         ], 201);
     }
 
     // Get a single pack by id
     public function show($id)
     {
-        $pack = PackProducto::with('composicion.producto')->findOrFail($id);
+        $pack = PackProducto::with('composiciones.producto')->findOrFail($id);
 
         return response()->json($pack, 200);
     }
@@ -94,7 +94,7 @@ class PackProductosController extends Controller
 
         return response()->json([
             'message' => 'Pack actualizado correctamente',
-            'pack' => $pack->load('composicion.producto'),
+            'pack' => $pack->load('composiciones.producto'),
         ], 200);
     }
 
