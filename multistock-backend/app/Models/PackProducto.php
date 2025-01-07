@@ -10,12 +10,12 @@ class PackProducto extends Model
     use HasFactory;
 
     protected $fillable = [
-        'sku_pack',
+        'sku',
         'nombre'
     ];
 
     public function composiciones()
     {
-        return $this->hasMany(PackComposicion::class, 'sku_pack', 'id');
+        return $this->hasMany(PackComposicion::class, 'sku_pack', 'sku'); // SKU foreign key
     }
 }

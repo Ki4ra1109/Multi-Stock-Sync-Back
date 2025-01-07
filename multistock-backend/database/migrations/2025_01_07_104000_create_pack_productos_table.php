@@ -13,12 +13,11 @@ return new class extends Migration
     {
         Schema::create('pack_productos', function (Blueprint $table) {
             $table->id();
-            $table->string('sku_pack')->unique();
+            $table->string('sku_pack')->unique()->nullable(false); // String SKU
             $table->string('nombre');
             $table->timestamps();
         });
     }
-    
 
     /**
      * Reverse the migrations.

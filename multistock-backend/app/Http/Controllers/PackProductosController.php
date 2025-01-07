@@ -35,7 +35,7 @@ class PackProductosController extends Controller
 
         // Create pack
         $pack = PackProducto::create([
-            'sku_pack' => $validated['sku_pack'],
+            'sku_pack' => $validated['sku_pack'], // Ensure sku_pack is included
             'nombre' => $validated['nombre'],
             'created_at' => now(),
             'updated_at' => now(),

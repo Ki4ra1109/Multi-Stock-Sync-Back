@@ -11,7 +11,7 @@ class Producto extends Model
 
     protected $fillable = [
         'nombre',
-        'sku', // Agregamos el SKU
+        'sku',
         'tipo',
         'marca',
         'control_stock',
@@ -32,6 +32,6 @@ class Producto extends Model
 
     public function stock()
     {
-        return $this->hasOne(StockProducto::class, 'sku_producto', 'sku');
+        return $this->hasOne(StockProducto::class, 'sku_producto', 'sku'); // SKU foreign key
     }
 }

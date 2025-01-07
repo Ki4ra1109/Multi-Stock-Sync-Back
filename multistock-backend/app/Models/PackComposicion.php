@@ -20,11 +20,11 @@ class PackComposicion extends Model
 
     public function pack()
     {
-        return $this->belongsTo(PackProducto::class, 'sku_pack', 'id');
+        return $this->belongsTo(PackProducto::class, 'sku_pack', 'sku'); // SKU string
     }
 
     public function producto()
     {
-        return $this->belongsTo(Producto::class, 'sku_producto', 'id');
+        return $this->belongsTo(Producto::class, 'sku_producto', 'sku'); // SKU string
     }
 }
