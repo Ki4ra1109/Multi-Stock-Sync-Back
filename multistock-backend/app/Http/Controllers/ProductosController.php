@@ -18,6 +18,7 @@ class ProductosController extends Controller
     {
         $validated = $request->validate([
             'nombre' => 'required|string|max:255',
+            'sku' => 'nullable|string|unique:productos,sku|max:255', // SKU opcional
             'tipo' => 'required|exists:tipo_productos,id',
             'marca' => 'required|exists:marcas,id',
             'control_stock' => 'required|boolean',
@@ -25,6 +26,11 @@ class ProductosController extends Controller
             'control_series' => 'required|boolean',
             'permitir_venta_decimales' => 'required|boolean',
         ]);
+
+        // Generar SKU automáticamente si no se proporciona
+        if (empty($validated['sku'])) {
+            $validated['sku'] = $this->generateSku($validated['nombre']);
+        }
 
         $producto = Producto::create($validated);
 
@@ -49,6 +55,7 @@ class ProductosController extends Controller
 
         $validated = $request->validate([
             'nombre' => 'string|max:255',
+            'sku' => 'nullable|string|unique:productos,sku|max:255', // Validar SKU único
             'tipo' => 'exists:tipo_productos,id',
             'marca' => 'exists:marcas,id',
             'control_stock' => 'boolean',
@@ -56,6 +63,11 @@ class ProductosController extends Controller
             'control_series' => 'boolean',
             'permitir_venta_decimales' => 'boolean',
         ]);
+
+        // Generar SKU automáticamente si no se proporciona
+        if (empty($validated['sku']) && isset($validated['nombre'])) {
+            $validated['sku'] = $this->generateSku($validated['nombre']);
+        }
 
         $producto->update($validated);
 
@@ -72,5 +84,14 @@ class ProductosController extends Controller
         $producto->delete();
 
         return response()->json(['message' => 'Producto eliminado correctamente'], 200);
+    }
+
+    // Método para generar SKU
+    private function generateSku($nombre)
+    {
+        // Crear un SKU basado en el nombre y un número aleatorio
+        $baseSku = strtoupper(substr($nombre, 0, 3)); // Tomar las primeras 3 letras del nombre
+        $randomNumber = rand(1000, 9999); // Generar un número aleatorio de 4 dígitos
+        return "{$baseSku}-{$randomNumber}";
     }
 }
