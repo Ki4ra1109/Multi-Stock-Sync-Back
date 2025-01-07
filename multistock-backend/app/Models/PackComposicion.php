@@ -9,6 +9,9 @@ class PackComposicion extends Model
 {
     use HasFactory;
 
+    // Explicit table name
+    protected $table = 'pack_composiciones';
+
     protected $fillable = [
         'sku_pack',
         'sku_producto',
