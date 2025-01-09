@@ -280,7 +280,7 @@ Endpoints dedicated to the creation of new "clients" for the user's business, in
     }
     ```
 
-## 2. Productos endpoints
+## 3. Productos endpoints
 
 
 - **Productos list**
@@ -429,7 +429,7 @@ Endpoints dedicated to the creation of new "clients" for the user's business, in
     }
     ```
 
-## 3. Marcas endpoints
+## 4. Marcas endpoints
 
 - **Marcas list**
     - **URL:** `/marcas`
