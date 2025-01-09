@@ -23,6 +23,7 @@ Route::post('/users', [UserController::class, 'store']); // Create user
 Route::get('/productos', [ProductosController::class, 'index']); // Get all products
 Route::post('/productos', [ProductosController::class, 'store']); // Create a product
 Route::get('/productos/{id}', [ProductosController::class, 'show']); // Get a product
+Route::patch('/productos/{id}', [ProductosController::class, 'patch']); // Patch a product
 Route::delete('/productos/{id}', [ProductosController::class, 'destroy']); // Delete a product
 
 // CRUD routes for Clientes
