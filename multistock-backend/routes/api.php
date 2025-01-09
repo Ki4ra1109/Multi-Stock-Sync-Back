@@ -29,7 +29,7 @@ Route::delete('/productos/{id}', [ProductosController::class, 'destroy']); // De
 Route::get('/clientes', [ClientesController::class, 'index']); // Get all clients
 Route::post('/clientes', [ClientesController::class, 'store']); // Create a client
 Route::get('/clientes/{id}', [ClientesController::class, 'show']); // Get a client
-Route::put('/clientes/{id}', [ClientesController::class, 'update']); // Update a client
+Route::patch('/clientes/{id}', [ClientesController::class, 'update']); // Update a client
 Route::delete('/clientes/{id}', [ClientesController::class, 'destroy']); // Delete a client
 
 // CRUD routes for TipoProductos

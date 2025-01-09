@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Cliente;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class ClientesController extends Controller
 {
@@ -19,11 +20,12 @@ class ClientesController extends Controller
     // Create client
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'tipo_cliente_id' => 'required|exists:tipo_clientes,id', // Validate relationship with tipo_clientes
+        // Validate request
+        $validator = Validator::make($request->all(), [
+            'tipo_cliente_id' => 'required|exists:tipo_clientes,id',
             'extranjero' => 'required|boolean',
-            'rut' => 'required_if:extranjero,false|max:12', // Required if not foreign
-            'razon_social' => 'nullable|string|max:255', // Optional for individuals
+            'rut' => 'required_if:extranjero,false|max:12',
+            'razon_social' => 'nullable|string|max:255',
             'giro' => 'nullable|string|max:255',
             'nombres' => 'required|string|max:255',
             'apellidos' => 'required|string|max:255',
@@ -31,8 +33,20 @@ class ClientesController extends Controller
             'comuna' => 'nullable|string|max:255',
             'region' => 'nullable|string|max:255',
             'ciudad' => 'nullable|string|max:255',
+        ], [
+            'required' => 'El campo :attribute es obligatorio.',
+            'string' => 'El campo :attribute debe ser una cadena de texto.',
+            'max' => 'El campo :attribute no debe ser mayor que :max caracteres.',
+            'exists' => 'El campo :attribute seleccionado no es válido.',
+            'boolean' => 'El campo :attribute debe ser verdadero o falso.',
+            'required_if' => 'El campo :attribute es obligatorio cuando :other es :value.',
         ]);
 
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $validated = $validator->validated();
         $cliente = Cliente::create($validated);
 
         return response()->json([
@@ -55,8 +69,9 @@ class ClientesController extends Controller
     {
         $cliente = Cliente::findOrFail($id);
 
-        $validated = $request->validate([
-            'tipo_cliente_id' => 'exists:tipo_clientes,id', // Validate relationship
+        // Validate request
+        $validator = Validator::make($request->all(), [
+            'tipo_cliente_id' => 'exists:tipo_clientes,id',
             'extranjero' => 'boolean',
             'rut' => 'nullable|max:12',
             'razon_social' => 'nullable|string|max:255',
@@ -67,8 +82,19 @@ class ClientesController extends Controller
             'comuna' => 'nullable|string|max:255',
             'region' => 'nullable|string|max:255',
             'ciudad' => 'nullable|string|max:255',
+        ], [
+            'required' => 'El campo :attribute es obligatorio.',
+            'string' => 'El campo :attribute debe ser una cadena de texto.',
+            'max' => 'El campo :attribute no debe ser mayor que :max caracteres.',
+            'exists' => 'El campo :attribute seleccionado no es válido.',
+            'boolean' => 'El campo :attribute debe ser verdadero o falso.',
         ]);
 
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $validated = $validator->validated();
         $cliente->update($validated);
 
         return response()->json([

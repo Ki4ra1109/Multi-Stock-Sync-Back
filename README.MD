@@ -218,19 +218,19 @@ Endpoints dedicated to the creation of new "clients" for the user's business, in
     ```
 - **Update cliente**
     - **URL:** `/clientes/{id}`
-    - **Method:** `PUT`
+    - **Method:** `PATCH`
     - **Parameters:**
-        - `tipo_cliente_id` (int, required)
-        - `extranjero` (boolean, required)
-        - `rut` (string, required)
-        - `razon_social` (string, required)
-        - `giro` (string, required)
-        - `nombres` (string, required)
-        - `apellidos` (string, required)
-        - `direccion` (string, required)
-        - `comuna` (string, required)
-        - `region` (string, required)
-        - `ciudad` (string, required)
+        - `tipo_cliente_id` (int, optional)
+        - `extranjero` (boolean, optional)
+        - `rut` (string, optional)
+        - `razon_social` (string, optional)
+        - `giro` (string, optional)
+        - `nombres` (string, optional)
+        - `apellidos` (string, optional)
+        - `direccion` (string, optional)
+        - `comuna` (string, optional)
+        - `region` (string, optional)
+        - `ciudad` (string, optional)
     - **Request Example:**
     ```json
     {
