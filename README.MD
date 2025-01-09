@@ -429,6 +429,53 @@ Endpoints dedicated to the creation of new "clients" for the user's business, in
     }
     ```
 
+## 3. Marcas endpoints
+
+- **Marcas list**
+    - **URL:** `/marcas`
+    - **Method:** `GET`
+    - **Response Example:**
+    ```json
+    [
+        {
+        "id": 1,
+        "nombre": "Sin Marca",
+        "imagen": "",
+        "created_at": "2025-01-08T13:39:15.000000Z",
+        "updated_at": "2025-01-08T13:39:15.000000Z"
+        },
+        {
+            "id": 2,
+            "nombre": "Marca Fumo",
+            "imagen": "https://example.com/logo-fumo.png",
+            "created_at": "2025-01-08T16:42:00.000000Z",
+            "updated_at": "2025-01-08T16:42:00.000000Z"
+        },
+    ]
+    ```
+
+- **Create marca**
+    - **URL:** `/marcas`
+    - **Method:** `POST`
+    - **Parameters:**
+        - `nombre` (string, required)
+        - `imagen` (string, optional)
+    - **Request Example:**
+    ```json
+    {
+        "message": "Marca creada correctamente",
+        "marca": {
+            "nombre": "Marca Fumo",
+            "imagen": "https://example.com/logo-fumo.png",
+            "updated_at": "2025-01-09T18:11:35.000000Z",
+            "created_at": "2025-01-09T18:11:35.000000Z",
+            "id": 20
+        }
+    }
+    ```
+
+
+
 
 ## Conclusion
 This documentation provides a starting point for understanding and using the API endpoints available in the Laravel backend. For more detailed information, please refer to the specific endpoint documentation or contact the development team.
