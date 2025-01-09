@@ -23,13 +23,14 @@ Route::post('/users', [UserController::class, 'store']); // Create user
 Route::get('/productos', [ProductosController::class, 'index']); // Get all products
 Route::post('/productos', [ProductosController::class, 'store']); // Create a product
 Route::get('/productos/{id}', [ProductosController::class, 'show']); // Get a product
+Route::patch('/productos/{id}', [ProductosController::class, 'patch']); // Patch a product
 Route::delete('/productos/{id}', [ProductosController::class, 'destroy']); // Delete a product
 
 // CRUD routes for Clientes
 Route::get('/clientes', [ClientesController::class, 'index']); // Get all clients
 Route::post('/clientes', [ClientesController::class, 'store']); // Create a client
 Route::get('/clientes/{id}', [ClientesController::class, 'show']); // Get a client
-Route::put('/clientes/{id}', [ClientesController::class, 'update']); // Update a client
+Route::patch('/clientes/{id}', [ClientesController::class, 'update']); // Update a client
 Route::delete('/clientes/{id}', [ClientesController::class, 'destroy']); // Delete a client
 
 // CRUD routes for TipoProductos
@@ -44,6 +45,7 @@ Route::get('/marcas', [MarcasController::class, 'index']); // Get all marcas
 Route::post('/marcas', [MarcasController::class, 'store']); // Create a marca
 Route::get('/marcas/{id}', [MarcasController::class, 'show']); // Get a marca
 Route::put('/marcas/{id}', [MarcasController::class, 'update']); // Update a marca
+Route::patch('/marcas/{id}', [MarcasController::class, 'patch']); // Patch a marca
 Route::delete('/marcas/{id}', [MarcasController::class, 'destroy']); // Delete a marca
 
 // CRUD routes for PackProductos

@@ -108,6 +108,49 @@ class ProductosController extends Controller
         ]);
     }
 
+    // Patch producto
+    public function patch(Request $request, $id)
+    {
+        $producto = Producto::findOrFail($id);
+
+        // Validate request
+        $validator = Validator::make($request->all(), [
+            'nombre' => 'string|max:255',
+            'sku' => 'string|unique:productos,sku|max:255', // SKU no obligatorio
+            'tipo' => 'exists:tipo_productos,id',
+            'marca' => 'exists:marcas,id',
+            'control_stock' => 'boolean',
+            'permitir_venta_no_stock' => 'boolean',
+            'control_series' => 'boolean',
+            'permitir_venta_decimales' => 'boolean',
+        ], [
+            'required' => 'El campo :attribute es obligatorio.',
+            'string' => 'El campo :attribute debe ser una cadena de texto.',
+            'max' => 'El campo :attribute no debe ser mayor que :max caracteres.',
+            'unique' => 'El campo :attribute debe ser único.',
+            'exists' => 'El campo :attribute seleccionado no es válido.',
+            'boolean' => 'El campo :attribute debe ser verdadero o falso.',
+            'numeric' => 'El campo :attribute debe ser un número.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        // Generar SKU automáticamente si no se proporciona
+        $validated = $validator->validated();
+        if (empty($validated['sku']) && isset($validated['nombre'])) {
+            $validated['sku'] = $this->generateSku($validated['nombre']);
+        }
+
+        $producto->update($validated);
+
+        return response()->json([
+            'message' => 'Producto actualizado correctamente',
+            'producto' => $producto
+        ]);
+    }
+
     // Delete producto
     public function destroy($id)
     {
