@@ -370,5 +370,65 @@ Endpoints dedicated to the creation of new "clients" for the user's business, in
     }
     ```
 
+- **Update producto**
+    - **URL:** `/productos/{id}`
+    - **Method:** `PATCH`
+    - **Parameters:**
+        - `nombre` (string, optional)
+        - `extranjero` (boolean, optional)
+        - `tipo` (int, optional)
+        - `marca` (int, optional)
+        - `sku` (string, optional) // If you don't send it, the system generates one.
+        - `control_stock` (boolean, optional)
+        - `precio` (int, optional)
+        - `permitir_venta_no_stock` (boolean, optional)
+        - `control_series` (boolean, optional)
+        - `permitir_venta_decimales` (boolean, optional)
+    - **Request Example:**
+    ```json
+    {
+        "nombre": "Ventilador Amarillo",
+        "tipo": 1, // "no especificado"
+        "marca": 1, // "sin marca"
+        "control_stock": true,
+        "precio":25990,
+        "permitir_venta_no_stock": false,
+        "control_series": false,
+        "permitir_venta_decimales": false
+    }
+
+    ```
+    - **Response Example:**
+    ```json
+    {
+        "message": "Producto actualizado correctamente",
+        "producto": {
+            "id": 22,
+            "nombre": "Ventilador Amarillo",
+            "sku": "VEN-9931",
+            "tipo": 1,
+            "marca": 1,
+            "control_stock": true,
+            "precio": "25990.00",
+            "permitir_venta_no_stock": false,
+            "nombre_variante": null,
+            "control_series": false,
+            "permitir_venta_decimales": false,
+            "created_at": "2025-01-09T16:55:03.000000Z",
+            "updated_at": "2025-01-09T18:03:37.000000Z"
+        }
+    }
+    ```
+- **Delete producto**
+    - **URL:** `/productos/{id}`
+    - **Method:** `DELETE`
+    - **Response Example:**
+    ```json
+    {
+    "message": "Producto eliminado correctamente"
+    }
+    ```
+
+
 ## Conclusion
 This documentation provides a starting point for understanding and using the API endpoints available in the Laravel backend. For more detailed information, please refer to the specific endpoint documentation or contact the development team.
