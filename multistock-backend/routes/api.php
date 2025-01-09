@@ -45,6 +45,7 @@ Route::get('/marcas', [MarcasController::class, 'index']); // Get all marcas
 Route::post('/marcas', [MarcasController::class, 'store']); // Create a marca
 Route::get('/marcas/{id}', [MarcasController::class, 'show']); // Get a marca
 Route::put('/marcas/{id}', [MarcasController::class, 'update']); // Update a marca
+Route::patch('/marcas/{id}', [MarcasController::class, 'patch']); // Patch a marca
 Route::delete('/marcas/{id}', [MarcasController::class, 'destroy']); // Delete a marca
 
 // CRUD routes for PackProductos

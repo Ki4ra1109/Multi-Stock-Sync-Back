@@ -463,6 +463,13 @@ Endpoints dedicated to the creation of new "clients" for the user's business, in
     - **Request Example:**
     ```json
     {
+        "nombre": "Marca Fumo",
+        "imagen": "https://example.com/logo-fumo.png",
+    }
+    ```
+    - **Response Example:**
+    ```json
+    {
         "message": "Marca creada correctamente",
         "marca": {
             "nombre": "Marca Fumo",
@@ -474,8 +481,42 @@ Endpoints dedicated to the creation of new "clients" for the user's business, in
     }
     ```
 
+- **Update marca**
+    - **URL:** `/marcas/{id}`
+    - **Method:** `PATCH`
+    - **Parameters:**
+        - `nombre` (string, optional)
+        - `imagen` (string, optional)
+    - **Request Example:**
+    ```json
+    {
+        "nombre": "Marca Fumo 2",
+        "imagen": "https://example.com/logo-fumo.png",
+    }
+    ```
+    - **Response Example:**
+    ```json
+    {
+        "message": "Marca actualizada parcialmente correctamente",
+        "marca": {
+            "id": 2,
+            "nombre": "Marca Fumo 2",
+            "imagen": "https://example.com/logo-fumo.png",
+            "created_at": "2025-01-08T16:42:00.000000Z",
+            "updated_at": "2025-01-09T18:16:39.000000Z"
+        }
+    }
+    ```
 
-
+- **Delete marca**
+    - **URL:** `/marcas/{id}`
+    - **Method:** `DELETE`
+    - **Response Example:**
+    ```json
+    {
+        "message": "Marca eliminada correctamente"
+    }
+    ```
 
 ## Conclusion
 This documentation provides a starting point for understanding and using the API endpoints available in the Laravel backend. For more detailed information, please refer to the specific endpoint documentation or contact the development team.

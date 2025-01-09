@@ -86,6 +86,38 @@ class MarcasController extends Controller
         ]);
     }
 
+    // Patch marca
+    public function patch(Request $request, $id)
+    {
+        $marca = Marca::findOrFail($id);
+
+        // Validate request
+        $validator = Validator::make($request->all(), [
+            'nombre' => 'sometimes|string|max:255',
+            'imagen' => 'nullable|string',
+        ], [
+            'string' => 'El campo :attribute debe ser una cadena de texto.',
+            'max' => 'El campo :attribute no debe ser mayor que :max caracteres.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $validated = $validator->validated();
+
+        if (array_key_exists('imagen', $validated) && empty($validated['imagen'])) {
+            $validated['imagen'] = 'https://example.com/default-image.png';
+        }
+
+        $marca->update($validated);
+
+        return response()->json([
+            'message' => 'Marca actualizada parcialmente correctamente',
+            'marca' => $marca
+        ]);
+    }
+
     // Delete marca
     public function destroy($id)
     {
