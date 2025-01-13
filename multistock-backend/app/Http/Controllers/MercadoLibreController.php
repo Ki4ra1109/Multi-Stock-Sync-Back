@@ -134,10 +134,11 @@ class MercadoLibreController extends Controller
             ]
         );
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Tokens almacenados con éxito.',
-        ]);
+        // Close window
+        echo "<script>
+                window.close();
+            </script>";
+        exit;
     }
 
     /**
