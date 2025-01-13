@@ -34,9 +34,16 @@ class MercadoLibreProductController extends Controller
             ], 500);
         }
 
-        // API request to get products
+        // Get query parameters
+        $limit = request()->query('limit', 50); // Default limit to 50
+        $offset = request()->query('offset', 0); // Default offset to 0
+
+        // API request to get products with limit and offset
         $response = Http::withToken($token->access_token)
-            ->get("https://api.mercadolibre.com/users/{$userId}/items/search");
+            ->get("https://api.mercadolibre.com/users/{$userId}/items/search", [
+                'limit' => $limit,
+                'offset' => $offset,
+            ]);
 
         // Validate response
         if ($response->failed()) {
