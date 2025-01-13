@@ -79,5 +79,8 @@ Route::post('/mercadolibre/login', [MercadoLibreController::class, 'login']);
 Route::get('/mercadolibre/callback', [MercadoLibreController::class, 'handleCallback']);
 // Check MercadoLibre connection status
 Route::get('/mercadolibre/test-connection', [MercadoLibreController::class, 'testConnection']);
+// Get MercadoLibre credentials if are saved in db
+Route::get('/mercadolibre/credentials/status', [MercadoLibreController::class, 'getCredentialsStatus']);
 // Logout (Delete credentials and token)
 Route::post('/mercadolibre/logout', [MercadoLibreController::class, 'logout']);
+

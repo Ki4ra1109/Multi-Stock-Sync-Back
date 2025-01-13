@@ -173,6 +173,33 @@ class MercadoLibreController extends Controller
         ]);
     }
 
+
+    /**
+     * Get saved credentials if exists
+     */
+    public function getCredentialsStatus()
+    {
+        $credentials = MercadoLibreCredential::find(1);
+        $token = MercadoLibreToken::find(1);
+
+        if (!$credentials || !$token) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No hay credenciales guardadas.',
+            ], 404);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Credenciales encontradas.',
+            'data' => [
+                'client_id' => $credentials->client_id,
+                'expires_at' => $token->expires_at,
+            ],
+        ]);
+    }
+
+
     /**
      * Logout and delete all credentials and tokens
      */
