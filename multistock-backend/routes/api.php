@@ -84,3 +84,7 @@ Route::get('/mercadolibre/credentials/status', [MercadoLibreController::class, '
 // Logout (Delete credentials and token)
 Route::post('/mercadolibre/logout', [MercadoLibreController::class, 'logout']);
 
+
+use App\Http\Controllers\MercadoLibreProductController;
+// Get MercadoLibre products list
+Route::get('/mercadolibre/products', [MercadoLibreProductController::class, 'listProducts']);
