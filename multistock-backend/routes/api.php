@@ -67,3 +67,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users', [UserController::class, 'index']); // Get full users list
     Route::post('/logout', [AuthController::class, 'logout']); // Logout user
 });
+
+
+use App\Http\Controllers\MercadoLibreController;
+
+// MercadoLibre Login endpoint
+Route::get('/mercadolibre/login', [MercadoLibreController::class, 'redirectToMercadoLibre']);
+
+// MercadoLibre Callback endpoint
+Route::get('/mercadolibre/callback', [MercadoLibreController::class, 'handleCallback']);
