@@ -34,14 +34,14 @@ class WarehouseCompaniesController extends Controller
             $validated = $request->validate([
                 'name' => 'required|string|max:100',
                 'location' => 'nullable|string|max:255',
-                'assigned_company_id' => 'required|exists:companies,id',
+                'assigned_company_id' => 'required_if:is_warehouse,true|exists:companies,id',
             ], [
                 'name.required' => 'El nombre es requerido.',
                 'name.string' => 'El nombre debe ser una cadena de texto.',
                 'name.max' => 'El nombre no puede tener más de 100 caracteres.',
                 'location.string' => 'La ubicación debe ser una cadena de texto.',
                 'location.max' => 'La ubicación no puede tener más de 255 caracteres.',
-                'assigned_company_id.required' => 'La empresa asignada es requerida.',
+                'assigned_company_id.required_if' => 'La empresa asignada es requerida para bodegas.',
                 'assigned_company_id.exists' => 'La empresa asignada debe existir.',
             ]);
 
