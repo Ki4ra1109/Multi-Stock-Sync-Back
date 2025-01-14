@@ -12,6 +12,11 @@ class Warehouse extends Model
     // Allow mass assignment for these fields
     protected $fillable = ['name', 'location', 'assigned_company_id'];
 
+    // Set default values for attributes
+    protected $attributes = [
+        'location' => 'no especificado',
+    ];
+
     /**
      * Define a many-to-one relationship with Company.
      */

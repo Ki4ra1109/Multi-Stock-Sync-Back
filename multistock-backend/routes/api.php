@@ -10,6 +10,8 @@ use App\Http\Controllers\ClientesController;
 use App\Http\Controllers\BrandsController;
 use App\Http\Controllers\StockController;
 
+use App\Http\Controllers\WarehouseCompaniesController;
+
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
@@ -34,6 +36,19 @@ Route::patch('/marcas/{id}', [BrandsController::class, 'patch']); // Patch a bra
 Route::delete('/marcas/{id}', [BrandsController::class, 'destroy']); // Delete a brand
 
 
+// CRUD routes for companies
+Route::get('/companies', [WarehouseCompaniesController::class, 'index']); // Get all companies
+Route::post('/companies', [WarehouseCompaniesController::class, 'store']); // Create a company
+Route::get('/companies/{id}', [WarehouseCompaniesController::class, 'show']); // Get a company
+Route::patch('/companies/{id}', [WarehouseCompaniesController::class, 'update']); // Update a company
+Route::delete('/companies/{id}', [WarehouseCompaniesController::class, 'destroy']); // Delete a company
+
+// CRUD routes for warehouses
+Route::get('/warehouses', [WarehouseCompaniesController::class, 'index']); // Get all warehouses
+Route::post('/warehouses', [WarehouseCompaniesController::class, 'store']); // Create a warehouse
+Route::get('/warehouses/{id}', [WarehouseCompaniesController::class, 'show']); // Get a warehouse
+Route::patch('/warehouses/{id}', [WarehouseCompaniesController::class, 'update']); // Update a warehouse
+Route::delete('/warehouses/{id}', [WarehouseCompaniesController::class, 'destroy']); // Delete a warehouse
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
