@@ -14,7 +14,6 @@ class DatabaseSeeder extends Seeder
         // Register seeders
         $this->call([
             MarcasSeeder::class,
-            TipoProductosSeeder::class,
         ]);
     }
 }
