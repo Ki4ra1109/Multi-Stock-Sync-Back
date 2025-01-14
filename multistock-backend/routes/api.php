@@ -67,3 +67,24 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users', [UserController::class, 'index']); // Get full users list
     Route::post('/logout', [AuthController::class, 'logout']); // Logout user
 });
+
+
+use App\Http\Controllers\MercadoLibreController;
+
+// Save MercadoLibre credentials
+Route::post('/mercadolibre/save-credentials', [MercadoLibreController::class, 'saveCredentials']);
+// Generate MerccadoLibre login Auth 2.0 URL
+Route::post('/mercadolibre/login', [MercadoLibreController::class, 'login']);
+// Handle MercadoLibre callback
+Route::get('/mercadolibre/callback', [MercadoLibreController::class, 'handleCallback']);
+// Check MercadoLibre connection status
+Route::get('/mercadolibre/test-connection', [MercadoLibreController::class, 'testConnection']);
+// Get MercadoLibre credentials if are saved in db
+Route::get('/mercadolibre/credentials/status', [MercadoLibreController::class, 'getCredentialsStatus']);
+// Logout (Delete credentials and token)
+Route::post('/mercadolibre/logout', [MercadoLibreController::class, 'logout']);
+
+
+use App\Http\Controllers\MercadoLibreProductController;
+// Get MercadoLibre products list
+Route::get('/mercadolibre/products', [MercadoLibreProductController::class, 'listProducts']);
