@@ -49,6 +49,16 @@ class WarehouseCompaniesController extends Controller
                 $company = Company::create(['name' => $validated['name']]);
                 return response()->json(['message' => 'Empresa creada con éxito.', 'data' => $company], 201);
             } elseif ($request->is('api/warehouses')) {
+                if (!isset($validated['assigned_company_id'])) {
+                    $errors = ['assigned_company_id' => ['La empresa asignada es requerida para bodegas.']];
+                    if (!isset($validated['name'])) {
+                        $errors['name'] = ['El nombre es requerido.'];
+                    }
+                    return response()->json([
+                        'message' => 'Datos de validación incorrectos.',
+                        'errors' => $errors
+                    ], 422);
+                }
                 $warehouse = Warehouse::create([
                     'name' => $validated['name'],
                     'location' => $validated['location'] ?? 'no especificado',
