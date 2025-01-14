@@ -1,4 +1,4 @@
-# Bodegas Documentation
+# Bodegas (Warehouses) Documentation
 
 These endpoints are used for the creation, modification, and deletion of bodegas (warehouses) in the Multi-Stock-Sync API.
 
@@ -66,11 +66,11 @@ Optional field `location` : A string to specify where the warehouse is located.
 }
 ```
 
-### 2. **List warehouses (by assigned company)**
+### 2. **List warehouses **
 
 **GET** `/api/warehouses`
 
-Con este método se listan todas las compañías de todas las empresas, para traer el total de los datos guardados.
+With this method, all warehouses from all companies are listed to retrieve the total stored data.
 
 #### Response
 
@@ -113,28 +113,76 @@ Con este método se listan todas las compañías de todas las empresas, para tra
 ]
 ```
 
-### 3. **List warehouses (by assigned company)**
+### 3. **List warehouses (by id)**
 
-**GET** `/api/warehouses/{company_id}`
-This method will list all warehouses based on a common assigned company, e.g., the company "Heladtos flash" has 5 warehouses, list all the warehouses of the company.
+**GET** `/api/warehouses/{id}`
+This method retrieves details of a specific warehouse using its id specified in the endpoint.
 
 #### Response
 ```json
 {
-    "id": 2,
-    "name": "Heladitos flash",
-    "created_at": "2025-01-14T14:52:14.000000Z",
-    "updated_at": "2025-01-14T14:52:14.000000Z",
-    "warehouses": [
-        {
-            "id": 6,
-            "name": "Yuyuko Warehouse",
-            "location": "no especificado",
-            "assigned_company_id": 2,
-            "created_at": "2025-01-14T14:52:31.000000Z",
-            "updated_at": "2025-01-14T14:52:31.000000Z"
-        },
-        // more warehouses...
-    ]
+    "message": "Bodega encontrada con éxito.",
+    "data": {
+        "id": 2,
+        "name": "Yuyuko Warehouse",
+        "location": "no especificado",
+        "assigned_company_id": 1,
+        "created_at": "2025-01-14T14:40:49.000000Z",
+        "updated_at": "2025-01-14T14:40:49.000000Z",
+        "company": {
+            "id": 1,
+            "name": "Marcos Reyes Testeo",
+            "created_at": "2025-01-14T14:30:48.000000Z",
+            "updated_at": "2025-01-14T18:17:17.000000Z"
+        }
+    }
 }
 ```
+
+### 4. **Update warehouse name**
+
+**PATCH** `/api/warehouses/{id}`
+This method retrieves to change the name of a warehouse, e.g. Yuyuko Warehouse => Cirno Warehouse.
+
+#### Request Body
+```json
+{
+    "name":"Marcos Reyes Testeo"
+}
+```
+
+#### Response
+```json
+{
+    "message": "Nombre de la empresa actualizado con éxito.",
+    "data": {
+        "id": 2,
+        "name": "Marcos Reyes Testeo",
+        "created_at": "2025-01-14T14:52:14.000000Z",
+        "updated_at": "2025-01-14T18:34:07.000000Z"
+    }
+}
+```
+
+#### Response (Error: one or more fields missing)
+```json
+{
+    "message": "Datos de validación incorrectos.",
+    "errors": {
+        "name": [
+            "The name field is required."
+        ]
+    }
+}
+```
+
+### 4. **Delete a warehouse**
+
+**DELETE** `/api/warehouses/{id}`
+This method deletes a warehouse, what more can we say.
+
+#### Response
+```json
+{
+    "message": "Empresa eliminada con éxito."
+}
