@@ -176,7 +176,7 @@ This method retrieves to change the name of a warehouse, e.g. Yuyuko Warehouse =
 }
 ```
 
-### 4. **Delete a warehouse**
+### 5. **Delete a warehouse**
 
 **DELETE** `/api/warehouses/{id}`
 This method deletes a warehouse, what more can we say.
