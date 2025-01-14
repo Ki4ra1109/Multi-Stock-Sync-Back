@@ -35,20 +35,19 @@ Route::put('/marcas/{id}', [BrandsController::class, 'update']); // Update a bra
 Route::patch('/marcas/{id}', [BrandsController::class, 'patch']); // Patch a brand
 Route::delete('/marcas/{id}', [BrandsController::class, 'destroy']); // Delete a brand
 
+// Company-specific routes
+Route::get('/companies', [WarehouseCompaniesController::class, 'company_list_all']); // List all companies
+Route::post('/companies', [WarehouseCompaniesController::class, 'company_or_warehouse_store']); // Create a company
+Route::patch('/companies/{id}', [WarehouseCompaniesController::class, 'company_update_name']); // Update a company's name
+Route::get('/companies/{id}', [WarehouseCompaniesController::class, 'company_list_by_id']); // List a company by its ID
+Route::delete('/companies/{id}', [WarehouseCompaniesController::class, 'company_or_warehouse_delete']); // Delete a company
 
-// CRUD routes for companies
-Route::get('/companies', [WarehouseCompaniesController::class, 'index']); // Get all companies
-Route::post('/companies', [WarehouseCompaniesController::class, 'store']); // Create a company
-Route::get('/companies/{id}', [WarehouseCompaniesController::class, 'show']); // Get a company
-Route::patch('/companies/{id}', [WarehouseCompaniesController::class, 'update']); // Update a company
-Route::delete('/companies/{id}', [WarehouseCompaniesController::class, 'destroy']); // Delete a company
-
-// CRUD routes for warehouses
-Route::get('/warehouses', [WarehouseCompaniesController::class, 'index']); // Get all warehouses
-Route::post('/warehouses', [WarehouseCompaniesController::class, 'store']); // Create a warehouse
-Route::get('/warehouses/{id}', [WarehouseCompaniesController::class, 'show']); // Get a warehouse
-Route::patch('/warehouses/{id}', [WarehouseCompaniesController::class, 'update']); // Update a warehouse
-Route::delete('/warehouses/{id}', [WarehouseCompaniesController::class, 'destroy']); // Delete a warehouse
+// Warehouse-specific routes
+Route::get('/warehouses', [WarehouseCompaniesController::class, 'company_list_all']); // List all warehouses
+Route::post('/warehouses', [WarehouseCompaniesController::class, 'company_or_warehouse_store']); // Create a warehouse
+Route::patch('/warehouses/{id}', [WarehouseCompaniesController::class, 'company_update_name']); // Update a warehouse name
+Route::get('/warehouses/{id}', [WarehouseCompaniesController::class, 'warehouse_list_by_id']); // List a company by its ID
+Route::delete('/warehouses/{id}', [WarehouseCompaniesController::class, 'company_or_warehouse_delete']); // Delete a warehouse
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
