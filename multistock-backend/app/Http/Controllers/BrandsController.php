@@ -2,16 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Marca;
+use App\Models\Brand;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
-class MarcasController extends Controller
+class BrandsController extends Controller
 {
-    // Get all marcas
+    // Get all brands
     public function index()
     {
-        return Marca::all();
+        return Brand::all();
     }
 
     // Create marca
@@ -19,8 +19,8 @@ class MarcasController extends Controller
     {
         // Validate request
         $validator = Validator::make($request->all(), [
-            'nombre' => 'required|string|max:255',
-            'imagen' => 'nullable|string',
+            'name' => 'required|string|max:255',
+            'image' => 'nullable|string',
         ], [
             'required' => 'El campo :attribute es obligatorio.',
             'string' => 'El campo :attribute debe ser una cadena de texto.',
@@ -37,7 +37,7 @@ class MarcasController extends Controller
             $validated['imagen'] = 'https://example.com/default-image.png'; // Change this URL later
         }
 
-        $marca = Marca::create($validated);
+        $marca = Brand::create($validated);
 
         return response()->json([
             'message' => 'Marca creada correctamente',
@@ -48,15 +48,15 @@ class MarcasController extends Controller
     // Show marca by id
     public function show($id)
     {
-        $marca = Marca::findOrFail($id);
+        $brand = Brand::findOrFail($id);
 
-        return response()->json($marca);
+        return response()->json($brand);
     }
 
     // Update marca
     public function update(Request $request, $id)
     {
-        $marca = Marca::findOrFail($id);
+        $brand = Brand::findOrFail($id);
 
         // Validate request
         $validator = Validator::make($request->all(), [
@@ -78,18 +78,18 @@ class MarcasController extends Controller
             $validated['imagen'] = 'https://example.com/default-image.png';
         }
 
-        $marca->update($validated);
+        $brand->update($validated);
 
         return response()->json([
             'message' => 'Marca actualizada correctamente',
-            'marca' => $marca
+            'brand' => $brand
         ]);
     }
 
     // Patch marca
     public function patch(Request $request, $id)
     {
-        $marca = Marca::findOrFail($id);
+        $brand = Brand::findOrFail($id);
 
         // Validate request
         $validator = Validator::make($request->all(), [
@@ -110,19 +110,19 @@ class MarcasController extends Controller
             $validated['imagen'] = 'https://example.com/default-image.png';
         }
 
-        $marca->update($validated);
+        $brand->update($validated);
 
         return response()->json([
             'message' => 'Marca actualizada parcialmente correctamente',
-            'marca' => $marca
+            'brand' => $brand
         ]);
     }
 
     // Delete marca
     public function destroy($id)
     {
-        $marca = Marca::findOrFail($id);
-        $marca->delete();
+        $brand = Brand::findOrFail($id);
+        $brand->delete();
 
         return response()->json(['message' => 'Marca eliminada correctamente'], 200);
     }

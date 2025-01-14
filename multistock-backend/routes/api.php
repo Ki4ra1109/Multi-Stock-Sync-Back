@@ -7,7 +7,7 @@ use App\Http\Controllers\AuthController;
 
 use App\Http\Controllers\ClientesController;
 
-use App\Http\Controllers\MarcasController;
+use App\Http\Controllers\BrandsController;
 use App\Http\Controllers\StockController;
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
@@ -26,12 +26,12 @@ Route::patch('/clientes/{id}', [ClientesController::class, 'update']); // Update
 Route::delete('/clientes/{id}', [ClientesController::class, 'destroy']); // Delete a client
 
 // CRUD routes for Marcas
-Route::get('/marcas', [MarcasController::class, 'index']); // Get all marcas
-Route::post('/marcas', [MarcasController::class, 'store']); // Create a marca
-Route::get('/marcas/{id}', [MarcasController::class, 'show']); // Get a marca
-Route::put('/marcas/{id}', [MarcasController::class, 'update']); // Update a marca
-Route::patch('/marcas/{id}', [MarcasController::class, 'patch']); // Patch a marca
-Route::delete('/marcas/{id}', [MarcasController::class, 'destroy']); // Delete a marca
+Route::get('/marcas', [BrandsController::class, 'index']); // Get all brands
+Route::post('/marcas', [BrandsController::class, 'store']); // Create a brand
+Route::get('/marcas/{id}', [BrandsController::class, 'show']); // Get a brand
+Route::put('/marcas/{id}', [BrandsController::class, 'update']); // Update a brand
+Route::patch('/marcas/{id}', [BrandsController::class, 'patch']); // Patch a brand
+Route::delete('/marcas/{id}', [BrandsController::class, 'destroy']); // Delete a brand
 
 
 
