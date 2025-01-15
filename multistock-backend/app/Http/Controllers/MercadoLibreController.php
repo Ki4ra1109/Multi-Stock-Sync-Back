@@ -3,14 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\MercadoLibreCredential;
-use App\Models\MercadoLibreToken;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
 
 class MercadoLibreController extends Controller
 {
     /**
-     * Generate auth URL (MercadoLibre)
+     * Generate auth URL for MercadoLibre OAuth 2.0.
      */
     public function login(Request $request)
     {
@@ -19,35 +19,29 @@ class MercadoLibreController extends Controller
             'client_secret' => 'required|string',
         ]);
 
-        // Validate credentials with Mercado Libre API
-        $response = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
-            'grant_type' => 'client_credentials',
-            'client_id' => $request->input('client_id'),
-            'client_secret' => $request->input('client_secret'),
-        ]);
-
-        if ($response->failed()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'ID de Cliente o Secreto de Cliente inválido. Por favor, verifique sus credenciales.',
-                'error' => $response->json(),
-            ], 400);
-        }
-
-        // Save credentials in database
-        MercadoLibreCredential::updateOrCreate(
-            ['id' => 1],
+        // Save or update credentials and token in the database
+        $credentials = MercadoLibreCredential::updateOrCreate(
             [
                 'client_id' => $request->input('client_id'),
+            ],
+            [
                 'client_secret' => $request->input('client_secret'),
+                'access_token' => null,
+                'refresh_token' => null,
+                'expires_at' => null,
             ]
         );
+
+        // Generate a unique state
+        $state = bin2hex(random_bytes(16));
+        Cache::put("mercadolibre_state_{$state}", $credentials->id, now()->addMinutes(10));
 
         // Generate Auth URL
         $redirectUri = env('MERCADO_LIBRE_REDIRECT_URI');
         $authUrl = "https://auth.mercadolibre.cl/authorization?response_type=code"
-                 . "&client_id={$request->input('client_id')}"
-                 . "&redirect_uri={$redirectUri}";
+                 . "&client_id={$credentials->client_id}"
+                 . "&redirect_uri={$redirectUri}"
+                 . "&state={$state}";
 
         return response()->json([
             'status' => 'success',
@@ -57,55 +51,38 @@ class MercadoLibreController extends Controller
     }
 
     /**
-     * Function to save credentials in database
-     */
-
-    public function saveCredentials(Request $request)
-    {
-        $request->validate([
-            'client_id' => 'required|string',
-            'client_secret' => 'required|string',
-        ]);
-
-        // Save credentials in database
-        MercadoLibreCredential::updateOrCreate(
-            ['id' => 1],
-            [
-                'client_id' => $request->input('client_id'),
-                'client_secret' => $request->input('client_secret'),
-            ]
-        );
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Credenciales del cliente guardadas con éxito.',
-        ]);
-    }
-
-    /**
-     * Handle callback from Mercado Libre
+     * Handle callback from MercadoLibre.
      */
     public function handleCallback(Request $request)
     {
         $code = $request->query('code');
+        $state = $request->query('state');
 
-        if (!$code) {
+        if (!$code || !$state) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Código de autorización no encontrado.',
+                'message' => 'Faltan parámetros necesarios en la respuesta del callback.',
             ], 400);
         }
 
-        $credentials = MercadoLibreCredential::find(1);
+        // Retrieve credentials ID from cache using the state
+        $credentialId = Cache::pull("mercadolibre_state_{$state}");
+        if (!$credentialId) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'El state es inválido o expiró.',
+            ], 400);
+        }
 
+        $credentials = MercadoLibreCredential::find($credentialId);
         if (!$credentials) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Credenciales de cliente no encontradas. Por favor, inicie sesión nuevamente.',
+                'message' => 'Credenciales no encontradas.',
             ], 500);
         }
 
-        // Change code for token
+        // Exchange authorization code for tokens
         $response = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
             'grant_type' => 'authorization_code',
             'client_id' => $credentials->client_id,
@@ -124,39 +101,41 @@ class MercadoLibreController extends Controller
 
         $data = $response->json();
 
-        // Save tokens in database
-        MercadoLibreToken::updateOrCreate(
-            ['id' => 1],
-            [
-                'access_token' => $data['access_token'],
-                'refresh_token' => $data['refresh_token'],
-                'expires_at' => now()->addSeconds($data['expires_in']),
-            ]
-        );
+        // Save tokens in the database
+        $credentials->update([
+            'access_token' => $data['access_token'],
+            'refresh_token' => $data['refresh_token'],
+            'expires_at' => now()->addSeconds($data['expires_in']),
+        ]);
 
-        // Close window
-        echo "<script>
-                window.close();
-            </script>";
-        exit;
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Token almacenado exitosamente.',
+        ]);
     }
 
     /**
-     * Test connection with Mercado Libre
+     * Test connection with MercadoLibre API.
      */
-    public function testConnection()
+    public function testConnection($credentialId)
     {
-        $token = MercadoLibreToken::find(1);
+        $credentials = MercadoLibreCredential::find($credentialId);
 
-        if (!$token) {
+        if (!$credentials || !$credentials->access_token) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'No se encontró token. Por favor, inicie sesión primero.',
+                'message' => 'No se encontró un token para estas credenciales. Por favor, inicie sesión primero.',
             ], 404);
         }
 
-        // Validate token 
-        $response = Http::withToken($token->access_token)
+        if ($credentials->isTokenExpired()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'El token ha expirado. Por favor, renueve la conexión.',
+            ], 401);
+        }
+
+        $response = Http::withToken($credentials->access_token)
             ->get('https://api.mercadolibre.com/users/me');
 
         if ($response->failed()) {
@@ -173,16 +152,14 @@ class MercadoLibreController extends Controller
         ]);
     }
 
-
     /**
-     * Get saved credentials if exists
+     * Get saved credentials status.
      */
     public function getCredentialsStatus()
     {
-        $credentials = MercadoLibreCredential::find(1);
-        $token = MercadoLibreToken::find(1);
+        $credentials = MercadoLibreCredential::all();
 
-        if (!$credentials || !$token) {
+        if ($credentials->isEmpty()) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'No hay credenciales guardadas.',
@@ -192,25 +169,29 @@ class MercadoLibreController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Credenciales encontradas.',
-            'data' => [
-                'client_id' => $credentials->client_id,
-                'expires_at' => $token->expires_at,
-            ],
+            'data' => $credentials,
         ]);
     }
 
-
     /**
-     * Logout and delete all credentials and tokens
+     * Logout and delete credentials.
      */
-    public function logout()
+    public function logout($credentialId)
     {
-        MercadoLibreCredential::truncate();
-        MercadoLibreToken::truncate();
+        $credentials = MercadoLibreCredential::find($credentialId);
+
+        if (!$credentials) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Credenciales no encontradas.',
+            ], 404);
+        }
+
+        $credentials->delete();
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Cierre de sesión y eliminación de todas las credenciales con éxito.',
+            'message' => 'Cierre de sesión y eliminación de credenciales con éxito.',
         ]);
     }
 }
