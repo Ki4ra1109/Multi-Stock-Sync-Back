@@ -29,6 +29,9 @@ class MercadoLibreController extends Controller
                 'access_token' => null,
                 'refresh_token' => null,
                 'expires_at' => null,
+                'nickname' => null,
+                'email' => null,
+                'profile_image' => null,
             ]
         );
 
@@ -92,11 +95,7 @@ class MercadoLibreController extends Controller
         ]);
 
         if ($response->failed()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Error al recuperar los tokens.',
-                'error' => $response->json(),
-            ], 500);
+            return response("<script>alert('Error al recuperar los tokens.'); window.close();</script>");
         }
 
         $data = $response->json();
@@ -108,11 +107,24 @@ class MercadoLibreController extends Controller
             'expires_at' => now()->addSeconds($data['expires_in']),
         ]);
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Token almacenado exitosamente.',
-        ]);
+        // Fetch additional user information using the access token
+        $userInfoResponse = Http::withToken($data['access_token'])
+            ->get('https://api.mercadolibre.com/users/me');
+
+        if ($userInfoResponse->ok()) {
+            $userInfo = $userInfoResponse->json();
+
+            $credentials->update([
+                'nickname' => $userInfo['nickname'] ?? null,
+                'email' => $userInfo['email'] ?? null,
+                'profile_image' => $userInfo['thumbnail']['picture_url'] ?? null,
+            ]);
+        }
+
+        // Close the window with a success message
+        return response("<script>alert('Autorización completada correctamente.'); window.close();</script>");
     }
+
 
     /**
      * Test connection with MercadoLibre API.
@@ -149,49 +161,6 @@ class MercadoLibreController extends Controller
             'status' => 'success',
             'message' => 'Conexión exitosa.',
             'data' => $response->json(),
-        ]);
-    }
-
-    /**
-     * Get saved credentials status.
-     */
-    public function getCredentialsStatus()
-    {
-        $credentials = MercadoLibreCredential::all();
-
-        if ($credentials->isEmpty()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'No hay credenciales guardadas.',
-            ], 404);
-        }
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Credenciales encontradas.',
-            'data' => $credentials,
-        ]);
-    }
-
-    /**
-     * Logout and delete credentials.
-     */
-    public function logout($credentialId)
-    {
-        $credentials = MercadoLibreCredential::find($credentialId);
-
-        if (!$credentials) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Credenciales no encontradas.',
-            ], 404);
-        }
-
-        $credentials->delete();
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Cierre de sesión y eliminación de credenciales con éxito.',
         ]);
     }
 }

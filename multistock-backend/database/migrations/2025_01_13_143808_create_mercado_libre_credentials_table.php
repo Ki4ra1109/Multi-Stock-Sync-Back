@@ -14,6 +14,9 @@ return new class extends Migration {
             $table->string('access_token')->nullable();
             $table->string('refresh_token')->nullable();
             $table->timestamp('expires_at')->nullable();
+            $table->string('nickname')->nullable();
+            $table->string('email')->nullable();
+            $table->string('profile_image')->nullable();
             $table->timestamps();
         });
     }
