@@ -163,4 +163,26 @@ class MercadoLibreController extends Controller
             'data' => $response->json(),
         ]);
     }
+
+    /**
+     * Get MercadoLibre credentials data.
+    */
+
+    public function getAllCredentialsData()
+    {
+        $credentials = MercadoLibreCredential::all();
+
+        if ($credentials->isEmpty()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No se encontraron credenciales.',
+            ], 404);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $credentials,
+        ]);
+    }
+
 }
