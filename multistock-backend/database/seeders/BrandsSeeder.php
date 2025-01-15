@@ -6,17 +6,18 @@ use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
-class MarcasSeeder extends Seeder
+class BrandsSeeder extends Seeder
 {
     /**
      * Run the database seeds.
-     */
+    */
+
     public function run(): void
     {
-        DB::table('marcas')->insert([
+        DB::table('brands')->insert([
             [
-             'nombre' => 'Sin Marca',
-             'imagen' => '',
+             'name' => 'Sin Marca',
+             'image' => 'https://picsum.photos/400',
              'created_at' => now(),
              'updated_at' => now()
             ]

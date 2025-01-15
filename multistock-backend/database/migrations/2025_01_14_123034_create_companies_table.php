@@ -9,23 +9,20 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up()
+    public function up(): void
     {
-        Schema::create('pack_productos', function (Blueprint $table) {
+        Schema::create('companies', function (Blueprint $table) {
             $table->id();
-            $table->string('sku_pack')->unique()->nullable(); // Permitir valores nulos inicialmente
-            $table->string('nombre');
+            $table->string('name', 100);
             $table->timestamps();
         });
-        
     }
-    
 
     /**
      * Reverse the migrations.
      */
     public function down(): void
     {
-        Schema::dropIfExists('pack_productos');
+        Schema::dropIfExists('companies');
     }
 };
