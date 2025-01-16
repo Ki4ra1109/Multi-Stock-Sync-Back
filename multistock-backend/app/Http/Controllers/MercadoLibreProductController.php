@@ -65,13 +65,34 @@ class MercadoLibreProductController extends Controller
             ], $response->status());
         }
 
-        // Return products data
-        $data = $response->json();
+        // Get product IDs
+        $productIds = $response->json()['results'];
 
+        // Fetch detailed product data
+        $products = [];
+        foreach ($productIds as $productId) {
+            $productResponse = Http::withToken($credentials->access_token)
+                ->get("https://api.mercadolibre.com/items/{$productId}");
+
+            if ($productResponse->successful()) {
+                $productData = $productResponse->json();
+                $products[] = [
+                    'id' => $productData['id'],
+                    'title' => $productData['title'],
+                    'price' => $productData['price'],
+                    'currency_id' => $productData['currency_id'],
+                    'available_quantity' => $productData['available_quantity'],
+                    'sold_quantity' => $productData['sold_quantity'],
+                    'thumbnail' => $productData['thumbnail'],
+                ];
+            }
+        }
+
+        // Return products data
         return response()->json([
             'status' => 'success',
             'message' => 'Productos obtenidos con éxito.',
-            'data' => $data,
+            'data' => $products,
         ]);
     }
 
