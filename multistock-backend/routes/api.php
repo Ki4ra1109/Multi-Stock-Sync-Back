@@ -73,5 +73,6 @@ Route::get('/mercadolibre/credentials', [MercadoLibreController::class, 'getAllC
 Route::delete('/mercadolibre/credentials/{client_id}', [MercadoLibreController::class, 'deleteCredentials']);
 
 use App\Http\Controllers\MercadoLibreProductController;
-// Get MercadoLibre products list
-Route::get('/mercadolibre/products', [MercadoLibreProductController::class, 'listProducts']);
+
+// Get MercadoLibre products list by client_id
+Route::get('/mercadolibre/products/{client_id}', [MercadoLibreProductController::class, 'listProductsByClientId']);
