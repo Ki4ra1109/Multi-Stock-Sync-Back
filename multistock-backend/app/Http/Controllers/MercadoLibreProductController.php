@@ -3,43 +3,54 @@
 namespace App\Http\Controllers;
 
 use App\Models\MercadoLibreCredential;
-use App\Models\MercadoLibreToken;
 use Illuminate\Support\Facades\Http;
 
 class MercadoLibreProductController extends Controller
 {
     /**
-     * Get products from MercadoLibre API.
+     * Get products from MercadoLibre API using client_id.
      */
-    public function listProducts()
+    public function listProductsByClientId($clientId)
     {
-        // Get token in database
-        $token = MercadoLibreToken::find(1);
+        // Get credentials by client_id
+        $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
 
-        // Check if token exists
-        if (!$token) {
+        // Check if credentials exist
+        if (!$credentials) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'No se encontró un token válido. Por favor, inicie sesión primero.',
+                'message' => 'No se encontraron credenciales válidas para el client_id proporcionado.',
             ], 404);
         }
 
-        // Get user id from token
-        $userId = $this->getUserIdFromToken($token->access_token);
+        // Check if token is expired
+        if ($credentials->isTokenExpired()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'El token ha expirado. Por favor, renueve su token.',
+            ], 401);
+        }
 
-        if (!$userId) {
+        // Get user id from token
+        $response = Http::withToken($credentials->access_token)
+            ->get('https://api.mercadolibre.com/users/me');
+
+        if ($response->failed()) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'No se pudo obtener el ID del usuario. Por favor, valide su token.',
+                'error' => $response->json(),
             ], 500);
         }
+
+        $userId = $response->json()['id'];
 
         // Get query parameters
         $limit = request()->query('limit', 50); // Default limit to 50
         $offset = request()->query('offset', 0); // Default offset to 0
 
         // API request to get products with limit and offset
-        $response = Http::withToken($token->access_token)
+        $response = Http::withToken($credentials->access_token)
             ->get("https://api.mercadolibre.com/users/{$userId}/items/search", [
                 'limit' => $limit,
                 'offset' => $offset,
@@ -54,29 +65,35 @@ class MercadoLibreProductController extends Controller
             ], $response->status());
         }
 
-        // Return products data
-        $data = $response->json();
+        // Get product IDs
+        $productIds = $response->json()['results'];
 
+        // Fetch detailed product data
+        $products = [];
+        foreach ($productIds as $productId) {
+            $productResponse = Http::withToken($credentials->access_token)
+                ->get("https://api.mercadolibre.com/items/{$productId}");
+
+            if ($productResponse->successful()) {
+                $productData = $productResponse->json();
+                $products[] = [
+                    'id' => $productData['id'],
+                    'title' => $productData['title'],
+                    'price' => $productData['price'],
+                    'currency_id' => $productData['currency_id'],
+                    'available_quantity' => $productData['available_quantity'],
+                    'sold_quantity' => $productData['sold_quantity'],
+                    'thumbnail' => $productData['thumbnail'],
+                ];
+            }
+        }
+
+        // Return products data
         return response()->json([
             'status' => 'success',
             'message' => 'Productos obtenidos con éxito.',
-            'data' => $data,
+            'data' => $products,
         ]);
     }
 
-    /**
-     * Extract user_id from MercadoLibre access token.
-     */
-    private function getUserIdFromToken(string $accessToken): ?string
-    {
-        // Make request to get user info
-        $response = Http::withToken($accessToken)
-            ->get('https://api.mercadolibre.com/users/me');
-
-        if ($response->ok() && isset($response->json()['id'])) {
-            return (string) $response->json()['id'];
-        }
-
-        return null;
-    }
 }
