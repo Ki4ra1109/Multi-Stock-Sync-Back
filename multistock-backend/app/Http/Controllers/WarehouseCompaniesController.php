@@ -89,6 +89,7 @@ class WarehouseCompaniesController extends Controller
     /**
      * Get a specific company by ID.
      */
+    
     public function company_show($id)
     {
         try {
@@ -102,6 +103,7 @@ class WarehouseCompaniesController extends Controller
     /**
      * Get a specific warehouse by ID.
      */
+
     public function warehouse_show($id)
     {
         try {
@@ -115,22 +117,29 @@ class WarehouseCompaniesController extends Controller
     /**
      * Update a company's name.
      */
+
     public function company_update(Request $request, $id)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:100',
+            'name' => 'nullable|string|max:100',
         ]);
+
+        if (empty($validated)) {
+            return response()->json(['message' => 'Debes enviar al menos un campo para actualizar.', 'fields' => ['name']], 422);
+        }
 
         try {
             $company = Company::findOrFail($id);
-            $company->name = $validated['name'];
-            $company->save();
+            $company->update(array_filter($validated));
 
             return response()->json(['message' => 'Nombre de la empresa actualizado con éxito.', 'data' => $company], 200);
-        } catch (\Exception $e) {
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['message' => 'Empresa no encontrada.', 'error' => $e->getMessage()], 404);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error al actualizar la empresa.', 'error' => $e->getMessage()], 500);
         }
     }
+
 
     /**
      * Update a warehouse's details.
