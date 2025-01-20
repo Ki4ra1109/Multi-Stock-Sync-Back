@@ -19,6 +19,20 @@ class MercadoLibreController extends Controller
             'client_secret' => 'required|string',
         ]);
 
+        // Validate credentials by attempting to get an access token
+        $response = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
+            'grant_type' => 'client_credentials',
+            'client_id' => $request->input('client_id'),
+            'client_secret' => $request->input('client_secret'),
+        ]);
+
+        if ($response->failed()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Credenciales inválidas. Por favor, verifique e intente nuevamente.',
+            ], 400);
+        }
+
         // Save or update credentials and token in the database
         $credentials = MercadoLibreCredential::updateOrCreate(
             [
