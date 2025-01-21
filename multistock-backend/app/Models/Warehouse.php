@@ -20,8 +20,19 @@ class Warehouse extends Model
     /**
      * Define a many-to-one relationship with Company.
      */
+    
     public function company()
     {
         return $this->belongsTo(Company::class, 'assigned_company_id');
     }
+
+    /**
+     * Define a one-to-many relationship with StockWarehouse.
+     */
+
+    public function stockWarehouses()
+    {
+        return $this->hasMany(StockWarehouse::class, 'warehouse_id');
+    }
+
 }
