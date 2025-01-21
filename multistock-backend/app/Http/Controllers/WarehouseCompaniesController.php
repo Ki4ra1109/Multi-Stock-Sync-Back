@@ -207,4 +207,87 @@ class WarehouseCompaniesController extends Controller
 
         return response()->json(['message' => 'Bodega no encontrada.'], 404);
     }
+
+    /**
+     * Get stock by warehouse.
+     */
+    public function getStockByWarehouse($warehouse_id)
+    {
+        try {
+            $warehouse = Warehouse::with('stockWarehouses')->findOrFail($warehouse_id);
+            return response()->json(['message' => 'Stock encontrado con éxito.', 'data' => $warehouse->stockWarehouses], 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Bodega no encontrada.', 'error' => $e->getMessage()], 404);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error al obtener el stock.', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Create stock for a warehouse.
+     */
+    public function stock_store(Request $request)
+    {
+        $validated = $request->validate([
+            'thumbnail' => 'required|string|max:255',
+            'id_mlc' => 'required|string|max:100',
+            'title' => 'required|string|max:255',
+            'price_clp' => 'required|numeric',
+            'warehouse_stock' => 'required|integer',
+            'warehouse_id' => 'required|integer|exists:warehouses,id',
+        ]);
+
+        try {
+            $stock = StockWarehouse::create($validated);
+            return response()->json(['message' => 'Stock creado con éxito.', 'data' => $stock], 201);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error al crear el stock.', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Update stock for a warehouse.
+     */
+    public function stock_update(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'thumbnail' => 'nullable|string|max:255',
+            'id_mlc' => 'nullable|string|max:100',
+            'title' => 'nullable|string|max:255',
+            'price_clp' => 'nullable|numeric',
+            'warehouse_stock' => 'nullable|integer',
+            'warehouse_id' => 'nullable|integer|exists:warehouses,id',
+        ]);
+
+        if (empty($validated)) {
+            return response()->json(['message' => 'Debes enviar al menos un campo para actualizar.', 'fields' => ['thumbnail', 'id_mlc', 'title', 'price_clp', 'warehouse_stock', 'warehouse_id']], 422);
+        }
+
+        try {
+            $stock = StockWarehouse::findOrFail($id);
+            $stock->update(array_filter($validated));
+            return response()->json(['message' => 'Stock actualizado con éxito.', 'data' => $stock], 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Stock no encontrado.', 'error' => $e->getMessage()], 404);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error al actualizar el stock.', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Delete stock for a warehouse.
+     */
+    public function stock_delete($id)
+    {
+        try {
+            $stock = StockWarehouse::findOrFail($id);
+            $stock->delete();
+            return response()->json(['message' => 'Stock eliminado con éxito.'], 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['message' => 'Stock no encontrado.', 'error' => $e->getMessage()], 404);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error al eliminar el stock.', 'error' => $e->getMessage()], 500);
+        }
+    }
+
 }
