@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Company;
 use App\Models\Warehouse;
+use App\Models\StockWarehouse;
 use Illuminate\Http\Request;
 
 class WarehouseCompaniesController extends Controller
@@ -228,14 +229,23 @@ class WarehouseCompaniesController extends Controller
      */
     public function stock_store(Request $request)
     {
-        $validated = $request->validate([
+        $rules = [
             'thumbnail' => 'required|string|max:255',
             'id_mlc' => 'required|string|max:100',
             'title' => 'required|string|max:255',
             'price_clp' => 'required|numeric',
             'warehouse_stock' => 'required|integer',
             'warehouse_id' => 'required|integer|exists:warehouses,id',
-        ]);
+        ];
+
+        $validator = \Validator::make($request->all(), $rules);
+
+        if ($validator->fails()) {
+            $missingFields = array_keys($validator->failed());
+            return response()->json(['message' => 'Faltan campos requeridos.', 'fields' => $missingFields], 422);
+        }
+
+        $validated = $validator->validated();
 
         try {
             $stock = StockWarehouse::create($validated);
