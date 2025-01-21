@@ -49,6 +49,13 @@ Route::patch('/warehouses/{id}', [WarehouseCompaniesController::class, 'warehous
 Route::get('/warehouses/{id}', [WarehouseCompaniesController::class, 'warehouse_show']); // Get a warehouse by its ID
 Route::delete('/warehouses/{id}', [WarehouseCompaniesController::class, 'warehouse_delete']); // Delete a warehouse
 
+// Get stock by warehouse
+Route::get('/warehouse-stock/{warehouse_id}', [WarehouseCompaniesController::class, 'getStockByWarehouse']);
+
+// Stock-specific routes
+Route::post('/warehouse-stock', [WarehouseCompaniesController::class, 'stock_store']); // Create stock for a warehouse
+Route::patch('/warehouse-stock/{id}', [WarehouseCompaniesController::class, 'stock_update']); // Update stock for a warehouse
+Route::delete('/warehouse-stock/{id}', [WarehouseCompaniesController::class, 'stock_delete']); // Delete stock for a warehouse
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
