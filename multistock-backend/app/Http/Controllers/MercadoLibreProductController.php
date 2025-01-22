@@ -84,6 +84,9 @@ class MercadoLibreProductController extends Controller
                     'available_quantity' => $productData['available_quantity'],
                     'sold_quantity' => $productData['sold_quantity'],
                     'thumbnail' => $productData['thumbnail'],
+                    'permalink' => $productData['permalink'],
+                    'status' => $productData['status'],
+                    'category_id' => $productData['category_id'],
                 ];
             }
         }
