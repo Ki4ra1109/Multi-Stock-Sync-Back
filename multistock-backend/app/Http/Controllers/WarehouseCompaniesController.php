@@ -255,12 +255,17 @@ class WarehouseCompaniesController extends Controller
 
             $productData = $response->json();
 
+            // Assign default values if fields are missing
+            $thumbnail = $productData['thumbnail'] ?? 'no asignado';
+            $title = $productData['title'] ?? 'no asignado';
+            $price_clp = $productData['price'] ?? 0;
+
             // Create stock with data from MercadoLibre API
             $stock = StockWarehouse::create([
-                'thumbnail' => $productData['thumbnail'],
+                'thumbnail' => $thumbnail,
                 'id_mlc' => $validated['id_mlc'],
-                'title' => $productData['title'],
-                'price_clp' => $productData['price'],
+                'title' => $title,
+                'price_clp' => $price_clp,
                 'warehouse_stock' => $validated['warehouse_stock'],
                 'warehouse_id' => $validated['warehouse_id'],
             ]);
