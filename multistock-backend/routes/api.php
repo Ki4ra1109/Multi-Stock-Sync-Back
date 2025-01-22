@@ -83,3 +83,6 @@ use App\Http\Controllers\MercadoLibreProductController;
 
 // Get MercadoLibre products list by client_id
 Route::get('/mercadolibre/products/{client_id}', [MercadoLibreProductController::class, 'listProductsByClientId']);
+
+// Search MercadoLibre products by client_id and search term
+Route::get('/mercadolibre/products/search/{client_id}', [MercadoLibreProductController::class, 'searchProducts']);

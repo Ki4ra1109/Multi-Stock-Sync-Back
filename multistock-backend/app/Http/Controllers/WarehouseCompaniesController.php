@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Company;
 use App\Models\Warehouse;
+use App\Models\StockWarehouse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 
 class WarehouseCompaniesController extends Controller
 {
@@ -228,17 +230,46 @@ class WarehouseCompaniesController extends Controller
      */
     public function stock_store(Request $request)
     {
-        $validated = $request->validate([
-            'thumbnail' => 'required|string|max:255',
+        $rules = [
             'id_mlc' => 'required|string|max:100',
-            'title' => 'required|string|max:255',
-            'price_clp' => 'required|numeric',
             'warehouse_stock' => 'required|integer',
             'warehouse_id' => 'required|integer|exists:warehouses,id',
-        ]);
+        ];
+
+        $validator = \Validator::make($request->all(), $rules);
+
+        if ($validator->fails()) {
+            $missingFields = array_keys($validator->failed());
+            return response()->json(['message' => 'Faltan campos requeridos.', 'fields' => $missingFields], 422);
+        }
+
+        $validated = $validator->validated();
 
         try {
-            $stock = StockWarehouse::create($validated);
+            // Call MercadoLibre API to get product details
+            $response = Http::get("https://api.mercadolibre.com/items/{$validated['id_mlc']}");
+
+            if ($response->failed()) {
+                return response()->json(['message' => 'Error al obtener datos del producto de MercadoLibre.'], 500);
+            }
+
+            $productData = $response->json();
+
+            // Assign default values if fields are missing
+            $thumbnail = $productData['thumbnail'] ?? 'no asignado';
+            $title = $productData['title'] ?? 'no asignado';
+            $price_clp = $productData['price'] ?? 0;
+
+            // Create stock with data from MercadoLibre API
+            $stock = StockWarehouse::create([
+                'thumbnail' => $thumbnail,
+                'id_mlc' => $validated['id_mlc'],
+                'title' => $title,
+                'price_clp' => $price_clp,
+                'warehouse_stock' => $validated['warehouse_stock'],
+                'warehouse_id' => $validated['warehouse_id'],
+            ]);
+
             return response()->json(['message' => 'Stock creado con éxito.', 'data' => $stock], 201);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Error al crear el stock.', 'error' => $e->getMessage()], 500);
