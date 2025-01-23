@@ -44,21 +44,38 @@ Optional query parameters:
     "message": "Ventas por mes obtenidas con éxito.",
     "data": {
         "2025-01": {
-            "total_amount": 90390,
+            "total_amount": 30000,
             "orders": [
                 {
-                    "id": 1234567890123456,
+                    "id": 1234567890,
                     "date_created": "2025-01-02T15:23:40.000-04:00",
-                    "total_amount": 10780,
-                    "status": "paid"
+                    "total_amount": 15000,
+                    "status": "paid",
+                    "sold_products": [
+                        {
+                            "order_id": 1234567890,
+                            "order_date": "2025-01-02T15:23:40.000-04:00",
+                            "title": "Producto A",
+                            "quantity": 1,
+                            "price": 15000
+                        }
+                    ]
                 },
                 {
-                    "id": 2345678901234567,
-                    "date_created": "2025-01-02T15:23:40.000-04:00",
-                    "total_amount": 10780,
-                    "status": "paid"
+                    "id": 1234567891,
+                    "date_created": "2025-01-05T08:56:09.000-04:00",
+                    "total_amount": 15000,
+                    "status": "paid",
+                    "sold_products": [
+                        {
+                            "order_id": 1234567891,
+                            "order_date": "2025-01-05T08:56:09.000-04:00",
+                            "title": "Producto B",
+                            "quantity": 1,
+                            "price": 15000
+                        }
+                    ]
                 }
-                // more sales here...
             ]
         }
     }
