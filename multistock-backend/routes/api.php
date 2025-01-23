@@ -97,3 +97,9 @@ Route::get('/mercadolibre/sales-by-month/{client_id}', [MercadoLibreDocumentsCon
 
 // Get MercadoLibre annual sales by client_id
 Route::get('/mercadolibre/annual-sales/{client_id}', [MercadoLibreDocumentsController::class, 'getAnnualSales']);
+
+// Get weeks of the month
+Route::get('/mercadolibre/weeks-of-month', [MercadoLibreDocumentsController::class, 'getWeeksOfMonth']);
+
+// Get total sales for a specific week
+Route::get('/mercadolibre/sales-by-week/{client_id}', [MercadoLibreDocumentsController::class, 'getSalesByWeek']);
