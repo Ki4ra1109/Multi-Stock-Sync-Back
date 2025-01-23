@@ -144,8 +144,19 @@ class MercadoLibreDocumentsController extends Controller
                 'date_created' => $order['date_created'],
                 'total_amount' => $order['total_amount'],
                 'status' => $order['status'],
-                // Add other order details as needed
+                'sold_products' => []
             ];
+
+            // Extract sold products (titles and quantities)
+            foreach ($order['order_items'] as $item) {
+                $salesByMonth[$month]['orders'][count($salesByMonth[$month]['orders']) - 1]['sold_products'][] = [
+                    'order_id' => $order['id'], // MercadoLibre Order ID
+                    'order_date' => $order['date_created'], // Order date
+                    'title' => $item['item']['title'], // Product title
+                    'quantity' => $item['quantity'],  // Quantity sold
+                    'price' => $item['unit_price'],   // Price per unit
+                ];
+            }
         }
 
         // Return sales by month data
@@ -222,19 +233,30 @@ class MercadoLibreDocumentsController extends Controller
         foreach ($orders as $order) {
             $month = date('Y-m', strtotime($order['date_created']));
             if (!isset($salesByMonth[$month])) {
-                $salesByMonth[$month] = [
-                    'total_amount' => 0,
-                    'orders' => []
-                ];
+            $salesByMonth[$month] = [
+                'total_amount' => 0,
+                'orders' => []
+            ];
             }
             $salesByMonth[$month]['total_amount'] += $order['total_amount'];
             $salesByMonth[$month]['orders'][] = [
-                'id' => $order['id'],
-                'date_created' => $order['date_created'],
-                'total_amount' => $order['total_amount'],
-                'status' => $order['status'],
-                // Add other order details as needed
+            'id' => $order['id'],
+            'date_created' => $order['date_created'],
+            'total_amount' => $order['total_amount'],
+            'status' => $order['status'],
+            'sold_products' => []
             ];
+
+            // Extract sold products (titles and quantities)
+            foreach ($order['order_items'] as $item) {
+            $salesByMonth[$month]['orders'][count($salesByMonth[$month]['orders']) - 1]['sold_products'][] = [
+                'order_id' => $order['id'], // MercadoLibre Order ID
+                'order_date' => $order['date_created'], // Order date
+                'title' => $item['item']['title'], // Product title
+                'quantity' => $item['quantity'],  // Quantity sold
+                'price' => $item['unit_price'],   // Price per unit
+            ];
+            }
         }
 
         // Return sales by month data
@@ -321,7 +343,7 @@ class MercadoLibreDocumentsController extends Controller
         $month = $request->query('month', date('m')); // Default to current month
         $weekStartDate = $request->query('week_start_date'); // Start date of the week
         $weekEndDate = $request->query('week_end_date'); // End date of the week
-
+    
         // Ensure both dates are provided
         if (!$weekStartDate || !$weekEndDate) {
             return response()->json([
@@ -329,21 +351,21 @@ class MercadoLibreDocumentsController extends Controller
                 'message' => 'Las fechas de la semana son requeridas.',
             ], 400);
         }
-
+    
         // Convert to Carbon instances
         $startOfWeek = \Carbon\Carbon::createFromFormat('Y-m-d', $weekStartDate)->startOfDay();
         $endOfWeek = \Carbon\Carbon::createFromFormat('Y-m-d', $weekEndDate)->endOfDay();
-
+    
         // Get credentials and user ID (same as in the other methods)
         $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
-
+    
         if (!$credentials) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'No se encontraron credenciales válidas para el client_id proporcionado.',
             ], 404);
         }
-
+    
         // Check if token is expired
         if ($credentials->isTokenExpired()) {
             return response()->json([
@@ -351,11 +373,11 @@ class MercadoLibreDocumentsController extends Controller
                 'message' => 'El token ha expirado. Por favor, renueve su token.',
             ], 401);
         }
-
+    
         // Get user id from token
         $response = Http::withToken($credentials->access_token)
             ->get('https://api.mercadolibre.com/users/me');
-
+    
         if ($response->failed()) {
             return response()->json([
                 'status' => 'error',
@@ -363,9 +385,9 @@ class MercadoLibreDocumentsController extends Controller
                 'error' => $response->json(),
             ], 500);
         }
-
+    
         $userId = $response->json()['id'];
-
+    
         // Get sales within the specified week date range
         $response = Http::withToken($credentials->access_token)
             ->get("https://api.mercadolibre.com/orders/search", [
@@ -374,7 +396,7 @@ class MercadoLibreDocumentsController extends Controller
                 'order.date_created.from' => $startOfWeek->toIso8601String(),
                 'order.date_created.to' => $endOfWeek->toIso8601String()
             ]);
-
+    
         // Validate response
         if ($response->failed()) {
             return response()->json([
@@ -383,25 +405,39 @@ class MercadoLibreDocumentsController extends Controller
                 'error' => $response->json(),
             ], $response->status());
         }
-
+    
         // Process sales data
         $orders = $response->json()['results'];
         $totalSales = 0;
-
+        $soldProducts = [];
+    
         foreach ($orders as $order) {
             $totalSales += $order['total_amount'];
+    
+            // Extract sold products (titles and quantities)
+            foreach ($order['order_items'] as $item) {
+                $soldProducts[] = [
+                    'order_id' => $order['id'], // MercadoLibre Order ID
+                    'order_date' => $order['date_created'], // Order date
+                    'title' => $item['item']['title'], // Product title
+                    'quantity' => $item['quantity'],  // Quantity sold
+                    'price' => $item['unit_price'],   // Price per unit
+                ];
+            }
         }
-
-        // Return sales by week data
+    
+        // Return sales by week data, including sold products
         return response()->json([
             'status' => 'success',
-            'message' => 'Ingresos obtenidos con éxito.',
+            'message' => 'Ingresos y productos obtenidos con éxito.',
             'data' => [
                 'week_start_date' => $startOfWeek->toDateString(),
                 'week_end_date' => $endOfWeek->toDateString(),
                 'total_sales' => $totalSales,
+                'sold_products' => $soldProducts, // List of sold products
             ],
         ]);
     }
+    
 
 }

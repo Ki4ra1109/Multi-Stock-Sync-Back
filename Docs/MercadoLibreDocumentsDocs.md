@@ -75,37 +75,36 @@ Optional query parameters:
 > Note: You can omit the `year` and the system will use the current date.
 
 #### Response (Success)
+
 ```json
 {
     "status": "success",
     "message": "Ventas anuales obtenidas con éxito.",
     "data": {
         "2025-01": {
-            "total_amount": 90390,
+            "total_amount": 10780,
             "orders": [
                 {
-                    "id": 1000000000000001,
+                    "id": 1234567890,
                     "date_created": "2025-01-02T15:23:40.000-04:00",
                     "total_amount": 10780,
-                    "status": "paid"
-                },
-                {
-                    "id": 1000000000000002,
-                    "date_created": "2025-01-03T21:36:33.000-04:00",
-                    "total_amount": 15180,
-                    "status": "paid"
-                },
-                {
-                    "id": 1000000000000003,
-                    "date_created": "2025-01-05T08:56:09.000-04:00",
-                    "total_amount": 9690,
-                    "status": "paid"
+                    "status": "paid",
+                    "sold_products": [
+                        {
+                            "order_id": 1234567890,
+                            "order_date": "2025-01-02T15:23:40.000-04:00",
+                            "title": "Producto Ejemplo",
+                            "quantity": 2,
+                            "price": 5390
+                        }
+                    ]
                 }
             ]
         }
     }
 }
 ```
+
 
 ### 4. **Get weeks of the month**
 
