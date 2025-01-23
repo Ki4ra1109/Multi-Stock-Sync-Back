@@ -107,4 +107,69 @@ Optional query parameters:
 }
 ```
 
+### 4. **Get weeks of the month**
+
+**GET** `/mercadolibre/weeks-of-month`
+
+Optional query parameters:
+- `year`: The year for which to retrieve sales data (e.g., `2025`).
+
+- `month`: The month for which to retrieve sales data (e.g., `01`).
+
+> Note: You can omit the `year` or `year` and the system will use the current date.
+
+#### Response (Success)
+```json
+{
+    "status": "success",
+    "message": "Semanas obtenidas con éxito.",
+    "data": [
+        {
+            "start_date": "2025-01-01",
+            "end_date": "2025-01-05"
+        },
+        {
+            "start_date": "2025-01-06",
+            "end_date": "2025-01-12"
+        },
+        {
+            "start_date": "2025-01-13",
+            "end_date": "2025-01-19"
+        },
+        {
+            "start_date": "2025-01-20",
+            "end_date": "2025-01-26"
+        },
+        {
+            "start_date": "2025-01-27",
+            "end_date": "2025-01-31"
+        }
+    ]
+}
+```
+
+### 5. **Get sales by week**
+
+**GET** `/mercadolibre/sales-by-week/{client_id}`
+
+Optional query parameters:
+- `year`: The year for which to retrieve sales data (e.g., `2025`).
+- `month`: The month for which to retrieve sales data (e.g., `01`).
+- `week_start_date` (required): The start date of the week (e.g., `2025-01-01`).
+- `week_end_date` (required): The end date of the week (e.g., `2025-01-07`).
+
+> Note: You can omit the `year` and `month` parameters, and the system will use the current date. However, `week_start_date` and `week_end_date` are required.
+
+#### Response (Success)
+```json
+{
+    "status": "success",
+    "message": "Ingresos obtenidos con éxito.",
+    "data": {
+        "week_start_date": "2025-01-01",
+        "week_end_date": "2025-01-07",
+        "total_sales": 50000
+    }
+}
+```
 
