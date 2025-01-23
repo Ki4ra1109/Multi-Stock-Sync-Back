@@ -86,3 +86,14 @@ Route::get('/mercadolibre/products/{client_id}', [MercadoLibreProductController:
 
 // Search MercadoLibre products by client_id and search term
 Route::get('/mercadolibre/products/search/{client_id}', [MercadoLibreProductController::class, 'searchProducts']);
+
+use App\Http\Controllers\MercadoLibreDocuments;
+
+// Get MercadoLibre invoice report by client_id
+Route::get('/mercadolibre/invoices/{client_id}', [MercadoLibreDocuments::class, 'getInvoiceReport']);
+
+// Get MercadoLibre sales by month by client_id
+Route::get('/mercadolibre/sales-by-month/{client_id}', [MercadoLibreDocuments::class, 'getSalesByMonth']);
+
+// Get MercadoLibre annual sales by client_id
+Route::get('/mercadolibre/annual-sales/{client_id}', [MercadoLibreDocuments::class, 'getAnnualSales']);
