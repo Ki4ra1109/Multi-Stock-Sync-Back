@@ -11,6 +11,7 @@ use App\Http\Controllers\BrandsController;
 use App\Http\Controllers\StockController;
 
 use App\Http\Controllers\WarehouseCompaniesController;
+use App\Http\Controllers\InfoController;
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
@@ -103,3 +104,6 @@ Route::get('/mercadolibre/weeks-of-month', [MercadoLibreDocumentsController::cla
 
 // Get total sales for a specific week
 Route::get('/mercadolibre/sales-by-week/{client_id}', [MercadoLibreDocumentsController::class, 'getSalesByWeek']);
+
+// Info route
+Route::get('/info', [InfoController::class, 'getInfo']);
