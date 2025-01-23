@@ -131,9 +131,19 @@ class MercadoLibreDocuments extends Controller
         foreach ($orders as $order) {
             $month = date('Y-m', strtotime($order['date_created']));
             if (!isset($salesByMonth[$month])) {
-                $salesByMonth[$month] = 0;
+                $salesByMonth[$month] = [
+                    'total_amount' => 0,
+                    'orders' => []
+                ];
             }
-            $salesByMonth[$month] += $order['total_amount'];
+            $salesByMonth[$month]['total_amount'] += $order['total_amount'];
+            $salesByMonth[$month]['orders'][] = [
+                'id' => $order['id'],
+                'date_created' => $order['date_created'],
+                'total_amount' => $order['total_amount'],
+                'status' => $order['status'],
+                // Add other order details as needed
+            ];
         }
 
         // Return sales by month data
