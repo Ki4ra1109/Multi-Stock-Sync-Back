@@ -11,6 +11,7 @@ use App\Http\Controllers\BrandsController;
 use App\Http\Controllers\StockController;
 
 use App\Http\Controllers\WarehouseCompaniesController;
+use App\Http\Controllers\InfoController;
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
@@ -86,3 +87,23 @@ Route::get('/mercadolibre/products/{client_id}', [MercadoLibreProductController:
 
 // Search MercadoLibre products by client_id and search term
 Route::get('/mercadolibre/products/search/{client_id}', [MercadoLibreProductController::class, 'searchProducts']);
+
+use App\Http\Controllers\MercadoLibreDocumentsController;
+
+// Get MercadoLibre invoice report by client_id
+Route::get('/mercadolibre/invoices/{client_id}', [MercadoLibreDocumentsController::class, 'getInvoiceReport']);
+
+// Get MercadoLibre sales by month by client_id
+Route::get('/mercadolibre/sales-by-month/{client_id}', [MercadoLibreDocumentsController::class, 'getSalesByMonth']);
+
+// Get MercadoLibre annual sales by client_id
+Route::get('/mercadolibre/annual-sales/{client_id}', [MercadoLibreDocumentsController::class, 'getAnnualSales']);
+
+// Get weeks of the month
+Route::get('/mercadolibre/weeks-of-month', [MercadoLibreDocumentsController::class, 'getWeeksOfMonth']);
+
+// Get total sales for a specific week
+Route::get('/mercadolibre/sales-by-week/{client_id}', [MercadoLibreDocumentsController::class, 'getSalesByWeek']);
+
+// Info route
+Route::get('/info', [InfoController::class, 'getInfo']);
