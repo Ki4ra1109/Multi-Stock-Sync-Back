@@ -233,3 +233,21 @@ Optional query parameters:
     ]
 }
 ```
+
+### 7. **Get order statuses**
+
+**GET** `/mercadolibre/order-statuses/{client_id}`
+
+#### Response (Success)
+```json
+{
+    "status": "success",
+    "message": "Estados de órdenes obtenidos con éxito.",
+    "data": {
+        "paid": 36,
+        "pending": 0,
+        "canceled": 0
+    }
+}
+```
+
