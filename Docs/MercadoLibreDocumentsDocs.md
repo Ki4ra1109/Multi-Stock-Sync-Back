@@ -209,6 +209,12 @@ Optional query parameters:
 
 **GET** `/mercadolibre/top-selling-products/{client_id}`
 
+Optional query parameters:
+- `year`: The year for which to retrieve sales data (e.g., `2025`).
+- `month`: The month for which to retrieve sales data (e.g., `01`).
+
+> Note: If we add `year` but not `month`, the system will consider the entire year. If we only add `month`, it will consider the machine's year. If we do not send either, it will consider the entire machine's year and no specific month.
+
 #### Response (Success)
 ```json
 {
