@@ -122,7 +122,6 @@ Optional query parameters:
 }
 ```
 
-
 ### 4. **Get weeks of the month**
 
 **GET** `/mercadolibre/weeks-of-month`
@@ -206,3 +205,31 @@ Optional query parameters:
 }
 ```
 
+### 6. **Get top selling products**
+
+**GET** `/mercadolibre/top-selling-products/{client_id}`
+
+#### Response (Success)
+```json
+{
+    "status": "success",
+    "message": "Productos más vendidos obtenidos con éxito.",
+    "data": [
+        {
+            "title": "Camiseta Mujer Jockey Shapewear K-435 Seamless Control",
+            "quantity": 7,
+            "total_amount": 88361
+        },
+        {
+            "title": "Calcetin Mujer Lady Genny P-585 Bamboo Sin Costura",
+            "quantity": 5,
+            "total_amount": 11825
+        },
+        {
+            "title": "Soquete Mujer Lady Genny P-545 Grueso Elasticado(100 Denier)",
+            "quantity": 5,
+            "total_amount": 11950
+        }
+    ]
+}
+```
