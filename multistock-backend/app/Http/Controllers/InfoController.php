@@ -110,8 +110,21 @@ class InfoController extends Controller
     // Method to get system uptime
     private function getUptime()
     {
-        return shell_exec('uptime'); // Only available on Unix/Linux servers
+        try {
+            $bootTime = file_get_contents('/proc/uptime');
+            if ($bootTime !== false) {
+                $uptimeSeconds = explode(' ', $bootTime)[0];
+                $uptimeMinutes = round($uptimeSeconds / 60);
+                $uptimeHours = round($uptimeMinutes / 60, 2);
+
+                return $uptimeHours . ' horas'; // Return uptime in hours
+            }
+            return 'No disponible'; // 
+        } catch (\Exception $e) {
+            return 'No disponible'; // 
+        }
     }
+
 
     // Method to get the database name
     private function getDatabaseName()

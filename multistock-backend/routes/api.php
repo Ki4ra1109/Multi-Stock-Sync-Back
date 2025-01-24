@@ -105,5 +105,20 @@ Route::get('/mercadolibre/weeks-of-month', [MercadoLibreDocumentsController::cla
 // Get total sales for a specific week
 Route::get('/mercadolibre/sales-by-week/{client_id}', [MercadoLibreDocumentsController::class, 'getSalesByWeek']);
 
+// Get daily sales
+Route::get('/mercadolibre/daily-sales/{client_id}', [MercadoLibreDocumentsController::class, 'getDailySales']);
+
+// Get top selling products
+Route::get('/mercadolibre/top-selling-products/{client_id}', [MercadoLibreDocumentsController::class, 'getTopSellingProducts']);
+
+// Get order statuses
+Route::get('/mercadolibre/order-statuses/{client_id}', [MercadoLibreDocumentsController::class, 'getOrderStatuses']);
+
+// Get top payment methods
+Route::get('/mercadolibre/top-payment-methods/{client_id}', [MercadoLibreDocumentsController::class, 'getTopPaymentMethods']);
+
+// Get summary
+Route::get('/mercadolibre/summary/{client_id}', [MercadoLibreDocumentsController::class, 'summary']);
+
 // Info route
 Route::get('/info', [InfoController::class, 'getInfo']);

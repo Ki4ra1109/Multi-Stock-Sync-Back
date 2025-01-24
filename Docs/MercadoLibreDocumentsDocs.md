@@ -122,7 +122,6 @@ Optional query parameters:
 }
 ```
 
-
 ### 4. **Get weeks of the month**
 
 **GET** `/mercadolibre/weeks-of-month`
@@ -185,6 +184,148 @@ Optional query parameters:
         "week_start_date": "2025-01-01",
         "week_end_date": "2025-01-07",
         "total_sales": 50000
+    }
+}
+```
+
+### 6. **Get daily sales**
+
+**GET** `/mercadolibre/daily-sales/{client_id}`
+
+#### Response (Success)
+```json
+{
+    "status": "success",
+    "message": "Ventas diarias obtenidas con éxito.",
+    "data": {
+        "date": "2025-01-24",
+        "total_sales": 0,
+        "sold_products": []
+    }
+}
+```
+
+### 7. **Get top selling products**
+
+**GET** `/mercadolibre/top-selling-products/{client_id}`
+
+Optional query parameters:
+- `year`: The year for which to retrieve sales data (e.g., `2025`).
+- `month`: The month for which to retrieve sales data (e.g., `01`).
+
+> Note: If we add `year` but not `month`, the system will consider the entire year. If we only add `month`, it will consider the machine's year. If we do not send either, it will consider the entire machine's year and no specific month.
+
+#### Response (Success)
+```json
+{
+    "status": "success",
+    "message": "Productos más vendidos obtenidos con éxito.",
+    "data": [
+        {
+            "title": "Camiseta Mujer Jockey Shapewear K-435 Seamless Control",
+            "quantity": 7,
+            "total_amount": 88361
+        },
+        {
+            "title": "Calcetin Mujer Lady Genny P-585 Bamboo Sin Costura",
+            "quantity": 5,
+            "total_amount": 11825
+        },
+        {
+            "title": "Soquete Mujer Lady Genny P-545 Grueso Elasticado(100 Denier)",
+            "quantity": 5,
+            "total_amount": 11950
+        }
+    ]
+}
+```
+
+### 8. **Get order statuses**
+
+**GET** `/mercadolibre/order-statuses/{client_id}`
+
+#### Response (Success)
+```json
+{
+    "status": "success",
+    "message": "Estados de órdenes obtenidos con éxito.",
+    "data": {
+        "paid": 36,
+        "pending": 0,
+        "canceled": 0
+    }
+}
+```
+
+### 9. **Get top payment methods**
+
+**GET** `/mercadolibre/top-payment-methods/{client_id}`
+
+#### Response (Success)
+```json
+{
+    "status": "success",
+    "message": "Métodos de pago más utilizados obtenidos con éxito.",
+    "data": {
+        "account_money": 39,
+        "debit_card": 12,
+        "credit_card": 2
+    }
+}
+```
+
+### 10. **Get store summary**
+
+**GET** `/mercadolibre/summary/{client_id}`
+
+#### Response (Success)
+```json
+{
+    "status": "success",
+    "message": "Resumen de la tienda obtenido con éxito.",
+    "data": {
+        "total_sales": 638056,
+        "top_selling_products": [
+            {
+                "title": "Camiseta Mujer Jockey Shapewear K-435 Seamless Control",
+                "quantity": 7,
+                "total_amount": 88361
+            },
+            {
+                "title": "Calcetin Mujer Lady Genny P-585 Bamboo Sin Costura",
+                "quantity": 5,
+                "total_amount": 11825
+            },
+            {
+                "title": "Soquete Mujer Lady Genny P-545 Grueso Elasticado(100 Denier)",
+                "quantity": 5,
+                "total_amount": 11950
+            },
+            {
+                "title": "Media Mujer Lady Genny P-439 Media Pantalon Compresion",
+                "quantity": 5,
+                "total_amount": 16450
+            },
+            {
+                "title": "Cuadro Mujer Lady Genny C-27 Midi Cotton Spandex Fantasia",
+                "quantity": 5,
+                "total_amount": 23450
+            }
+        ],
+        "order_statuses": {
+            "paid": 36,
+            "pending": 0,
+            "canceled": 0
+        },
+        "daily_sales": 0,
+        "weekly_sales": 0,
+        "monthly_sales": 90390,
+        "annual_sales": 90390,
+        "top_payment_methods": {
+            "account_money": 39,
+            "debit_card": 12,
+            "credit_card": 2
+        }
     }
 }
 ```
