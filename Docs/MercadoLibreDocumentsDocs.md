@@ -189,3 +189,20 @@ Optional query parameters:
 }
 ```
 
+### 5. **Get daily sales**
+
+**GET** `/mercadolibre/daily-sales/{client_id}`
+
+#### Response (Success)
+```json
+{
+    "status": "success",
+    "message": "Ventas diarias obtenidas con éxito.",
+    "data": {
+        "date": "2025-01-24",
+        "total_sales": 0,
+        "sold_products": []
+    }
+}
+```
+
