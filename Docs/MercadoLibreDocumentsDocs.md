@@ -188,7 +188,7 @@ Optional query parameters:
 }
 ```
 
-### 5. **Get daily sales**
+### 6. **Get daily sales**
 
 **GET** `/mercadolibre/daily-sales/{client_id}`
 
@@ -205,7 +205,7 @@ Optional query parameters:
 }
 ```
 
-### 6. **Get top selling products**
+### 7. **Get top selling products**
 
 **GET** `/mercadolibre/top-selling-products/{client_id}`
 
@@ -234,7 +234,7 @@ Optional query parameters:
 }
 ```
 
-### 7. **Get order statuses**
+### 8. **Get order statuses**
 
 **GET** `/mercadolibre/order-statuses/{client_id}`
 
@@ -247,6 +247,23 @@ Optional query parameters:
         "paid": 36,
         "pending": 0,
         "canceled": 0
+    }
+}
+```
+
+### 9. **Get top payment methods**
+
+**GET** `/mercadolibre/top-payment-methods/{client_id}`
+
+#### Response (Success)
+```json
+{
+    "status": "success",
+    "message": "Métodos de pago más utilizados obtenidos con éxito.",
+    "data": {
+        "account_money": 39,
+        "debit_card": 12,
+        "credit_card": 2
     }
 }
 ```
