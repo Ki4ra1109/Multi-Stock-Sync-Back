@@ -117,5 +117,8 @@ Route::get('/mercadolibre/order-statuses/{client_id}', [MercadoLibreDocumentsCon
 // Get top payment methods
 Route::get('/mercadolibre/top-payment-methods/{client_id}', [MercadoLibreDocumentsController::class, 'getTopPaymentMethods']);
 
+// Get summary
+Route::get('/mercadolibre/summary/{client_id}', [MercadoLibreDocumentsController::class, 'summary']);
+
 // Info route
 Route::get('/info', [InfoController::class, 'getInfo']);
