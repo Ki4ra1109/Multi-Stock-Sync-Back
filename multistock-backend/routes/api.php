@@ -105,5 +105,9 @@ Route::get('/mercadolibre/weeks-of-month', [MercadoLibreDocumentsController::cla
 // Get total sales for a specific week
 Route::get('/mercadolibre/sales-by-week/{client_id}', [MercadoLibreDocumentsController::class, 'getSalesByWeek']);
 
+// Get daily sales
+
+Route::get('/mercadolibre/daily-sales/{client_id}', [MercadoLibreDocumentsController::class, 'getDailySales']);
+
 // Info route
 Route::get('/info', [InfoController::class, 'getInfo']);
