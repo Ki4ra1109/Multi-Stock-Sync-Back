@@ -567,9 +567,24 @@ class MercadoLibreDocumentsController extends Controller
 
         $userId = $response->json()['id'];
 
-        // API request to get all sales
+        // Get query parameters for year and month
+        $year = request()->query('year', date('Y')); // Default to current year
+        $month = request()->query('month'); // Month is optional
+
+        // Calculate date range based on the provided year and month
+        if ($month) {
+            // If month is provided, get the date range for the specified month
+            $dateFrom = "{$year}-{$month}-01T00:00:00.000-00:00";
+            $dateTo = date("Y-m-t\T23:59:59.999-00:00", strtotime($dateFrom));
+        } else {
+            // If month is not provided, get the date range for the entire year
+            $dateFrom = "{$year}-01-01T00:00:00.000-00:00";
+            $dateTo = "{$year}-12-31T23:59:59.999-00:00";
+        }
+
+        // API request to get sales within the specified date range
         $response = Http::withToken($credentials->access_token)
-            ->get("https://api.mercadolibre.com/orders/search?seller={$userId}&order.status=paid");
+            ->get("https://api.mercadolibre.com/orders/search?seller={$userId}&order.status=paid&order.date_created.from={$dateFrom}&order.date_created.to={$dateTo}");
 
         // Validate response
         if ($response->failed()) {
