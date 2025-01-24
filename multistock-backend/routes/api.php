@@ -111,5 +111,8 @@ Route::get('/mercadolibre/daily-sales/{client_id}', [MercadoLibreDocumentsContro
 // Get top selling products
 Route::get('/mercadolibre/top-selling-products/{client_id}', [MercadoLibreDocumentsController::class, 'getTopSellingProducts']);
 
+// Get order statuses
+Route::get('/mercadolibre/order-statuses/{client_id}', [MercadoLibreDocumentsController::class, 'getOrderStatuses']);
+
 // Info route
 Route::get('/info', [InfoController::class, 'getInfo']);
