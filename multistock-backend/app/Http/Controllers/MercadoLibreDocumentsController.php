@@ -685,6 +685,82 @@ class MercadoLibreDocumentsController extends Controller
         ]);
     }
 
+    /**
+     * Get top payment methods from MercadoLibre API using client_id.
+    */
+    public function getTopPaymentMethods($clientId)
+    {
+        // Get credentials by client_id
+        $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
+
+        // Check if credentials exist
+        if (!$credentials) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No se encontraron credenciales válidas para el client_id proporcionado.',
+            ], 404);
+        }
+
+        // Check if token is expired
+        if ($credentials->isTokenExpired()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'El token ha expirado. Por favor, renueve su token.',
+            ], 401);
+        }
+
+        // Get user id from token
+        $response = Http::withToken($credentials->access_token)
+            ->get('https://api.mercadolibre.com/users/me');
+
+        if ($response->failed()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No se pudo obtener el ID del usuario. Por favor, valide su token.',
+                'error' => $response->json(),
+            ], 500);
+        }
+
+        $userId = $response->json()['id'];
+
+        // API request to get all sales
+        $response = Http::withToken($credentials->access_token)
+            ->get("https://api.mercadolibre.com/orders/search?seller={$userId}&order.status=paid");
+
+        // Validate response
+        if ($response->failed()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al conectar con la API de MercadoLibre.',
+                'error' => $response->json(),
+            ], $response->status());
+        }
+
+        // Process payment methods data
+        $orders = $response->json()['results'];
+        $paymentMethods = [];
+
+        foreach ($orders as $order) {
+            foreach ($order['payments'] as $payment) {
+                $method = $payment['payment_type'];
+                if (!isset($paymentMethods[$method])) {
+                    $paymentMethods[$method] = 0;
+                }
+                $paymentMethods[$method]++;
+            }
+        }
+
+        // Sort payment methods by usage
+        arsort($paymentMethods);
+
+        // Return top payment methods data
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Métodos de pago más utilizados obtenidos con éxito.',
+            'data' => $paymentMethods,
+        ]);
+    }
+
     
 
 }
