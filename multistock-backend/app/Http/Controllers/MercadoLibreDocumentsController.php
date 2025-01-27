@@ -416,13 +416,16 @@ class MercadoLibreDocumentsController extends Controller
     
             // Extract sold products (titles and quantities)
             foreach ($order['order_items'] as $item) {
-                $soldProducts[] = [
-                    'order_id' => $order['id'], // MercadoLibre Order ID
-                    'order_date' => $order['date_created'], // Order date
-                    'title' => $item['item']['title'], // Product title
-                    'quantity' => $item['quantity'],  // Quantity sold
-                    'price' => $item['unit_price'],   // Price per unit
-                ];
+                $productId = $item['item']['id'];
+                if (!isset($soldProducts[$productId])) {
+                    $soldProducts[$productId] = [
+                        'title' => $item['item']['title'],
+                        'quantity' => 0,
+                        'total_amount' => 0,
+                    ];
+                }
+                $soldProducts[$productId]['quantity'] += $item['quantity'];
+                $soldProducts[$productId]['total_amount'] += $item['quantity'] * $item['unit_price'];
             }
         }
     
@@ -434,7 +437,7 @@ class MercadoLibreDocumentsController extends Controller
                 'week_start_date' => $startOfWeek->toDateString(),
                 'week_end_date' => $endOfWeek->toDateString(),
                 'total_sales' => $totalSales,
-                'sold_products' => $soldProducts, // List of sold products
+                'sold_products' => array_values($soldProducts), // List of sold products
             ],
         ]);
     }
@@ -598,6 +601,7 @@ class MercadoLibreDocumentsController extends Controller
         // Process sales data
         $orders = $response->json()['results'];
         $productSales = [];
+        $totalSales = 0;
 
         foreach ($orders as $order) {
             foreach ($order['order_items'] as $item) {
@@ -611,6 +615,7 @@ class MercadoLibreDocumentsController extends Controller
                 }
                 $productSales[$productId]['quantity'] += $item['quantity'];
                 $productSales[$productId]['total_amount'] += $item['quantity'] * $item['unit_price'];
+                $totalSales += $item['quantity'] * $item['unit_price'];
             }
         }
 
@@ -623,6 +628,7 @@ class MercadoLibreDocumentsController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Productos más vendidos obtenidos con éxito.',
+            'total_sales' => $totalSales,
             'data' => $productSales,
         ]);
     }
