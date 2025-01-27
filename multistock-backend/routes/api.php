@@ -13,6 +13,10 @@ use App\Http\Controllers\StockController;
 use App\Http\Controllers\WarehouseCompaniesController;
 use App\Http\Controllers\InfoController;
 
+use App\Http\Controllers\MercadoLibreProductController;
+use App\Http\Controllers\MercadoLibreDocumentsController;
+
+
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
@@ -82,7 +86,6 @@ Route::get('/mercadolibre/credentials/{client_id}', [MercadoLibreController::cla
 // Delete credentials using client_id
 Route::delete('/mercadolibre/credentials/{client_id}', [MercadoLibreController::class, 'deleteCredentials']);
 
-use App\Http\Controllers\MercadoLibreProductController;
 
 // Get MercadoLibre products list by client_id
 Route::get('/mercadolibre/products/{client_id}', [MercadoLibreProductController::class, 'listProductsByClientId']);
