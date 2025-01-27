@@ -179,11 +179,28 @@ Optional query parameters:
 ```json
 {
     "status": "success",
-    "message": "Ingresos obtenidos con éxito.",
+    "message": "Ingresos y productos obtenidos con éxito.",
     "data": {
         "week_start_date": "2025-01-01",
         "week_end_date": "2025-01-07",
-        "total_sales": 50000
+        "total_sales": 50000,
+        "sold_products": [
+            {
+                "title": "Producto Imaginario A",
+                "quantity": 3,
+                "total_amount": 15000
+            },
+            {
+                "title": "Producto Imaginario B",
+                "quantity": 2,
+                "total_amount": 20000
+            },
+            {
+                "title": "Producto Imaginario C",
+                "quantity": 1,
+                "total_amount": 15000
+            }
+        ]
     }
 }
 ```
