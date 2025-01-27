@@ -93,6 +93,9 @@ use App\Http\Controllers\MercadoLibreDocumentsController;
 // Get MercadoLibre invoice report by client_id
 Route::get('/mercadolibre/invoices/{client_id}', [MercadoLibreDocumentsController::class, 'getInvoiceReport']);
 
+// Get refunds or returns by category
+Route::get('/mercadolibre/refunds-by-category/{client_id}', [MercadoLibreDocumentsController::class, 'getRefundsByCategory']);
+
 // Get MercadoLibre sales by month by client_id
 Route::get('/mercadolibre/sales-by-month/{client_id}', [MercadoLibreDocumentsController::class, 'getSalesByMonth']);
 

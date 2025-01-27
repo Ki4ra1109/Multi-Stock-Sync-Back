@@ -269,7 +269,6 @@ Optional query parameters:
 }
 ```
 
-
 ### 8. **Get order statuses**
 
 **GET** `/mercadolibre/order-statuses/{client_id}`
@@ -355,6 +354,51 @@ Optional query parameters:
             "account_money": 39,
             "debit_card": 12,
             "credit_card": 2
+        }
+    }
+}
+```
+
+### 11. **Get refunds or returns by category**
+
+**GET** `/mercadolibre/refunds-by-category/{client_id}`
+
+Optional query parameters:
+- `date_from`: The start date for the date range (e.g., `2023-01-01`).
+- `date_to`: The end date for the date range (e.g., `2023-01-31`).
+- `category`: The category ID to filter by (e.g., `MLC12345`).
+
+> Note: You can omit the `date_from` and `date_to` parameters, and the system will use the current month. The `category` parameter is optional.
+
+#### Response (Success)
+```json
+{
+    "status": "success",
+    "message": "Devoluciones por categoría obtenidas con éxito.",
+    "data": {
+        "MLC12345": {
+            "category_id": "MLC12345",
+            "total_refunds": 50000,
+            "orders": [
+                {
+                    "id": 1234567890,
+                    "date_created": "2023-01-02T15:23:40.000-04:00",
+                    "total_amount": 15000,
+                    "status": "cancelled",
+                    "title": "Producto A",
+                    "quantity": 1,
+                    "price": 15000
+                },
+                {
+                    "id": 1234567891,
+                    "date_created": "2023-01-05T08:56:09.000-04:00",
+                    "total_amount": 35000,
+                    "status": "cancelled",
+                    "title": "Producto B",
+                    "quantity": 2,
+                    "price": 17500
+                }
+            ]
         }
     }
 }
