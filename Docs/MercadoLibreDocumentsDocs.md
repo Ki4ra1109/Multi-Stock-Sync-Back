@@ -414,3 +414,43 @@ Optional query parameters:
 }
 ```
 
+### 11. **Get product reviews**
+
+**GET** `/mercadolibre/products/reviews/{product_id}?client_id={client_id}`
+
+Required query parameters:
+- `client_id`: The MercadoLibre account client id (e.g., `12345678987654321`).
+
+
+#### Response (Success)
+```json
+{
+    "status": "success",
+    "message": "Opiniones obtenidas con éxito.",
+    "data": {
+        "paging": {
+            "total": 0,
+            "limit": 5,
+            "offset": 0,
+            "kvs_total": 0
+        },
+        "reviews": [],
+        "helpful_reviews": {
+            "best_max_stars": null,
+            "best_min_stars": null
+        },
+        "attributes": [],
+        "quanti_attributes": [],
+        "quali_attributes": [],
+        "metadata": [],
+        "rating_average": 0,
+        "rating_levels": {
+            "one_star": 0,
+            "two_star": 0,
+            "three_star": 0,
+            "four_star": 0,
+            "five_star": 0
+        }
+    }
+}
+```
