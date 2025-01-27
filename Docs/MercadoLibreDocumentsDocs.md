@@ -273,6 +273,13 @@ Optional query parameters:
 
 **GET** `/mercadolibre/order-statuses/{client_id}`
 
+- `year`: The year for which to retrieve sales data (e.g., `2025`).
+
+> Note: If the `year` parameter is not provided, the system will default to the current year.
+
+> Note 2: If the `year` parameter is set to 'alloftimes', the system will return data for all years of sales.
+
+
 #### Response (Success)
 ```json
 {
@@ -290,11 +297,14 @@ Optional query parameters:
 
 **GET** `/mercadolibre/top-payment-methods/{client_id}`
 
+
+
 #### Response (Success)
 ```json
 {
     "status": "success",
     "message": "Métodos de pago más utilizados obtenidos con éxito.",
+    "request_date":"2025-01-27 19:06:15"
     "data": {
         "account_money": 39,
         "debit_card": 12,

@@ -744,9 +744,21 @@ class MercadoLibreDocumentsController extends Controller
 
         $userId = $response->json()['id'];
 
-        // API request to get all sales
+        // Get query parameter for year
+        $year = request()->query('year', date('Y')); // Default to current year
+
+        // Calculate date range based on the provided year or all times
+        if ($year === 'alloftimes') {
+            $dateFrom = '2000-01-01T00:00:00.000-00:00'; // Arbitrary start date for all times
+            $dateTo = date('Y-m-d\T23:59:59.999-00:00'); // Current date and time
+        } else {
+            $dateFrom = "{$year}-01-01T00:00:00.000-00:00";
+            $dateTo = "{$year}-12-31T23:59:59.999-00:00";
+        }
+
+        // API request to get all sales within the specified date range
         $response = Http::withToken($credentials->access_token)
-            ->get("https://api.mercadolibre.com/orders/search?seller={$userId}&order.status=paid");
+            ->get("https://api.mercadolibre.com/orders/search?seller={$userId}&order.status=paid&order.date_created.from={$dateFrom}&order.date_created.to={$dateTo}");
 
         // Validate response
         if ($response->failed()) {
@@ -778,6 +790,7 @@ class MercadoLibreDocumentsController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Métodos de pago más utilizados obtenidos con éxito.',
+            'request_date' => date('Y-m-d H:i:s'), // Include the request date
             'data' => $paymentMethods,
         ]);
     }
