@@ -90,7 +90,11 @@ Route::get('/mercadolibre/products/{client_id}', [MercadoLibreProductController:
 // Search MercadoLibre products by client_id and search term
 Route::get('/mercadolibre/products/search/{client_id}', [MercadoLibreProductController::class, 'searchProducts']);
 
-use App\Http\Controllers\MercadoLibreDocumentsController;
+// Get product reviews by product_id
+Route::get('/mercadolibre/products/reviews/{product_id}', [MercadoLibreProductController::class, 'getProductReviews']);
+
+// Get product reviews by product_id and client_id
+Route::get('/mercadolibre/products/reviews/{product_id}', [MercadoLibreProductController::class, 'getProductReviews']);
 
 // Get MercadoLibre invoice report by client_id
 Route::get('/mercadolibre/invoices/{client_id}', [MercadoLibreDocumentsController::class, 'getInvoiceReport']);
