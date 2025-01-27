@@ -179,11 +179,28 @@ Optional query parameters:
 ```json
 {
     "status": "success",
-    "message": "Ingresos obtenidos con éxito.",
+    "message": "Ingresos y productos obtenidos con éxito.",
     "data": {
         "week_start_date": "2025-01-01",
         "week_end_date": "2025-01-07",
-        "total_sales": 50000
+        "total_sales": 50000,
+        "sold_products": [
+            {
+                "title": "Producto Imaginario A",
+                "quantity": 3,
+                "total_amount": 15000
+            },
+            {
+                "title": "Producto Imaginario B",
+                "quantity": 2,
+                "total_amount": 20000
+            },
+            {
+                "title": "Producto Imaginario C",
+                "quantity": 1,
+                "total_amount": 15000
+            }
+        ]
     }
 }
 ```
@@ -216,25 +233,37 @@ Optional query parameters:
 > Note: If we add `year` but not `month`, the system will consider the entire year. If we only add `month`, it will consider the machine's year. If we do not send either, it will consider the entire machine's year and no specific month.
 
 #### Response (Success)
+
 ```json
 {
     "status": "success",
     "message": "Productos más vendidos obtenidos con éxito.",
+    "total_sales": 90390,
     "data": [
         {
-            "title": "Camiseta Mujer Jockey Shapewear K-435 Seamless Control",
-            "quantity": 7,
-            "total_amount": 88361
+            "title": "Producto Imaginario X",
+            "quantity": 4,
+            "total_amount": 21560
         },
         {
-            "title": "Calcetin Mujer Lady Genny P-585 Bamboo Sin Costura",
-            "quantity": 5,
-            "total_amount": 11825
+            "title": "Producto Imaginario Y",
+            "quantity": 2,
+            "total_amount": 18980
         },
         {
-            "title": "Soquete Mujer Lady Genny P-545 Grueso Elasticado(100 Denier)",
-            "quantity": 5,
-            "total_amount": 11950
+            "title": "Producto Imaginario Z",
+            "quantity": 2,
+            "total_amount": 24980
+        },
+        {
+            "title": "Producto Imaginario W",
+            "quantity": 1,
+            "total_amount": 15180
+        },
+        {
+            "title": "Producto Imaginario V",
+            "quantity": 1,
+            "total_amount": 9690
         }
     ]
 }
@@ -243,6 +272,13 @@ Optional query parameters:
 ### 8. **Get order statuses**
 
 **GET** `/mercadolibre/order-statuses/{client_id}`
+
+- `year`: The year for which to retrieve sales data (e.g., `2025`).
+
+> Note: If the `year` parameter is not provided, the system will default to the current year.
+
+> Note 2: If the `year` parameter is set to 'alloftimes', the system will return data for all years of sales.
+
 
 #### Response (Success)
 ```json
@@ -261,11 +297,14 @@ Optional query parameters:
 
 **GET** `/mercadolibre/top-payment-methods/{client_id}`
 
+
+
 #### Response (Success)
 ```json
 {
     "status": "success",
     "message": "Métodos de pago más utilizados obtenidos con éxito.",
+    "request_date":"2025-01-27 19:06:15"
     "data": {
         "account_money": 39,
         "debit_card": 12,
@@ -330,3 +369,88 @@ Optional query parameters:
 }
 ```
 
+### 11. **Get refunds or returns by category**
+
+**GET** `/mercadolibre/refunds-by-category/{client_id}`
+
+Optional query parameters:
+- `date_from`: The start date for the date range (e.g., `2023-01-01`).
+- `date_to`: The end date for the date range (e.g., `2023-01-31`).
+- `category`: The category ID to filter by (e.g., `MLC12345`).
+
+> Note: You can omit the `date_from` and `date_to` parameters, and the system will use the current month. The `category` parameter is optional.
+
+#### Response (Success)
+```json
+{
+    "status": "success",
+    "message": "Devoluciones por categoría obtenidas con éxito.",
+    "data": {
+        "MLC12345": {
+            "category_id": "MLC12345",
+            "total_refunds": 50000,
+            "orders": [
+                {
+                    "id": 1234567890,
+                    "date_created": "2023-01-02T15:23:40.000-04:00",
+                    "total_amount": 15000,
+                    "status": "cancelled",
+                    "title": "Producto A",
+                    "quantity": 1,
+                    "price": 15000
+                },
+                {
+                    "id": 1234567891,
+                    "date_created": "2023-01-05T08:56:09.000-04:00",
+                    "total_amount": 35000,
+                    "status": "cancelled",
+                    "title": "Producto B",
+                    "quantity": 2,
+                    "price": 17500
+                }
+            ]
+        }
+    }
+}
+```
+
+### 11. **Get product reviews**
+
+**GET** `/mercadolibre/products/reviews/{product_id}?client_id={client_id}`
+
+Required query parameters:
+- `client_id`: The MercadoLibre account client id (e.g., `12345678987654321`).
+
+
+#### Response (Success)
+```json
+{
+    "status": "success",
+    "message": "Opiniones obtenidas con éxito.",
+    "data": {
+        "paging": {
+            "total": 0,
+            "limit": 5,
+            "offset": 0,
+            "kvs_total": 0
+        },
+        "reviews": [],
+        "helpful_reviews": {
+            "best_max_stars": null,
+            "best_min_stars": null
+        },
+        "attributes": [],
+        "quanti_attributes": [],
+        "quali_attributes": [],
+        "metadata": [],
+        "rating_average": 0,
+        "rating_levels": {
+            "one_star": 0,
+            "two_star": 0,
+            "three_star": 0,
+            "four_star": 0,
+            "five_star": 0
+        }
+    }
+}
+```

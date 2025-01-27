@@ -13,6 +13,10 @@ use App\Http\Controllers\StockController;
 use App\Http\Controllers\WarehouseCompaniesController;
 use App\Http\Controllers\InfoController;
 
+use App\Http\Controllers\MercadoLibreProductController;
+use App\Http\Controllers\MercadoLibreDocumentsController;
+
+
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
@@ -77,10 +81,11 @@ Route::get('/mercadolibre/callback', [MercadoLibreController::class, 'handleCall
 Route::get('/mercadolibre/test-connection/{client_id}', [MercadoLibreController::class, 'testAndRefreshConnection']);
 // Get MercadoLibre credentials if are saved in db
 Route::get('/mercadolibre/credentials', [MercadoLibreController::class, 'getAllCredentialsData']);
+// Get MercadoLibre credentials by client_id
+Route::get('/mercadolibre/credentials/{client_id}', [MercadoLibreController::class, 'getCredentialsByClientId']);
 // Delete credentials using client_id
 Route::delete('/mercadolibre/credentials/{client_id}', [MercadoLibreController::class, 'deleteCredentials']);
 
-use App\Http\Controllers\MercadoLibreProductController;
 
 // Get MercadoLibre products list by client_id
 Route::get('/mercadolibre/products/{client_id}', [MercadoLibreProductController::class, 'listProductsByClientId']);
@@ -88,10 +93,17 @@ Route::get('/mercadolibre/products/{client_id}', [MercadoLibreProductController:
 // Search MercadoLibre products by client_id and search term
 Route::get('/mercadolibre/products/search/{client_id}', [MercadoLibreProductController::class, 'searchProducts']);
 
-use App\Http\Controllers\MercadoLibreDocumentsController;
+// Get product reviews by product_id
+Route::get('/mercadolibre/products/reviews/{product_id}', [MercadoLibreProductController::class, 'getProductReviews']);
+
+// Get product reviews by product_id and client_id
+Route::get('/mercadolibre/products/reviews/{product_id}', [MercadoLibreProductController::class, 'getProductReviews']);
 
 // Get MercadoLibre invoice report by client_id
 Route::get('/mercadolibre/invoices/{client_id}', [MercadoLibreDocumentsController::class, 'getInvoiceReport']);
+
+// Get refunds or returns by category
+Route::get('/mercadolibre/refunds-by-category/{client_id}', [MercadoLibreDocumentsController::class, 'getRefundsByCategory']);
 
 // Get MercadoLibre sales by month by client_id
 Route::get('/mercadolibre/sales-by-month/{client_id}', [MercadoLibreDocumentsController::class, 'getSalesByMonth']);

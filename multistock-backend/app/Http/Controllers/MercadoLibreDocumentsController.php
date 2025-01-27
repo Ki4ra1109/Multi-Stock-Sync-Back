@@ -416,13 +416,16 @@ class MercadoLibreDocumentsController extends Controller
     
             // Extract sold products (titles and quantities)
             foreach ($order['order_items'] as $item) {
-                $soldProducts[] = [
-                    'order_id' => $order['id'], // MercadoLibre Order ID
-                    'order_date' => $order['date_created'], // Order date
-                    'title' => $item['item']['title'], // Product title
-                    'quantity' => $item['quantity'],  // Quantity sold
-                    'price' => $item['unit_price'],   // Price per unit
-                ];
+                $productId = $item['item']['id'];
+                if (!isset($soldProducts[$productId])) {
+                    $soldProducts[$productId] = [
+                        'title' => $item['item']['title'],
+                        'quantity' => 0,
+                        'total_amount' => 0,
+                    ];
+                }
+                $soldProducts[$productId]['quantity'] += $item['quantity'];
+                $soldProducts[$productId]['total_amount'] += $item['quantity'] * $item['unit_price'];
             }
         }
     
@@ -434,7 +437,7 @@ class MercadoLibreDocumentsController extends Controller
                 'week_start_date' => $startOfWeek->toDateString(),
                 'week_end_date' => $endOfWeek->toDateString(),
                 'total_sales' => $totalSales,
-                'sold_products' => $soldProducts, // List of sold products
+                'sold_products' => array_values($soldProducts), // List of sold products
             ],
         ]);
     }
@@ -598,6 +601,7 @@ class MercadoLibreDocumentsController extends Controller
         // Process sales data
         $orders = $response->json()['results'];
         $productSales = [];
+        $totalSales = 0;
 
         foreach ($orders as $order) {
             foreach ($order['order_items'] as $item) {
@@ -611,6 +615,7 @@ class MercadoLibreDocumentsController extends Controller
                 }
                 $productSales[$productId]['quantity'] += $item['quantity'];
                 $productSales[$productId]['total_amount'] += $item['quantity'] * $item['unit_price'];
+                $totalSales += $item['quantity'] * $item['unit_price'];
             }
         }
 
@@ -623,6 +628,7 @@ class MercadoLibreDocumentsController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Productos más vendidos obtenidos con éxito.',
+            'total_sales' => $totalSales,
             'data' => $productSales,
         ]);
     }
@@ -738,9 +744,21 @@ class MercadoLibreDocumentsController extends Controller
 
         $userId = $response->json()['id'];
 
-        // API request to get all sales
+        // Get query parameter for year
+        $year = request()->query('year', date('Y')); // Default to current year
+
+        // Calculate date range based on the provided year or all times
+        if ($year === 'alloftimes') {
+            $dateFrom = '2000-01-01T00:00:00.000-00:00'; // Arbitrary start date for all times
+            $dateTo = date('Y-m-d\T23:59:59.999-00:00'); // Current date and time
+        } else {
+            $dateFrom = "{$year}-01-01T00:00:00.000-00:00";
+            $dateTo = "{$year}-12-31T23:59:59.999-00:00";
+        }
+
+        // API request to get all sales within the specified date range
         $response = Http::withToken($credentials->access_token)
-            ->get("https://api.mercadolibre.com/orders/search?seller={$userId}&order.status=paid");
+            ->get("https://api.mercadolibre.com/orders/search?seller={$userId}&order.status=paid&order.date_created.from={$dateFrom}&order.date_created.to={$dateTo}");
 
         // Validate response
         if ($response->failed()) {
@@ -772,6 +790,7 @@ class MercadoLibreDocumentsController extends Controller
         return response()->json([
             'status' => 'success',
             'message' => 'Métodos de pago más utilizados obtenidos con éxito.',
+            'request_date' => date('Y-m-d H:i:s'), // Include the request date
             'data' => $paymentMethods,
         ]);
     }
@@ -900,6 +919,103 @@ class MercadoLibreDocumentsController extends Controller
                 'annual_sales' => $annualSales,
                 'top_payment_methods' => $topPaymentMethods,
             ],
+        ]);
+    }
+
+    /**
+     * Get refunds or returns by category from MercadoLibre API using client_id.
+     */
+    public function getRefundsByCategory($clientId)
+    {
+        // Get credentials by client_id
+        $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
+
+        // Check if credentials exist
+        if (!$credentials) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No se encontraron credenciales válidas para el client_id proporcionado.',
+            ], 404);
+        }
+
+        // Check if token is expired
+        if ($credentials->isTokenExpired()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'El token ha expirado. Por favor, renueve su token.',
+            ], 401);
+        }
+
+        // Get user id from token
+        $response = Http::withToken($credentials->access_token)
+            ->get('https://api.mercadolibre.com/users/me');
+
+        if ($response->failed()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No se pudo obtener el ID del usuario. Por favor, valide su token.',
+                'error' => $response->json(),
+            ], 500);
+        }
+
+        $userId = $response->json()['id'];
+
+        // Get query parameters for date range and category
+        $dateFrom = request()->query('date_from', date('Y-m-01')); // Default to first day of current month
+        $dateTo = request()->query('date_to', date('Y-m-t')); // Default to last day of current month
+        $category = request()->query('category', ''); // Default to empty (no category filter)
+
+        // API request to get refunds or returns by category
+        $response = Http::withToken($credentials->access_token)
+            ->get("https://api.mercadolibre.com/orders/search", [
+                'seller' => $userId,
+                'order.status' => 'cancelled',
+                'order.date_created.from' => "{$dateFrom}T00:00:00.000-00:00",
+                'order.date_created.to' => "{$dateTo}T23:59:59.999-00:00",
+                'category' => $category,
+            ]);
+
+        // Validate response
+        if ($response->failed()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al conectar con la API de MercadoLibre.',
+                'error' => $response->json(),
+            ], $response->status());
+        }
+
+        // Process refunds data
+        $orders = $response->json()['results'];
+        $refundsByCategory = [];
+
+        foreach ($orders as $order) {
+            foreach ($order['order_items'] as $item) {
+                $categoryId = $item['item']['category_id'];
+                if (!isset($refundsByCategory[$categoryId])) {
+                    $refundsByCategory[$categoryId] = [
+                        'category_id' => $categoryId,
+                        'total_refunds' => 0,
+                        'orders' => []
+                    ];
+                }
+                $refundsByCategory[$categoryId]['total_refunds'] += $order['total_amount'];
+                $refundsByCategory[$categoryId]['orders'][] = [
+                    'id' => $order['id'],
+                    'date_created' => $order['date_created'],
+                    'total_amount' => $order['total_amount'],
+                    'status' => $order['status'],
+                    'title' => $item['item']['title'],
+                    'quantity' => $item['quantity'],
+                    'price' => $item['unit_price'],
+                ];
+            }
+        }
+
+        // Return refunds by category data
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Devoluciones por categoría obtenidas con éxito.',
+            'data' => $refundsByCategory,
         ]);
     }
 
