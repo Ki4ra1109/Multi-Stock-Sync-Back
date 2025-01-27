@@ -233,29 +233,42 @@ Optional query parameters:
 > Note: If we add `year` but not `month`, the system will consider the entire year. If we only add `month`, it will consider the machine's year. If we do not send either, it will consider the entire machine's year and no specific month.
 
 #### Response (Success)
+
 ```json
 {
     "status": "success",
     "message": "Productos más vendidos obtenidos con éxito.",
+    "total_sales": 90390,
     "data": [
         {
-            "title": "Camiseta Mujer Jockey Shapewear K-435 Seamless Control",
-            "quantity": 7,
-            "total_amount": 88361
+            "title": "Producto Imaginario X",
+            "quantity": 4,
+            "total_amount": 21560
         },
         {
-            "title": "Calcetin Mujer Lady Genny P-585 Bamboo Sin Costura",
-            "quantity": 5,
-            "total_amount": 11825
+            "title": "Producto Imaginario Y",
+            "quantity": 2,
+            "total_amount": 18980
         },
         {
-            "title": "Soquete Mujer Lady Genny P-545 Grueso Elasticado(100 Denier)",
-            "quantity": 5,
-            "total_amount": 11950
+            "title": "Producto Imaginario Z",
+            "quantity": 2,
+            "total_amount": 24980
+        },
+        {
+            "title": "Producto Imaginario W",
+            "quantity": 1,
+            "total_amount": 15180
+        },
+        {
+            "title": "Producto Imaginario V",
+            "quantity": 1,
+            "total_amount": 9690
         }
     ]
 }
 ```
+
 
 ### 8. **Get order statuses**
 
