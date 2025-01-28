@@ -1129,9 +1129,24 @@ class MercadoLibreDocumentsController extends Controller
             }
         }
 
+        // Ensure month1 is the older month and month2 is the newer month
+        $olderMonthSales = $totalSales1;
+        $newerMonthSales = $totalSales2;
+        if (strtotime("{$year1}-{$month1}-01") > strtotime("{$year2}-{$month2}-01")) {
+            $olderMonthSales = $totalSales2;
+            $newerMonthSales = $totalSales1;
+        }
+
         // Determine increase or decrease
-        $difference = $totalSales2 - $totalSales1;
-        $percentageChange = $totalSales1 > 0 ? ($difference / $totalSales1) * 100 : 0;
+        $difference = $newerMonthSales - $olderMonthSales;
+        if ($olderMonthSales > 0) {
+            $percentageChange = ($difference / $olderMonthSales) * 100;
+        } elseif ($newerMonthSales > 0) {
+            $percentageChange = 100;
+        } else {
+            $percentageChange = 0;
+        }
+        $percentageChange = round($percentageChange, 2);
 
         // Return comparison data
         return response()->json([
