@@ -454,3 +454,69 @@ Required query parameters:
     }
 }
 ```
+
+### 11. **Get product reviews**
+
+**GET** `/mercadolibre/compare-sales-data/{client_id}?year1={year1}&month1={month1}&year2={year2}&month2={month2}`
+
+Required query parameters:
+- `year1`: The first year for compare (e.g., `2024`).
+- `month1`: The first month to compare (e.g, `10`).
+- `year2`: The second year for compare (e.g., `2025`).
+- `month2`: The second month to compare (e.g, `11`).
+
+
+#### Response (Success)
+
+```json
+{
+    "status": "success",
+    "message": "Comparación de ventas obtenida con éxito.",
+    "data": {
+        "month1": {
+            "year": "2024",
+            "month": "10",
+            "total_sales": 50000,
+            "sold_products": [
+                {
+                    "order_id": 1,
+                    "order_date": "2024-10-01",
+                    "title": "Producto A",
+                    "quantity": 2,
+                    "price": 10000
+                },
+                {
+                    "order_id": 2,
+                    "order_date": "2024-10-02",
+                    "title": "Producto B",
+                    "quantity": 3,
+                    "price": 5000
+                }
+            ]
+        },
+        "month2": {
+            "year": "2025",
+            "month": "01",
+            "total_sales": 40000,
+            "sold_products": [
+                {
+                    "order_id": 3,
+                    "order_date": "2025-01-01",
+                    "title": "Producto C",
+                    "quantity": 1,
+                    "price": 20000
+                },
+                {
+                    "order_id": 4,
+                    "order_date": "2025-01-02",
+                    "title": "Producto D",
+                    "quantity": 2,
+                    "price": 10000
+                }
+            ]
+        },
+        "difference": -10000,
+        "percentage_change": -20.0
+    }
+}
+```
