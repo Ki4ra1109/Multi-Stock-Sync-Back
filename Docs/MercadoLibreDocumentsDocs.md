@@ -414,7 +414,7 @@ Optional query parameters:
 }
 ```
 
-### 11. **Get product reviews**
+### 12. **Get product reviews**
 
 **GET** `/mercadolibre/products/reviews/{product_id}?client_id={client_id}`
 
@@ -455,7 +455,7 @@ Required query parameters:
 }
 ```
 
-### 11. **Get product reviews**
+### 13. **Compare sales between months**
 
 **GET** `/mercadolibre/compare-sales-data/{client_id}?year1={year1}&month1={month1}&year2={year2}&month2={month2}`
 
