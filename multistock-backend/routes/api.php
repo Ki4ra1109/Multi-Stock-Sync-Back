@@ -132,5 +132,8 @@ Route::get('/mercadolibre/top-payment-methods/{client_id}', [MercadoLibreDocumen
 // Get summary
 Route::get('/mercadolibre/summary/{client_id}', [MercadoLibreDocumentsController::class, 'summary']);
 
+// Compare sales data between two months
+Route::get('/mercadolibre/compare-sales-data/{client_id}', [MercadoLibreDocumentsController::class, 'compareSalesData']);
+
 // Info route
 Route::get('/info', [InfoController::class, 'getInfo']);
