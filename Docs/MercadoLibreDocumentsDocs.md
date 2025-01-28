@@ -520,3 +520,64 @@ Required query parameters:
     }
 }
 ```
+
+### 14. **Compare sales between years**
+
+**GET** `/mercadolibre/compare-annual-sales-data/{client_id}?year1={year1}year2={year2}`
+
+Required query parameters:
+- `year1`: The first year for compare (e.g., `2024`).
+- `year2`: The second year for compare (e.g., `2025`).
+
+#### Response (Success)
+
+```json
+{
+    "status": "success",
+    "message": "Comparación de ventas obtenida con éxito.",
+    "data": {
+        "year1": {
+            "year": "2024",
+            "total_sales": 922132,
+            "sold_products": [
+                {
+                    "order_id": 1000000001,
+                    "order_date": "2024-07-25T12:50:51.000-04:00",
+                    "title": "Producto Ficticio A",
+                    "quantity": 1,
+                    "price": 13690
+                },
+                {
+                    "order_id": 1000000002,
+                    "order_date": "2024-08-08T21:18:32.000-04:00",
+                    "title": "Producto Ficticio B",
+                    "quantity": 2,
+                    "price": 12623
+                }
+            ]
+        },
+        "year2": {
+            "year": "2025",
+            "total_sales": 90390,
+            "sold_products": [
+                {
+                    "order_id": 2000000001,
+                    "order_date": "2025-01-02T15:23:40.000-04:00",
+                    "title": "Producto Ficticio C",
+                    "quantity": 2,
+                    "price": 5390
+                },
+                {
+                    "order_id": 2000000002,
+                    "order_date": "2025-01-02T15:23:40.000-04:00",
+                    "title": "Producto Ficticio D",
+                    "quantity": 2,
+                    "price": 5390
+                }
+            ]
+        },
+        "difference": -831742,
+        "percentage_change": -90.1977157283339
+    }
+}
+```
