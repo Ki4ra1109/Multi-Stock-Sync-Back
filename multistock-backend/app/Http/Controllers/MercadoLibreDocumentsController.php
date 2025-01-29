@@ -1361,11 +1361,11 @@ class MercadoLibreDocumentsController extends Controller
         $userId = $response->json()['id'];
 
         // Get query parameters for date range
-        $dateFrom = $request->query('fecha_inicial');
-        $dateTo = $request->query('fecha_final');
+        $startDate = $request->query('start_date');
+        $endDate = $request->query('end_date');
 
         // Validate date range
-        if (!$dateFrom || !$dateTo) {
+        if (!$startDate || !$endDate) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Las fechas inicial y final son requeridas.',
@@ -1377,8 +1377,8 @@ class MercadoLibreDocumentsController extends Controller
             ->get("https://api.mercadolibre.com/orders/search", [
                 'seller' => $userId,
                 'order.status' => 'paid',
-                'order.date_created.from' => "{$dateFrom}T00:00:00.000-00:00",
-                'order.date_created.to' => "{$dateTo}T23:59:59.999-00:00"
+                'order.date_created.from' => "{$startDate}T00:00:00.000-00:00",
+                'order.date_created.to' => "{$endDate}T23:59:59.999-00:00"
             ]);
 
         // Validate response
