@@ -138,5 +138,9 @@ Route::get('/mercadolibre/compare-sales-data/{client_id}', [MercadoLibreDocument
 // Compare sales data between two years
 Route::get('/mercadolibre/compare-annual-sales-data/{client_id}', [MercadoLibreDocumentsController::class, 'compareAnnualSalesData']);
 
+// Get sales by date range
+Route::get('/mercadolibre/sales-by-date-range/{client_id}', [MercadoLibreDocumentsController::class, 'getSalesByDateRange']);
+
 // Info route
 Route::get('/info', [InfoController::class, 'getInfo']);
+
