@@ -1299,6 +1299,7 @@ class MercadoLibreDocumentsController extends Controller
         // Determine increase or decrease
         $difference = $data2['total_sales'] - $data1['total_sales'];
         $percentageChange = $data1['total_sales'] > 0 ? ($difference / $data1['total_sales']) * 100 : 0;
+        $percentageChange = round($percentageChange, 2); // Ensure two decimal places
 
         // Return comparison data
         return response()->json([
