@@ -140,3 +140,13 @@ Route::get('/mercadolibre/compare-annual-sales-data/{client_id}', [MercadoLibreD
 
 // Info route
 Route::get('/info', [InfoController::class, 'getInfo']);
+
+// Get product titles by client_id
+Route::get('/mercadolibre/product-titles/{client_id}', [MercadoLibreProductController::class, 'getProductTitles']);
+
+
+// Save products from API to database
+Route::get('/mercadolibre/save-products/{client_id}', [MercadoLibreProductController::class, 'saveProducts']);
+
+// Get sales by date range
+Route::get('/mercadolibre/sales-by-date-range/{client_id}', [MercadoLibreDocumentsController::class, 'getSalesByDateRange']);
