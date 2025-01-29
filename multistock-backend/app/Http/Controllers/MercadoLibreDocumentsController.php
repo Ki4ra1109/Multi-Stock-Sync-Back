@@ -1404,6 +1404,7 @@ class MercadoLibreDocumentsController extends Controller
                 'order_id' => $order['id'],
                 'order_date' => $order['date_created'],
                 'total_amount' => $order['total_amount'],
+                'payment_method' => $order['payments'][0]['payment_type'] ?? 'unknown',
                 'products' => [],
             ];
 
