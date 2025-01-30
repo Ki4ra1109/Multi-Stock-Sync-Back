@@ -5,7 +5,7 @@ namespace App\Http\Controllers\MercadoLibre\Reportes;
 use App\Models\MercadoLibreCredential;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
-    
+
 class getSalesByMonthController
 {
 
