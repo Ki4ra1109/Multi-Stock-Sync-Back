@@ -1409,9 +1409,10 @@ class MercadoLibreDocumentsController extends Controller
                 'products' => [],
             ];
 
-            // Extract sold products (titles, quantities, categories, prices)
+            // Extract sold products (titles, quantities, categories, prices, IDs)
             foreach ($order['order_items'] as $item) {
                 $productData = [
+                    'id' => $item['item']['id'], // Add product ID
                     'title' => $item['item']['title'],
                     'quantity' => $item['quantity'],
                     'price' => $item['unit_price'],
