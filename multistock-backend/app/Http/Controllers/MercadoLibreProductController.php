@@ -4,9 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Models\MercadoLibreCredential;
 use Illuminate\Support\Facades\Http;
+use App\Queries\MercadoLibreQueries;
 
 class MercadoLibreProductController extends Controller
 {
+    protected $mercadoLibreQueries;
+
+    public function __construct(MercadoLibreQueries $mercadoLibreQueries)
+    {
+        $this->mercadoLibreQueries = $mercadoLibreQueries;
+    }
+
     /**
      * Get products from MercadoLibre API using client_id.
      */
@@ -259,5 +267,51 @@ class MercadoLibreProductController extends Controller
             'message' => 'Opiniones obtenidas con éxito.',
             'data' => $response->json(),
         ]);
+    }
+
+    /**
+     * Get only product titles
+     */
+    public function getProductTitles($clientId)
+    {
+        try {
+            $titles = $this->mercadoLibreQueries->getProductTitlesFromApi($clientId);
+            
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Títulos de productos obtenidos con éxito',
+                'data' => $titles
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al obtener los títulos de los productos',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Save products from API to database
+     */
+    public function saveProducts($clientId)
+    {
+        try {
+            $savedCount = $this->mercadoLibreQueries->saveProductsFromApi($clientId);
+            
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Productos guardados con éxito',
+                'data' => [
+                    'saved_products' => $savedCount
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al guardar los productos',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }
