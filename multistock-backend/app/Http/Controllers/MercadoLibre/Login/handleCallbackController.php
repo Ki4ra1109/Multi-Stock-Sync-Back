@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\MercadoLibre\Reportes;
+namespace App\Http\Controllers\MercadoLibre\Login;
 
 use App\Models\MercadoLibreCredential;
 use Illuminate\Support\Facades\Http;
