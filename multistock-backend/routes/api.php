@@ -14,7 +14,24 @@ use App\Http\Controllers\WarehouseCompaniesController;
 use App\Http\Controllers\InfoController;
 
 use App\Http\Controllers\MercadoLibreProductController;
-use App\Http\Controllers\MercadoLibreDocumentsController;
+
+/**
+     * New Controllers
+**/
+use App\Http\Controllers\MercadoLibre\Reportes\compareAnnualSalesDataController;
+use App\Http\Controllers\MercadoLibre\Reportes\compareSalesDataController;
+use App\Http\Controllers\MercadoLibre\Reportes\getAnnualSalesController;
+use App\Http\Controllers\MercadoLibre\Reportes\getDailySalesController;
+use App\Http\Controllers\MercadoLibre\Reportes\getInvoiceReportController;
+use App\Http\Controllers\MercadoLibre\Reportes\getOrderStatusesController;
+use App\Http\Controllers\MercadoLibre\Reportes\getRefundsByCategoryController;
+use App\Http\Controllers\MercadoLibre\Reportes\getSalesByWeekController;
+use App\Http\Controllers\MercadoLibre\Reportes\getSalesByMonthController;
+use App\Http\Controllers\MercadoLibre\Reportes\getTopPaymentMethodsController;
+use App\Http\Controllers\MercadoLibre\Reportes\getTopSellingProductsController;
+use App\Http\Controllers\MercadoLibre\Reportes\getWeeksOfMonthController;
+use App\Http\Controllers\MercadoLibre\Reportes\summaryController;
+use App\Http\Controllers\MercadoLibre\Reportes\getSalesByDateRangeController;
 
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
@@ -139,7 +156,7 @@ Route::get('/mercadolibre/compare-sales-data/{client_id}', [compareSalesDataCont
 Route::get('/mercadolibre/compare-annual-sales-data/{client_id}', [compareAnnualSalesDataController::class, 'compareAnnualSalesData']);
 
 // Get sales by date range
-Route::get('/mercadolibre/sales-by-date-range/{client_id}', [getSalesByDataRangeController::class, 'getSalesByDateRange']);
+Route::get('/mercadolibre/sales-by-date-range/{client_id}', [getSalesByDateRangeController::class, 'getSalesByDateRange']);
 
 // Info route
 Route::get('/info', [InfoController::class, 'getInfo']);
