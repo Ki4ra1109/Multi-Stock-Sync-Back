@@ -164,3 +164,6 @@ Route::get('/mercadolibre/sales-by-date-range/{client_id}', [MercadoLibreDocumen
 // Info route
 Route::get('/info', [InfoController::class, 'getInfo']);
 
+// Save MercadoLibre products to database
+Route::get('/mercadolibre/save-products/{client_id}', [MercadoLibreProductController::class, 'saveProducts']);
+
