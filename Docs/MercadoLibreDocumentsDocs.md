@@ -581,3 +581,56 @@ Required query parameters:
     }
 }
 ```
+
+### 15. **Get sales data by date range**
+
+**GET** `/mercadolibre/sales-by-date-range/{client_id}?start_date={start_date}end_date={end_date}`
+
+Required query parameters:
+- `start_date`: The first date range for compare (e.g., `2025-01-01`).
+- `end_date`: The last date range for compare (e.g., `2025-01-31`).
+
+#### Response (Success)
+
+```json
+{
+    "status": "success",
+    "message": "Ventas obtenidas con éxito.",
+    "data": {
+        "2025-01-02": [
+            {
+                "id":"MLCXXXXXXXX",
+                "order_id": 2000010344476138,
+                "order_date": "2025-01-02T15:23:40.000-04:00",
+                "total_amount": 10780,
+                "payment_method": "account_money",
+                "products": [
+                    {
+                        "title": "Cuadro Mujer Lady Genny C-413 Maxi Cotton Spandex",
+                        "quantity": 2,
+                        "price": 5390,
+                        "category_id": "MLC6428",
+                        "category": "Calzones"
+                    }
+                ]
+            },
+            {
+                "id":"MLCXXXXXXXX",
+                "order_id": 2000010344463476,
+                "order_date": "2025-01-02T15:23:40.000-04:00",
+                "total_amount": 10780,
+                "payment_method": "account_money",
+                "products": [
+                    {
+                        "title": "Cuadro Mujer Lady Genny C-413 Maxi Cotton Spandex",
+                        "quantity": 2,
+                        "price": 5390,
+                        "category_id": "MLC6428",
+                        "category": "Calzones"
+                    }
+                ]
+            }
+        ]
+    }
+}
+```

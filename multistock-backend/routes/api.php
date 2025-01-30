@@ -14,7 +14,24 @@ use App\Http\Controllers\WarehouseCompaniesController;
 use App\Http\Controllers\InfoController;
 
 use App\Http\Controllers\MercadoLibreProductController;
-use App\Http\Controllers\MercadoLibreDocumentsController;
+
+/**
+     * New Controllers
+**/
+use App\Http\Controllers\MercadoLibre\Reportes\compareAnnualSalesDataController;
+use App\Http\Controllers\MercadoLibre\Reportes\compareSalesDataController;
+use App\Http\Controllers\MercadoLibre\Reportes\getAnnualSalesController;
+use App\Http\Controllers\MercadoLibre\Reportes\getDailySalesController;
+use App\Http\Controllers\MercadoLibre\Reportes\getInvoiceReportController;
+use App\Http\Controllers\MercadoLibre\Reportes\getOrderStatusesController;
+use App\Http\Controllers\MercadoLibre\Reportes\getRefundsByCategoryController;
+use App\Http\Controllers\MercadoLibre\Reportes\getSalesByWeekController;
+use App\Http\Controllers\MercadoLibre\Reportes\getSalesByMonthController;
+use App\Http\Controllers\MercadoLibre\Reportes\getTopPaymentMethodsController;
+use App\Http\Controllers\MercadoLibre\Reportes\getTopSellingProductsController;
+use App\Http\Controllers\MercadoLibre\Reportes\getWeeksOfMonthController;
+use App\Http\Controllers\MercadoLibre\Reportes\summaryController;
+use App\Http\Controllers\MercadoLibre\Reportes\getSalesByDateRangeController;
 
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
@@ -100,53 +117,50 @@ Route::get('/mercadolibre/products/reviews/{product_id}', [MercadoLibreProductCo
 Route::get('/mercadolibre/products/reviews/{product_id}', [MercadoLibreProductController::class, 'getProductReviews']);
 
 // Get MercadoLibre invoice report by client_id
-Route::get('/mercadolibre/invoices/{client_id}', [MercadoLibreDocumentsController::class, 'getInvoiceReport']);
+Route::get('/mercadolibre/invoices/{client_id}', [getInvoiceReportController::class, 'getInvoiceReport']);
 
 // Get refunds or returns by category
-Route::get('/mercadolibre/refunds-by-category/{client_id}', [MercadoLibreDocumentsController::class, 'getRefundsByCategory']);
+Route::get('/mercadolibre/refunds-by-category/{client_id}', [getRefundsByCategoryController::class, 'getRefundsByCategory']);
 
 // Get MercadoLibre sales by month by client_id
-Route::get('/mercadolibre/sales-by-month/{client_id}', [MercadoLibreDocumentsController::class, 'getSalesByMonth']);
+Route::get('/mercadolibre/sales-by-month/{client_id}', [getSalesByMonthController::class, 'getSalesByMonth']);
 
 // Get MercadoLibre annual sales by client_id
-Route::get('/mercadolibre/annual-sales/{client_id}', [MercadoLibreDocumentsController::class, 'getAnnualSales']);
+Route::get('/mercadolibre/annual-sales/{client_id}', [getAnnualSalesController::class, 'getAnnualSales']);
 
 // Get weeks of the month
-Route::get('/mercadolibre/weeks-of-month', [MercadoLibreDocumentsController::class, 'getWeeksOfMonth']);
+Route::get('/mercadolibre/weeks-of-month', [getWeeksOfMonthController::class, 'getWeeksOfMonth']);
 
 // Get total sales for a specific week
-Route::get('/mercadolibre/sales-by-week/{client_id}', [MercadoLibreDocumentsController::class, 'getSalesByWeek']);
+Route::get('/mercadolibre/sales-by-week/{client_id}', [getSalesByWeekController::class, 'getSalesByWeek']);
 
 // Get daily sales
-Route::get('/mercadolibre/daily-sales/{client_id}', [MercadoLibreDocumentsController::class, 'getDailySales']);
+Route::get('/mercadolibre/daily-sales/{client_id}', [getDailySalesController::class, 'getDailySales']);
 
 // Get top selling products
-Route::get('/mercadolibre/top-selling-products/{client_id}', [MercadoLibreDocumentsController::class, 'getTopSellingProducts']);
+Route::get('/mercadolibre/top-selling-products/{client_id}', [getTopSellingProductsController::class, 'getTopSellingProducts']);
 
 // Get order statuses
-Route::get('/mercadolibre/order-statuses/{client_id}', [MercadoLibreDocumentsController::class, 'getOrderStatuses']);
+Route::get('/mercadolibre/order-statuses/{client_id}', [getOrderStatusesController::class, 'getOrderStatuses']);
 
 // Get top payment methods
-Route::get('/mercadolibre/top-payment-methods/{client_id}', [MercadoLibreDocumentsController::class, 'getTopPaymentMethods']);
+Route::get('/mercadolibre/top-payment-methods/{client_id}', [getTopPaymentMethodsController::class, 'getTopPaymentMethods']);
 
 // Get summary
-Route::get('/mercadolibre/summary/{client_id}', [MercadoLibreDocumentsController::class, 'summary']);
+Route::get('/mercadolibre/summary/{client_id}', [summaryController::class, 'summary']);
 
 // Compare sales data between two months
-Route::get('/mercadolibre/compare-sales-data/{client_id}', [MercadoLibreDocumentsController::class, 'compareSalesData']);
+Route::get('/mercadolibre/compare-sales-data/{client_id}', [compareSalesDataController::class, 'compareSalesData']);
 
 // Compare sales data between two years
-Route::get('/mercadolibre/compare-annual-sales-data/{client_id}', [MercadoLibreDocumentsController::class, 'compareAnnualSalesData']);
+Route::get('/mercadolibre/compare-annual-sales-data/{client_id}', [compareAnnualSalesDataController::class, 'compareAnnualSalesData']);
+
+// Get sales by date range
+Route::get('/mercadolibre/sales-by-date-range/{client_id}', [getSalesByDateRangeController::class, 'getSalesByDateRange']);
+
+// Get sales by date range
+Route::get('/mercadolibre/sales-by-date-range/{client_id}', [MercadoLibreDocumentsController::class, 'getSalesByDateRange']);
 
 // Info route
 Route::get('/info', [InfoController::class, 'getInfo']);
 
-// Get product titles by client_id
-Route::get('/mercadolibre/product-titles/{client_id}', [MercadoLibreProductController::class, 'getProductTitles']);
-
-
-// Save products from API to database
-Route::get('/mercadolibre/save-products/{client_id}', [MercadoLibreProductController::class, 'saveProducts']);
-
-// Get sales by date range
-Route::get('/mercadolibre/sales-by-date-range/{client_id}', [MercadoLibreDocumentsController::class, 'getSalesByDateRange']);
