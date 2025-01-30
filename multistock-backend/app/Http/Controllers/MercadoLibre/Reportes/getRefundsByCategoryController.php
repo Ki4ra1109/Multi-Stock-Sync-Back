@@ -8,10 +8,6 @@ use Illuminate\Http\Request;
 
 class getRefundsByCategoryController
 {
-
- /**
-     * Get refunds or returns by category from MercadoLibre API using client_id.
-     */
     public function getRefundsByCategory($clientId)
     {
         // Get credentials by client_id
@@ -21,7 +17,7 @@ class getRefundsByCategoryController
         if (!$credentials) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'No se encontraron credenciales válidas para el client_id proporcionado.',
+                'message' => 'No valid credentials found for the provided client_id.',
             ], 404);
         }
 
@@ -29,7 +25,7 @@ class getRefundsByCategoryController
         if ($credentials->isTokenExpired()) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'El token ha expirado. Por favor, renueve su token.',
+                'message' => 'Token has expired. Please renew your token.',
             ], 401);
         }
 
@@ -40,7 +36,7 @@ class getRefundsByCategoryController
         if ($response->failed()) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'No se pudo obtener el ID del usuario. Por favor, valide su token.',
+                'message' => 'Could not get user ID. Please validate your token.',
                 'error' => $response->json(),
             ], 500);
         }
@@ -66,7 +62,7 @@ class getRefundsByCategoryController
         if ($response->failed()) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Error al conectar con la API de MercadoLibre.',
+                'message' => 'Error connecting to MercadoLibre API.',
                 'error' => $response->json(),
             ], $response->status());
         }
@@ -76,6 +72,25 @@ class getRefundsByCategoryController
         $refundsByCategory = [];
 
         foreach ($orders as $order) {
+            // Get shipping details for each order
+            $shippingResponse = Http::withToken($credentials->access_token)
+                ->get("https://api.mercadolibre.com/shipments/{$order['shipping']['id']}");
+            
+            $shippingDetails = $shippingResponse->successful() ? $shippingResponse->json() : null;
+
+            // Get buyer details
+            $buyerResponse = Http::withToken($credentials->access_token)
+                ->get("https://api.mercadolibre.com/users/{$order['buyer']['id']}");
+            
+            $buyerDetails = $buyerResponse->successful() ? $buyerResponse->json() : null;
+
+            // Get billing information for the order
+            $billingInfoResponse = Http::withToken($credentials->access_token)
+                ->withHeaders(['x-version' => '2'])
+                ->get("https://api.mercadolibre.com/orders/{$order['id']}/billing_info");
+
+            $billingInfo = $billingInfoResponse->successful() ? $billingInfoResponse->json() : null;
+
             foreach ($order['order_items'] as $item) {
                 $categoryId = $item['item']['category_id'];
                 if (!isset($refundsByCategory[$categoryId])) {
@@ -86,14 +101,53 @@ class getRefundsByCategoryController
                     ];
                 }
                 $refundsByCategory[$categoryId]['total_refunds'] += $order['total_amount'];
+
+                // Prepare shipping address information
+                $shippingAddress = $shippingDetails ? [
+                    'address' => $shippingDetails['receiver_address']['street_name'] ?? '',
+                    'number' => $shippingDetails['receiver_address']['street_number'] ?? '',
+                    'zip_code' => $shippingDetails['receiver_address']['zip_code'] ?? '',
+                    'city' => $shippingDetails['receiver_address']['city']['name'] ?? '',
+                    'state' => $shippingDetails['receiver_address']['state']['name'] ?? '',
+                    'country' => $shippingDetails['receiver_address']['country']['name'] ?? '',
+                    'comments' => $shippingDetails['receiver_address']['comment'] ?? '',
+                ] : null;
+
+                // Prepare buyer information
+                $buyerInfo = $buyerDetails ? [
+                    'id' => $buyerDetails['id'],
+                    'name' => $buyerDetails['nickname'],
+                ] : null;
+
+                // Prepare billing information
+                $billingInfoFormatted = $billingInfo ? [
+                    'first_name' => $billingInfo['buyer']['billing_info']['name'] ?? '',
+                    'last_name' => $billingInfo['buyer']['billing_info']['last_name'] ?? '',
+                    'identification' => [
+                        'type' => $billingInfo['buyer']['billing_info']['identification']['type'] ?? '',
+                        'number' => $billingInfo['buyer']['billing_info']['identification']['number'] ?? '',
+                    ],
+                ] : null;
+
                 $refundsByCategory[$categoryId]['orders'][] = [
                     'id' => $order['id'],
-                    'date_created' => $order['date_created'],
+                    'created_date' => $order['date_created'],
                     'total_amount' => $order['total_amount'],
                     'status' => $order['status'],
-                    'title' => $item['item']['title'],
-                    'quantity' => $item['quantity'],
-                    'price' => $item['unit_price'],
+                    'product' => [
+                        'title' => $item['item']['title'],
+                        'quantity' => $item['quantity'],
+                        'price' => $item['unit_price'],
+                    ],
+                    'buyer' => $buyerInfo,
+                    'billing' => $billingInfoFormatted,
+                    'shipping' => [
+                        'shipping_id' => $order['shipping']['id'] ?? null,
+                        'shipping_method' => $shippingDetails['shipping_method']['name'] ?? null,
+                        'tracking_number' => $shippingDetails['tracking_number'] ?? null,
+                        'shipping_status' => $shippingDetails['status'] ?? null,
+                        'shipping_address' => $shippingAddress,
+                    ]
                 ];
             }
         }
@@ -101,9 +155,8 @@ class getRefundsByCategoryController
         // Return refunds by category data
         return response()->json([
             'status' => 'success',
-            'message' => 'Devoluciones por categoría obtenidas con éxito.',
+            'message' => 'Refunds by category retrieved successfully.',
             'data' => $refundsByCategory,
         ]);
     }
-    
 }
