@@ -292,7 +292,7 @@ class MercadoLibreProductController extends Controller
     }
 
     /**
-     * Save products from API to database
+     * Save products from MercadoLibre API to database
      */
     public function saveProducts($clientId)
     {
@@ -301,7 +301,7 @@ class MercadoLibreProductController extends Controller
             
             return response()->json([
                 'status' => 'success',
-                'message' => 'Productos guardados con éxito',
+                'message' => 'Products saved successfully',
                 'data' => [
                     'saved_products' => $savedCount
                 ]
@@ -309,7 +309,7 @@ class MercadoLibreProductController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Error al guardar los productos',
+                'message' => 'Error saving products',
                 'error' => $e->getMessage()
             ], 500);
         }
