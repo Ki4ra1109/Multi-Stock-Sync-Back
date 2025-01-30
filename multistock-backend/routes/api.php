@@ -18,6 +18,8 @@ use App\Http\Controllers\MercadoLibreProductController;
 /**
      * New Controllers
 **/
+
+//  REPORTES //
 use App\Http\Controllers\MercadoLibre\Reportes\compareAnnualSalesDataController;
 use App\Http\Controllers\MercadoLibre\Reportes\compareSalesDataController;
 use App\Http\Controllers\MercadoLibre\Reportes\getAnnualSalesController;
@@ -32,6 +34,21 @@ use App\Http\Controllers\MercadoLibre\Reportes\getTopSellingProductsController;
 use App\Http\Controllers\MercadoLibre\Reportes\getWeeksOfMonthController;
 use App\Http\Controllers\MercadoLibre\Reportes\summaryController;
 use App\Http\Controllers\MercadoLibre\Reportes\getSalesByDateRangeController;
+
+// LOGIN //
+
+use App\Http\Controllers\MercadoLibre\Login\loginController;
+use App\Http\Controllers\MercadoLibre\Login\handleCallbackController;
+
+// CONNECTIONS //
+
+use App\Http\Controllers\MercadoLibre\Connections\testAndRefreshConnectionController;   
+
+// CREDENTIALS //
+
+use App\Http\Controllers\MercadoLibre\Credentials\deleteCredencialsController;
+use App\Http\Controllers\MercadoLibre\Credentials\getAllCredentialsDataController;
+use App\Http\Controllers\MercadoLibre\Credentials\getCredentialsByClientIdController;
 
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
@@ -91,17 +108,17 @@ use App\Http\Controllers\MercadoLibreController;
 // Save MercadoLibre credentials
 Route::post('/mercadolibre/save-credentials', [MercadoLibreController::class, 'saveCredentials']);
 // Generate MerccadoLibre login Auth 2.0 URL
-Route::post('/mercadolibre/login', [MercadoLibreController::class, 'login']);
+Route::post('/mercadolibre/login', [loginController::class, 'login']);
 // Handle MercadoLibre callback
 Route::get('/mercadolibre/callback', [MercadoLibreController::class, 'handleCallback']);
 // Check MercadoLibre connection status
-Route::get('/mercadolibre/test-connection/{client_id}', [MercadoLibreController::class, 'testAndRefreshConnection']);
+Route::get('/mercadolibre/test-connection/{client_id}', [testAndRefreshConnectionController::class, 'testAndRefreshConnection']);
 // Get MercadoLibre credentials if are saved in db
-Route::get('/mercadolibre/credentials', [MercadoLibreController::class, 'getAllCredentialsData']);
+Route::get('/mercadolibre/credentials', [getAllCredentialsDataController::class, 'getAllCredentialsData']);
 // Get MercadoLibre credentials by client_id
-Route::get('/mercadolibre/credentials/{client_id}', [MercadoLibreController::class, 'getCredentialsByClientId']);
+Route::get('/mercadolibre/credentials/{client_id}', [getCredentialsByClientIdController::class, 'getCredentialsByClientId']);
 // Delete credentials using client_id
-Route::delete('/mercadolibre/credentials/{client_id}', [MercadoLibreController::class, 'deleteCredentials']);
+Route::delete('/mercadolibre/credentials/{client_id}', [deleteCredentialsController::class, 'deleteCredentials']);
 
 
 // Get MercadoLibre products list by client_id
