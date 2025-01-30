@@ -384,7 +384,7 @@ Optional query parameters:
 ```json
 {
     "status": "success",
-    "message": "Devoluciones por categoría obtenidas con éxito.",
+    "message": "Refunds by category retrieved successfully.",
     "data": {
         "MLC12345": {
             "category_id": "MLC12345",
@@ -392,21 +392,40 @@ Optional query parameters:
             "orders": [
                 {
                     "id": 1234567890,
-                    "date_created": "2023-01-02T15:23:40.000-04:00",
+                    "created_date": "2023-01-02T15:23:40.000-04:00",
                     "total_amount": 15000,
                     "status": "cancelled",
-                    "title": "Producto A",
-                    "quantity": 1,
-                    "price": 15000
-                },
-                {
-                    "id": 1234567891,
-                    "date_created": "2023-01-05T08:56:09.000-04:00",
-                    "total_amount": 35000,
-                    "status": "cancelled",
-                    "title": "Producto B",
-                    "quantity": 2,
-                    "price": 17500
+                    "product": {
+                        "title": "Producto A",
+                        "quantity": 1,
+                        "price": 15000
+                    },
+                    "buyer": {
+                        "id": 12345,
+                        "name": "comprador_ejemplo"
+                    },
+                    "billing": {
+                        "first_name": "Juan",
+                        "last_name": "Pérez",
+                        "identification": {
+                            "type": "RUT",
+                            "number": "12345678"
+                        }
+                    },
+                    "shipping": {
+                        "shipping_id": "SHIP12345",
+                        "shipping_method": "Envío estándar",
+                        "tracking_number": "ABC123XYZ",
+                        "shipping_status": "delivered",
+                        "shipping_address": {
+                            "address": "Calle Falsa",
+                            "number": "123",
+                            "city": "Ciudad Falsa",
+                            "state": "Falso",
+                            "country": "Ciudad Falsa",
+                            "comments": "Dejar en la puerta"
+                        }
+                    }
                 }
             ]
         }
