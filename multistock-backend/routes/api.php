@@ -109,10 +109,7 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 
-use App\Http\Controllers\MercadoLibreController;
 
-// Save MercadoLibre credentials
-Route::post('/mercadolibre/save-credentials', [MercadoLibreController::class, 'saveCredentials']);
 // Generate MerccadoLibre login Auth 2.0 URL
 Route::post('/mercadolibre/login', [loginController::class, 'login']);
 // Handle MercadoLibre callback
