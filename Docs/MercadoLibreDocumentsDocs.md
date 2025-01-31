@@ -350,6 +350,11 @@ Optional query parameters:
 
 ### 9. **Get top payment methods**
 
+- `year`: The year for which to retrieve sales data (e.g., `2025`).
+- `month`: The month for which to retrieve sales data (e.g., `01`).
+
+> Note: If the `year` parameter is not provided, the system will default to the current year.
+
 **GET** `/mercadolibre/top-payment-methods/{client_id}`
 
 #### Response (Success)
