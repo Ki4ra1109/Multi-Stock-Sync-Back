@@ -2,23 +2,24 @@
 
 namespace App\Http\Controllers\MercadoLibre\Products;
 
+use App\Http\Controllers\Controller;
 use App\Models\MercadoLibreCredential;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
 
-class searchProductsController
+class searchProductsController extends Controller
 {
-        protected $mercadoLibreQueries;
-    
-        public function __construct(MercadoLibreQueries $mercadoLibreQueries)
-        {
-            $this->mercadoLibreQueries = $mercadoLibreQueries;
-        }
+    protected $mercadoLibreQueries;
 
-/**
+    public function __construct()
+    {
+        // No need for MercadoLibreQueries dependency
+    }
+
+    /**
      * Search products from MercadoLibre API using client_id and search term.
      */
-    public function searchProducts($clientId)
+    public function searchProducts($clientId, Request $request)
     {
         // Get credentials by client_id
         $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
@@ -56,9 +57,9 @@ class searchProductsController
         $userNickname = $userData['nickname'];
 
         // Get query parameters
-        $searchTerm = request()->query('q', ''); // Search term
-        $limit = request()->query('limit', 50); // Default limit to 50
-        $offset = request()->query('offset', 0); // Default offset to 0
+        $searchTerm = $request->query('q', ''); // Search term
+        $limit = $request->query('limit', 50); // Default limit to 50
+        $offset = $request->query('offset', 0); // Default offset to 0
 
         // API request to search products with search term, limit, and offset
         $response = Http::withToken($credentials->access_token)
@@ -123,6 +124,4 @@ class searchProductsController
             ],
         ]);
     }
-
-
 }
