@@ -6,6 +6,14 @@ use App\Models\MercadoLibreCredential;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
 
+use App\Http\Controllers\MercadoLibre\Reportes\getTopSellingProductsController;
+use App\Http\Controllers\MercadoLibre\Reportes\getOrderStatusesController;
+use App\Http\Controllers\MercadoLibre\Reportes\getDailySalesController;
+use App\Http\Controllers\MercadoLibre\Reportes\getSalesByWeekController;
+use App\Http\Controllers\MercadoLibre\Reportes\getSalesByMonthController;
+use App\Http\Controllers\MercadoLibre\Reportes\getAnnualSalesController;
+use App\Http\Controllers\MercadoLibre\Reportes\getTopPaymentMethodsController;
+
 class summaryController
 {
 
@@ -66,21 +74,24 @@ class summaryController
         }
 
         // Get top-selling products (limit to 5)
-        $topSellingProductsResponse = $this->getTopSellingProducts($clientId);
+        $topSellingProductsController = new getTopSellingProductsController();
+        $topSellingProductsResponse = $topSellingProductsController->getTopSellingProducts($clientId);
         if ($topSellingProductsResponse->getStatusCode() !== 200) {
             return $topSellingProductsResponse;
         }
         $topSellingProducts = array_slice($topSellingProductsResponse->getData(true)['data'], 0, 5);
 
         // Get order statuses
-        $orderStatusesResponse = $this->getOrderStatuses($clientId);
+        $orderStatusesController = new getOrderStatusesController();
+        $orderStatusesResponse = $orderStatusesController->getOrderStatuses($clientId);
         if ($orderStatusesResponse->getStatusCode() !== 200) {
             return $orderStatusesResponse;
         }
         $orderStatuses = $orderStatusesResponse->getData(true)['data'];
 
         // Get daily sales (summary only)
-        $dailySalesResponse = $this->getDailySales($clientId);
+        $dailySalesController = new getDailySalesController();
+        $dailySalesResponse = $dailySalesController->getDailySales($clientId);
         if ($dailySalesResponse->getStatusCode() !== 200) {
             return $dailySalesResponse;
         }
@@ -89,7 +100,8 @@ class summaryController
         // Get weekly sales (summary only)
         $currentWeekStart = \Carbon\Carbon::now()->startOfWeek()->toDateString();
         $currentWeekEnd = \Carbon\Carbon::now()->endOfWeek()->toDateString();
-        $weeklySalesResponse = $this->getSalesByWeek(new Request([
+        $weeklySalesController = new getSalesByWeekController();
+        $weeklySalesResponse = $weeklySalesController->getSalesByWeek(new Request([
             'week_start_date' => $currentWeekStart,
             'week_end_date' => $currentWeekEnd
         ]), $clientId);
@@ -99,21 +111,24 @@ class summaryController
         $weeklySales = $weeklySalesResponse->getData(true)['data']['total_sales'];
 
         // Get monthly sales (summary only)
-        $monthlySalesResponse = $this->getSalesByMonth($clientId);
+        $monthlySalesController = new getSalesByMonthController();
+        $monthlySalesResponse = $monthlySalesController->getSalesByMonth($clientId);
         if ($monthlySalesResponse->getStatusCode() !== 200) {
             return $monthlySalesResponse;
         }
         $monthlySales = array_sum(array_column($monthlySalesResponse->getData(true)['data'], 'total_amount'));
 
         // Get annual sales (summary only)
-        $annualSalesResponse = $this->getAnnualSales($clientId);
+        $annualSalesController = new getAnnualSalesController();
+        $annualSalesResponse = $annualSalesController->getAnnualSales($clientId);
         if ($annualSalesResponse->getStatusCode() !== 200) {
             return $annualSalesResponse;
         }
         $annualSales = array_sum(array_column($annualSalesResponse->getData(true)['data'], 'total_amount'));
 
         // Get top payment methods (limit to 3)
-        $topPaymentMethodsResponse = $this->getTopPaymentMethods($clientId);
+        $topPaymentMethodsController = new getTopPaymentMethodsController();
+        $topPaymentMethodsResponse = $topPaymentMethodsController->getTopPaymentMethods($clientId);
         if ($topPaymentMethodsResponse->getStatusCode() !== 200) {
             return $topPaymentMethodsResponse;
         }
