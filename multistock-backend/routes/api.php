@@ -50,6 +50,12 @@ use App\Http\Controllers\MercadoLibre\Credentials\deleteCredencialsController;
 use App\Http\Controllers\MercadoLibre\Credentials\getAllCredentialsDataController;
 use App\Http\Controllers\MercadoLibre\Credentials\getCredentialsByClientIdController;
 
+//  PRODUCTS  //
+
+use App\Http\Controllers\MercadoLibre\Products\listProductByClientIdController;
+use App\Http\Controllers\MercadoLibre\Products\searchProductsController;
+use App\Http\Controllers\MercadoLibre\Products\getProductReviewsController;
+use App\Http\Controllers\MercadoLibre\Products\saveProductsController;
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
@@ -110,7 +116,7 @@ Route::post('/mercadolibre/save-credentials', [MercadoLibreController::class, 's
 // Generate MerccadoLibre login Auth 2.0 URL
 Route::post('/mercadolibre/login', [loginController::class, 'login']);
 // Handle MercadoLibre callback
-Route::get('/mercadolibre/callback', [MercadoLibreController::class, 'handleCallback']);
+Route::get('/mercadolibre/callback', [handleCallbackController::class, 'handleCallback']);
 // Check MercadoLibre connection status
 Route::get('/mercadolibre/test-connection/{client_id}', [testAndRefreshConnectionController::class, 'testAndRefreshConnection']);
 // Get MercadoLibre credentials if are saved in db
@@ -122,16 +128,16 @@ Route::delete('/mercadolibre/credentials/{client_id}', [deleteCredentialsControl
 
 
 // Get MercadoLibre products list by client_id
-Route::get('/mercadolibre/products/{client_id}', [MercadoLibreProductController::class, 'listProductsByClientId']);
+Route::get('/mercadolibre/products/{client_id}', [listProductByClientIdController::class, 'listProductsByClientId']);
 
 // Search MercadoLibre products by client_id and search term
-Route::get('/mercadolibre/products/search/{client_id}', [MercadoLibreProductController::class, 'searchProducts']);
+Route::get('/mercadolibre/products/search/{client_id}', [searchProductsController::class, 'searchProducts']);
 
 // Get product reviews by product_id
-Route::get('/mercadolibre/products/reviews/{product_id}', [MercadoLibreProductController::class, 'getProductReviews']);
+Route::get('/mercadolibre/products/reviews/{product_id}', [getProductReviewsController::class, 'getProductReviews']);
 
-// Get product reviews by product_id and client_id
-Route::get('/mercadolibre/products/reviews/{product_id}', [MercadoLibreProductController::class, 'getProductReviews']);
+// Get saves products
+Route::get('/mercadolibre/save-products/{client_id}', [saveProductsController::class, 'saveProducts']);
 
 // Get MercadoLibre invoice report by client_id
 Route::get('/mercadolibre/invoices/{client_id}', [getInvoiceReportController::class, 'getInvoiceReport']);
