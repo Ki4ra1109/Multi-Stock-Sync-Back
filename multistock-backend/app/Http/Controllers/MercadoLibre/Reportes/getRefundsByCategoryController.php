@@ -106,7 +106,6 @@ class getRefundsByCategoryController
                 $shippingAddress = $shippingDetails ? [
                     'address' => $shippingDetails['receiver_address']['street_name'] ?? '',
                     'number' => $shippingDetails['receiver_address']['street_number'] ?? '',
-                    'zip_code' => $shippingDetails['receiver_address']['zip_code'] ?? '',
                     'city' => $shippingDetails['receiver_address']['city']['name'] ?? '',
                     'state' => $shippingDetails['receiver_address']['state']['name'] ?? '',
                     'country' => $shippingDetails['receiver_address']['country']['name'] ?? '',
@@ -143,7 +142,6 @@ class getRefundsByCategoryController
                     'billing' => $billingInfoFormatted,
                     'shipping' => [
                         'shipping_id' => $order['shipping']['id'] ?? null,
-                        'shipping_method' => $shippingDetails['shipping_method']['name'] ?? null,
                         'tracking_number' => $shippingDetails['tracking_number'] ?? null,
                         'shipping_status' => $shippingDetails['status'] ?? null,
                         'shipping_address' => $shippingAddress,
