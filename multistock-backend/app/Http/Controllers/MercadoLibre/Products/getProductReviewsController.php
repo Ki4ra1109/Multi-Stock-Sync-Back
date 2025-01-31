@@ -2,25 +2,26 @@
 
 namespace App\Http\Controllers\MercadoLibre\Products;
 
+use App\Http\Controllers\Controller;
 use App\Models\MercadoLibreCredential;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
 
-class getProductReviewsController
+class getProductReviewsController extends Controller
 {
-        protected $mercadoLibreQueries;
-    
-        public function __construct(MercadoLibreQueries $mercadoLibreQueries)
-        {
-            $this->mercadoLibreQueries = $mercadoLibreQueries;
-        }
+    protected $mercadoLibreQueries;
 
-        /**
+    public function __construct()
+    {
+        // No need for MercadoLibreQueries dependency
+    }
+
+    /**
      * Get product reviews from MercadoLibre API using product_id.
      */
-    public function getProductReviews($productId)
+    public function getProductReviews($productId, Request $request)
     {
-        $clientId = request()->query('client_id');
+        $clientId = $request->query('client_id');
 
         // Get credentials by client_id
         $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
@@ -61,6 +62,4 @@ class getProductReviewsController
             'data' => $response->json(),
         ]);
     }
-
-        
 }
