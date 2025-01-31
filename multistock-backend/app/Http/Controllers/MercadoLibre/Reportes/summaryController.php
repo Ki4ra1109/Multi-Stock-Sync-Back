@@ -83,7 +83,7 @@ class summaryController
 
         // Get order statuses
         $orderStatusesController = new getOrderStatusesController();
-        $orderStatusesResponse = $orderStatusesController->getOrderStatuses($clientId);
+        $orderStatusesResponse = $orderStatusesController->getOrderStatuses(new Request(), $clientId);
         if ($orderStatusesResponse->getStatusCode() !== 200) {
             return $orderStatusesResponse;
         }
