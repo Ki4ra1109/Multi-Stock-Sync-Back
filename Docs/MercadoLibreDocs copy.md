@@ -96,7 +96,23 @@ This document provides a detailed reference for the MercadoLibre API, listing al
 **Endpoint:** `/api/mercadolibre/credentials/getCredentialsByClientIdController`
 **Method:** `GET`
 **Description:** Fetches MercadoLibre credentials for a specific client ID.
-**Response:** Credential object.
+#### Response (SUCCESS)
+
+```json
+{
+    "Status": "success",
+    "data": "$credentials"
+}
+```
+
+#### Response (ERROR)
+
+```json
+{
+    "status": "error",
+    "message": "Credenciales no encontradas."
+}
+```
 
 ### Delete Credentials
 **Endpoint:** `/api/mercadolibre/credentials/deleteCredentialsController`
@@ -104,7 +120,23 @@ This document provides a detailed reference for the MercadoLibre API, listing al
 **Description:** Deletes stored credentials by ID.
 **Parameters:**
 - `credentialId` (string) - The ID of the credentials to delete.
-**Response:** Confirmation message.
+#### Response (SUCCESS)
+
+```json
+{
+    "Status": "success",
+    "data": "$credentials"
+}
+```
+
+#### Response (ERROR)
+
+```json
+{
+    "status": "error",
+    "message": "Credenciales no encontradas."
+}
+```
 
 ## Login
 ### Handle Callback
