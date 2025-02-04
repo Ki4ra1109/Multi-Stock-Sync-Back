@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\AuthController;
 
-use App\Http\Controllers\ClientesController;
+
 
 use App\Http\Controllers\BrandsController;
 use App\Http\Controllers\StockController;
@@ -66,12 +66,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::post('/login', [AuthController::class, 'login']); // Login user
 Route::post('/users', [UserController::class, 'store']); // Create user
 
-// CRUD routes for Clientes
-Route::get('/clientes', [ClientesController::class, 'index']); // Get all clients
-Route::post('/clientes', [ClientesController::class, 'store']); // Create a client
-Route::get('/clientes/{id}', [ClientesController::class, 'show']); // Get a client
-Route::patch('/clientes/{id}', [ClientesController::class, 'update']); // Update a client
-Route::delete('/clientes/{id}', [ClientesController::class, 'destroy']); // Delete a client
+
 
 // Company-specific routes
 Route::get('/companies', [WarehouseCompaniesController::class, 'company_list_all']); // List all companies
