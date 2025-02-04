@@ -1,3 +1,5 @@
+![multistock-logo](https://github.com/user-attachments/assets/031a2f15-8f48-4c25-98a8-6328c504919b)
+
 # MercadoLibre API Integration Documentation
 
 ## Table of Contents
