@@ -69,7 +69,7 @@ Route::post('/users', [UserController::class, 'store']); // Create user
 
 Route::get('/users/{id}', [UserController::class,'show']); // Get a user
 Route::patch('/users/{id}', [UserController::class,'update']); // Update a user
-Route::delete('/users/{id}', [UserController::class,'destroy']); // Delete a user
+Route::delete('/users/{id}', [UserController::class,'delete']); // Delete a user
 
 // CRUD routes for Clientes
 Route::get('/clientes', [ClientesController::class, 'index']); // Get all clients
