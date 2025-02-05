@@ -29,7 +29,6 @@ class UserController extends Controller
             'apellidos' => 'required|string|max:255',
             'telefono' => 'required|string|max:20',
             'email' => 'required|string|email|max:255|unique:users',
-            'nombre_negocio' => 'required|string|max:255',
             'password' => 'required|string|min:6|confirmed',
             'password_confirmation' => 'required|string|min:6',
         ], [
@@ -54,7 +53,6 @@ class UserController extends Controller
             'apellidos' => $validated['apellidos'],
             'telefono' => $validated['telefono'],
             'email' => $validated['email'],
-            'nombre_negocio' => $validated['nombre_negocio'],
             'password' => Hash::make($validated['password']), // Password hashed
         ]);
 
