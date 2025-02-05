@@ -16,8 +16,8 @@ http://your-domain.com/api
 ## 🛠 Prerequisites
 
 Before getting started, ensure you have:
-- PHP (version 8.1 or higher) 🐘
-- Composer 📦
+- PHP (version 8.3 or higher) 🐘
+- Composer (version 2.0 or higher ) 📦
 - Laravel Framework
 - Git installed 🖥️
 
