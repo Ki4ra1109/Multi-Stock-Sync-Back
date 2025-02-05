@@ -65,20 +65,18 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::post('/login', [AuthController::class, 'login']); // Login user
 Route::post('/users', [UserController::class, 'store']); // Create user
 
+// CRUD routes for Users
+
+Route::get('/users/{id}', [UserController::class,'show']); // Get a user
+Route::patch('/users/{id}', [UserController::class,'update']); // Update a user
+Route::delete('/users/{id}', [UserController::class,'destroy']); // Delete a user
+
 // CRUD routes for Clientes
 Route::get('/clientes', [ClientesController::class, 'index']); // Get all clients
 Route::post('/clientes', [ClientesController::class, 'store']); // Create a client
 Route::get('/clientes/{id}', [ClientesController::class, 'show']); // Get a client
 Route::patch('/clientes/{id}', [ClientesController::class, 'update']); // Update a client
 Route::delete('/clientes/{id}', [ClientesController::class, 'destroy']); // Delete a client
-
-// CRUD routes for Marcas
-Route::get('/marcas', [BrandsController::class, 'index']); // Get all brands
-Route::post('/marcas', [BrandsController::class, 'store']); // Create a brand
-Route::get('/marcas/{id}', [BrandsController::class, 'show']); // Get a brand
-Route::put('/marcas/{id}', [BrandsController::class, 'update']); // Update a brand
-Route::patch('/marcas/{id}', [BrandsController::class, 'patch']); // Patch a brand
-Route::delete('/marcas/{id}', [BrandsController::class, 'destroy']); // Delete a brand
 
 // Company-specific routes
 Route::get('/companies', [WarehouseCompaniesController::class, 'company_list_all']); // List all companies
@@ -104,7 +102,7 @@ Route::delete('/warehouse-stock/{id}', [WarehouseCompaniesController::class, 'st
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/users', [UserController::class, 'index']); // Get full users list
+    Route::get('/users', [UserController::class, 'users-list']); // Get full users list
     Route::post('/logout', [AuthController::class, 'logout']); // Logout user
 });
 
