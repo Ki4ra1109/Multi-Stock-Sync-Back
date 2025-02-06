@@ -19,6 +19,20 @@ class UserController extends Controller
     }
 
     /**
+     * Get a single user by ID.
+     */
+    public function show($id)
+    {
+        $user = User::find($id);
+        
+        if (!$user) {
+            return response()->json(['message' => 'Usuario no encontrado'], 404);
+        }
+        
+        return response()->json($user);
+    }
+
+    /**
      * Create new user.
      */
     public function store(Request $request)
@@ -58,5 +72,48 @@ class UserController extends Controller
 
         // Response with user data
         return response()->json(['user' => $user, 'message' => 'Usuario creado correctamente'], 201);
+    }
+
+    /**
+     * Update user data.
+     */
+    public function update(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+
+        // Validate request
+        $validator = Validator::make($request->all(), [
+            'nombre' => 'nullable|string|max:255',
+            'apellidos' => 'nullable|string|max:255',
+            'telefono' => 'nullable|string|max:20',
+            'email' => 'nullable|string|email|max:255|unique:users,email'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $validated = $validator->validated();
+        $user->update($validated);
+
+        return response()->json([
+            'message' => 'Usuario actualizado correctamente',
+            'user' => $user
+        ], 200);
+    }
+
+    /**
+     * Delete a user.
+     */
+    public function delete($id)
+    {
+        $user = User::find($id);
+        
+        if (!$user) {
+            return response()->json(['message' => 'Usuario no encontrado'], 404);
+        }
+
+        $user->delete();
+        return response()->json(['message' => 'Usuario eliminado correctamente']);
     }
 }
