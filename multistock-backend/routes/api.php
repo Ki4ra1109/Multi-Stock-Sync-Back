@@ -102,7 +102,7 @@ Route::delete('/warehouse-stock/{id}', [WarehouseCompaniesController::class, 'st
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/users', [UserController::class, 'users-list']); // Get full users list
+    Route::get('/users', [UserController::class, 'usersList']); // Get full users list
     Route::post('/logout', [AuthController::class, 'logout']); // Logout user
 });
 
