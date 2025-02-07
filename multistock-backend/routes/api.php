@@ -96,7 +96,7 @@ Route::delete('/warehouse-stock/{id}', [WarehouseCompaniesController::class, 'st
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/logout', [AuthController::class, 'logout']); // Logout user
+    Route::post('/logout', [AuthController::class, 'logout']); // Logout users
 
     // USERS
 
