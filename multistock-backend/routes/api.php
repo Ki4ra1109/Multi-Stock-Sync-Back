@@ -66,12 +66,6 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::post('/login', [AuthController::class, 'login']); // Login user
 Route::post('/users', [UserController::class, 'store']); // Create user
 
-// CRUD routes for Users
-
-Route::get('/users/{id}', [UserController::class,'show']); // Get a user
-Route::patch('/users/{id}', [UserController::class,'update']); // Update a user
-Route::delete('/users/{id}', [UserController::class,'delete']); // Delete a user
-
 // CRUD routes for Clientes
 Route::get('/clientes', [ClientesController::class, 'index']); // Get all clients
 Route::post('/clientes', [ClientesController::class, 'store']); // Create a client
@@ -103,8 +97,14 @@ Route::delete('/warehouse-stock/{id}', [WarehouseCompaniesController::class, 'st
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/logout', [AuthController::class, 'logout']); // Logout users
+
+    // USERS
+
     Route::get('/users', [UserController::class, 'usersList']); // Get full users list
-    Route::post('/logout', [AuthController::class, 'logout']); // Logout user
+    Route::get('/users/{id}', [UserController::class,'show']); // Get a user
+    Route::patch('/users/{id}', [UserController::class,'update']); // Update a user
+    Route::delete('/users/{id}', [UserController::class,'delete']); // Delete a user
 });
 
 
