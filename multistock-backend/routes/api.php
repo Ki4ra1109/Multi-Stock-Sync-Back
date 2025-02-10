@@ -35,6 +35,7 @@ use App\Http\Controllers\MercadoLibre\Reportes\getWeeksOfMonthController;
 use App\Http\Controllers\MercadoLibre\Reportes\summaryController;
 use App\Http\Controllers\MercadoLibre\Reportes\getSalesByDateRangeController;
 
+
 // LOGIN //
 
 use App\Http\Controllers\MercadoLibre\Login\loginController;
@@ -46,7 +47,7 @@ use App\Http\Controllers\MercadoLibre\Connections\testAndRefreshConnectionContro
 
 // CREDENTIALS //
 
-use App\Http\Controllers\MercadoLibre\Credentials\deleteCredencialsController;
+use App\Http\Controllers\MercadoLibre\Credentials\deleteCredentialsController;
 use App\Http\Controllers\MercadoLibre\Credentials\getAllCredentialsDataController;
 use App\Http\Controllers\MercadoLibre\Credentials\getCredentialsByClientIdController;
 

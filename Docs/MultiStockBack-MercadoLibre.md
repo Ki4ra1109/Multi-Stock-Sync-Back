@@ -1,3 +1,5 @@
+![multistock-logo](https://github.com/user-attachments/assets/031a2f15-8f48-4c25-98a8-6328c504919b)
+
 # MercadoLibre API Integration Documentation
 
 ## Table of Contents
@@ -40,8 +42,9 @@ This document provides a detailed reference for the MercadoLibre API, listing al
 ## Connections
 ---
 ### Test and Refresh Connection
-**Endpoint:** `/api/MercadoLibre/connections/testaAndRefreshConnectionController`
+**Endpoint:** `/api/MercadoLibre/connections/test-connection/{client_id}`
 **Method:** `GET`
+**Controller:** `test-connection`
 **Description:** Tests and refreshes the connection with MercadoLibre.
 #### Response (SUCCESS)
 
@@ -71,7 +74,8 @@ This document provides a detailed reference for the MercadoLibre API, listing al
 ## Credentials
 ---
 ### Get All Credentials Data
-**Endpoint:** `/api/mercadolibre/credentials/getAllCredentialsController`
+**Endpoint:** `/api/mercadolibre/credentials`
+**Controller:** `getAllCredentialsController`
 **Method:** `GET`
 **Description:** Retrieves all stored MercadoLibre credentials.
 #### Response (SUCCESS)
@@ -102,7 +106,8 @@ This document provides a detailed reference for the MercadoLibre API, listing al
 ```
 
 ### Get Credentials by Client ID
-**Endpoint:** `/api/mercadolibre/credentials/getCredentialsByClientIdController`
+**Endpoint:** `/api/mercadolibre/credentials/{client_id}`
+**Controller:** `getCredentialsByClientIdController`
 **Method:** `GET`
 **Description:** Fetches MercadoLibre credentials for a specific client ID.
 #### Response (SUCCESS)
@@ -124,7 +129,8 @@ This document provides a detailed reference for the MercadoLibre API, listing al
 ```
 
 ### Delete Credentials
-**Endpoint:** `/api/mercadolibre/credentials/deleteCredentialsController`
+**Endpoint:** `/api/mercadolibre/credentials/{client_id}`
+**Controller:** `deleteCredentialsController`
 **Method:** `DELETE`
 **Description:** Deletes stored credentials by ID.
 **Parameters:**
@@ -150,7 +156,8 @@ This document provides a detailed reference for the MercadoLibre API, listing al
 ## Login
 ---
 ### Handle Callback
-**Endpoint:** `/api/mercadolibre/login/handlecCallbackController`
+**Endpoint:** `/api/mercadolibre/callback`
+**Controller:** `handlecCallbackController`
 **Method:** `GET`
 **Description:** Handles the MercadoLibre OAuth callback.
 #### Response (SUCCESS)
@@ -195,6 +202,7 @@ This document provides a detailed reference for the MercadoLibre API, listing al
 
 ### Login
 **Endpoint:** `/api/mercadolibre/login`
+**Controller:** `login` 
 **Method:** `POST`
 **Description:** Initiates the login process with MercadoLibre.
 #### Response (SUCCESS)
@@ -218,9 +226,14 @@ This document provides a detailed reference for the MercadoLibre API, listing al
 ## Products
 ---
 ### Get Product Reviews
-**Endpoint:** `/api/mercadolibre/products/getProductReviewsController`
+**Endpoint:** `/api/mercadolibre/products/reviews/{product_id}`
+**Controller:** `getProductReviewsController`
 **Method:** `GET`
 **Description:** Fetches reviews for a product.
+
+**Required query parameters:**
+- `client_id`: The MercadoLibre account client id (e.g., `12345678987654321`).
+
 #### Response (SUCCESS)
 
 ```json
@@ -264,7 +277,8 @@ This document provides a detailed reference for the MercadoLibre API, listing al
 ```
 
 ### List Products by Client ID
-**Endpoint:** `/api/mercadolibre/products/listProductByClientIdController`
+**Endpoint:** `/api/mercadolibre/products/{client_id}`
+**Controller:** `listProductByClientIdController`
 **Method:** `GET`
 **Description:** Lists products associated with a given client ID.
 #### Response (SUCCESS)
@@ -340,7 +354,8 @@ This document provides a detailed reference for the MercadoLibre API, listing al
 ```
 
 ### Save Products
-**Endpoint:** `/api/mercadolibre/products/saveProductsController`
+**Endpoint:** `/api/mercadolibre/save-products/{client_id}`
+**Controller:** `saveProductsController`
 **Method:** `POST`
 **Description:** Saves products retrieved from the MercadoLibre API to the database.
 #### Response (SUCCESS)
@@ -369,7 +384,8 @@ This document provides a detailed reference for the MercadoLibre API, listing al
 ```
 
 ### Search Products
-**Endpoint:** `/api/mercadolibre/products/searchProductsController `
+**Endpoint:** `/api/mercadolibre/products/search/{client_id}`
+**Controller:** `searchProductsController`
 **Method:** `GET`
 **Description:** Searches for products on MercadoLibre using the provided client_id and search term.
 #### Response (SUCCESS)
@@ -463,9 +479,15 @@ This document provides a detailed reference for the MercadoLibre API, listing al
 ## Reports
 ---
 ### Compare Annual Sales Data
-**Endpoint:** `/api/mercadolibre/reportes/compareAnnualSalesDataController`
+**Endpoint:** `/api/mercadolibre/compare-annual-sales-data/{client_id}`
+**Controller:** `compareAnnualSalesDataController`
 **Method:** `GET`
 **Description:** Compares annual sales data.
+
+**Required query parameters:**
+- `year1`: The first year for compare (e.g., `2024`).
+- `year2`: The second year for compare (e.g., `2025`).
+
 #### Response (SUCCESS)
 
 ```json
@@ -562,9 +584,17 @@ This document provides a detailed reference for the MercadoLibre API, listing al
 ```
 
 ### Compare Sales Data
-**Endpoint:** `/api/mercadolibre/reportes/compareSalesDataController`
+**Endpoint:** `/api/mercadolibre/compare-sales-data/{client_id}`
+**Controller:** `compareSalesDataController`
 **Method:** `GET`
 **Description:** Compares sales data from two different months and provides an analysis of the sales, including the percentage change between the two months.
+
+**Required query parameters:**
+- `year1`: The first year for compare (e.g., `2024`).
+- `month1`: The first month to compare (e.g, `10`).
+- `year2`: The second year for compare (e.g., `2025`).
+- `month2`: The second month to compare (e.g, `11`).
+
 #### Response (SUCCESS)
 
 ```json
@@ -664,9 +694,16 @@ This document provides a detailed reference for the MercadoLibre API, listing al
 ```
 
 ### Get Annual Sales
-**Endpoint:** `/api/mercadolibre/reportes/getAnnualSalesController`
+**Endpoint:** `/api/mercadolibre/annual-sales/{client_id}`
+**Controller:** `getAnnualSalesController`
 **Method:** `GET`
 **Description:** Retrieves annual sales reports.
+
+**Optional query parameters:**
+- `year`: The year for which to retrieve sales data (e.g., `2025`).
+
+> Note: You can omit the `year` and the system will use the current date.
+
 #### Response (SUCCESS)
 
 ```json
@@ -735,7 +772,8 @@ This document provides a detailed reference for the MercadoLibre API, listing al
 ```
 
 ## Get Daily Sales
-**Endpoint:** `/api/mercadolibre/reportes/getDailySalesController`
+**Endpoint:** `/api/mercadolibre/daily-sales/{client_id}`
+**Controller:** `getDailySalesController`
 **Method:** `GET`
 **Description:** Retrieves daily sales from the MercadoLibre API using the provided client_id. This allows obtaining a summary of the sales made on a specific date, including the total sales and the sold products.
 #### Response (SUCCESS)
@@ -812,7 +850,8 @@ This document provides a detailed reference for the MercadoLibre API, listing al
 ```
 
 ### Get Invoice Report
-**Endpoint:** `/api/mercadolibre/reportes/getInvoiceReportController`
+**Endpoint:** `/api/mercadolibre/invoices/{client_id}`
+**Controller:** `getInvoiceReportController`
 **Method:** `GET`
 **Description:** Retrieves the invoice report from the MercadoLibre API based on the provided client_id, with options for grouping, document type, and pagination. The response includes invoice data for the specified parameters, such as group, document_type, and offset.
 #### Response (SUCCESS)
@@ -888,7 +927,8 @@ This document provides a detailed reference for the MercadoLibre API, listing al
 ```
 
 ### Get Order Statuses
-**Endpoint:** `/api/mercadolibre/reportes/getOrderStatusesController`
+**Endpoint:** `/api/mercadolibre/order-statuses/{client_id}`
+**Controller:** `getOrderStatusesController`
 **Method:** `GET`
 **Description:** Retrieves the order statuses (paid, pending, canceled) from the MercadoLibre API for the specified client_id. The response includes a count of orders in each status category.
 
@@ -951,9 +991,18 @@ This document provides a detailed reference for the MercadoLibre API, listing al
 ```
 
 ### Get Refunds By Category
-**Endpoint:** `/api/mercadolibre/reportes/getRefundsByCategoryController`
+**Endpoint:** `/api/mercadolibre/refunds-by-category/{client_id}`
+**Controller:** `getRefundsByCategoryController`
 **Method:** `GET`
 **Description:** Retrieves refunds or returns for orders based on category, date range, and other details from the MercadoLibre API for the specified client_id. The response includes details of refunds grouped by
+
+**Optional query parameters:**
+- `date_from`: The start date for the date range (e.g., `2023-01-01`).
+- `date_to`: The end date for the date range (e.g., `2023-01-31`).
+- `category`: The category ID to filter by (e.g., `MLC12345`).
+
+> Note: You can omit the `date_from` and `date_to` parameters, and the system will use the current month. The `category` parameter is optional.
+
 #### Response (SUCCESS)
 
 ```json
@@ -1059,9 +1108,15 @@ This document provides a detailed reference for the MercadoLibre API, listing al
 ```
 
 ### Get Sales By Date Range
-**Endpoint:** `/api/mercadolibre/reportes/getSalesByDateRangeController`
+**Endpoint:** `/api/mercadolibre/sales-by-date-range/{client_id}`
+**Controller:** `getSalesByDateRangeController`
 **Method:** `GET`
 **Description:** Retrieves a daily sales summary from MercadoLibre for a specific client_id, allowing users to view sales made within a given date range. The response includes the total sales amount and the products sold.
+
+**Required query parameters:**
+- `start_date`: The first date range for compare (e.g., `2025-01-01`).
+- `end_date`: The last date range for compare (e.g., `2025-01-31`).
+
 #### Response (SUCCESS)
 
 ```json
@@ -1133,9 +1188,16 @@ This document provides a detailed reference for the MercadoLibre API, listing al
 
 ```
 ### Get Sales By Month
-**Endpoint:** `/api/mercadolibre/reportes/getSalesByMonthController`
+**Endpoint:** `/api/mercadolibre/sales-by-month/{client_id}`
+**Controller:** `getSalesByMonthController`
 **Method:** `GET`
 **Description:** Retrieves monthly sales from the MercadoLibre API using the provided client_id. This allows obtaining a summary of all sales for a specific month, including total sales and the products sold.
+
+**Optional query parameters:**
+- `month`: The month for which to retrieve sales data (e.g., `09` for September).
+- `year`: The year for which to retrieve sales data (e.g., `2024`).
+
+> Note: You can omit the `year` and `month` parameters, and the system will use the current date.
 #### Response (SUCCESS)
 
 ```json
@@ -1228,9 +1290,18 @@ This document provides a detailed reference for the MercadoLibre API, listing al
 
 ```
 ### Get Sales By Week
-**Endpoint:** `/api/mercadolibre/reportes/getSalesByWeekController`
+**Endpoint:** `/api/mercadolibre/sales-by-week/{client_id}`
+**Controller:** `getSalesByWeekController`
 **Method:** `GET`
 **Description:** Retrieves weekly sales from the MercadoLibre API using the provided client_id, based on a given week start and end date. This allows obtaining a summary of all sales for a specific week, including the total sales amount and details of sold products.
+
+**Optional query parameters:**
+- `year`: The year for which to retrieve sales data (e.g., `2025`).
+- `month`: The month for which to retrieve sales data (e.g., `01`).
+- `week_start_date` (required): The start date of the week (e.g., `2025-01-01`).
+- `week_end_date` (required): The end date of the week (e.g., `2025-01-07`).
+
+> Note: You can omit the `year` and `month` parameters, and the system will use the current date. However, `week_start_date` and `week_end_date` are required.
 
 | Parameter      | Type     |Required| Description                                     |
 |----------------|----------|--------|-------------------------------------------------|
@@ -1319,7 +1390,8 @@ This document provides a detailed reference for the MercadoLibre API, listing al
 ```
 
 ### Get Top Payment Methods
-**Endpoint:** `/api/mercadolibre/reportes/getTopPaymentMethodsController`
+**Endpoint:** `/api/mercadolibre/top-payment-methods/{client_id}`
+**Controller:** `getTopPaymentMethodsController`
 **Method:** `GET`
 **Description:** Fetches top payment methods for a specific client ID from MercadoLibre.
 #### Response (SUCCESS)
@@ -1370,10 +1442,17 @@ This document provides a detailed reference for the MercadoLibre API, listing al
 ```
 
 ### Get Top Selling Products
-**Endpoint:** `/api/mercadolibre/reportes/getTopSellingProductsController`
+**Endpoint:** `/api/mercadolibre/top-selling-products/{client_id}`
+**Controller:** `getTopSellingProductsController`
 **Method:** `GET`
 **Description:** Fetches the top-selling products for a specific client ID from MercadoLibre.
 #### Response (SUCCESS)
+
+**Optional query parameters:**
+- `year`: The year for which to retrieve sales data (e.g., `2025`).
+- `month`: The month for which to retrieve sales data (e.g., `01`).
+
+> Note: If we add `year` but not `month`, the system will consider the entire year. If we only add `month`, it will consider the machine's year. If we do not send either, it will consider the entire machine's year and no specific month.
 
 ```json
 {
@@ -1446,9 +1525,18 @@ This document provides a detailed reference for the MercadoLibre API, listing al
 ```
 
 ### Get Weeks Of Month
-**Endpoint:** `/api/mercadolibre/reportes/getWeeksOfMonthController`
+**Endpoint:** `/api/mercadolibre/weeks-of-month`
+**Controller:** `getWeeksOfMonthController`
 **Method:** `GET`
 **Description:** Retrieves the weeks of a specific month and year.
+
+**Optional query parameters:**
+- `year`: The year for which to retrieve sales data (e.g., `2025`).
+
+- `month`: The month for which to retrieve sales data (e.g., `01`).
+
+> Note: You can omit the `year` or `year` and the system will use the current date.
+
 #### Response (SUCCESS)
 
 ```json
@@ -1500,7 +1588,8 @@ This document provides a detailed reference for the MercadoLibre API, listing al
 ```
 
 ### Summary
-**Endpoint:** `/api/mercadolibre/reportes/summaryController`
+**Endpoint:** `/api/mercadolibre/summary/{client_id}`
+**Controller:** `summaryController`
 **Method:** `GET`
 **Description:** Retrieves a general summary of the store's performance, including total sales, top-selling products, order statuses, daily/weekly/monthly/annual sales, and top payment methods.
 #### Response (SUCCESS)

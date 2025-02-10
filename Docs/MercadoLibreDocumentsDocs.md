@@ -274,30 +274,88 @@ Optional query parameters:
 **GET** `/mercadolibre/order-statuses/{client_id}`
 
 - `year`: The year for which to retrieve sales data (e.g., `2025`).
+- `month`: The month for which to retrieve sales data (e.g., `01`).
 
 > Note: If the `year` parameter is not provided, the system will default to the current year.
-
-> Note 2: If the `year` parameter is set to 'alloftimes', the system will return data for all years of sales.
 
 
 #### Response (Success)
 ```json
 {
     "status": "success",
-    "message": "Estados de órdenes obtenidos con éxito.",
+    "message": "Estados de órdenes y productos relacionados obtenidos con éxito.",
     "data": {
-        "paid": 36,
-        "pending": 0,
-        "canceled": 0
+        "statuses": {
+            "paid": 9,
+            "pending": 0,
+            "canceled": 0
+        },
+        "products": [
+            {
+                "id": "MLC1234567890",
+                "title": "Producto Ejemplo A",
+                "category_id": "MLC1234",
+                "variation_id": 123456789012,
+                "seller_custom_field": null,
+                "global_price": null,
+                "net_weight": null,
+                "variation_attributes": [
+                    {
+                        "name": "Color",
+                        "id": "COLOR",
+                        "value_id": "12345",
+                        "value_name": "Rojo"
+                    },
+                    {
+                        "name": "Talla",
+                        "id": "SIZE",
+                        "value_id": "67890",
+                        "value_name": "M"
+                    }
+                ],
+                "warranty": "Garantía del vendedor: 6 meses",
+                "condition": "new",
+                "seller_sku": "A-123-ROJ-M"
+            },
+            {
+                "id": "MLC0987654321",
+                "title": "Producto Ejemplo B",
+                "category_id": "MLC5678",
+                "variation_id": 987654321098,
+                "seller_custom_field": null,
+                "global_price": null,
+                "net_weight": null,
+                "variation_attributes": [
+                    {
+                        "name": "Color",
+                        "id": "COLOR",
+                        "value_id": "54321",
+                        "value_name": "Azul"
+                    },
+                    {
+                        "name": "Talla",
+                        "id": "SIZE",
+                        "value_id": "09876",
+                        "value_name": "L"
+                    }
+                ],
+                "warranty": "Garantía del vendedor: 3 meses",
+                "condition": "new",
+                "seller_sku": "B-987-AZU-L"
+            }
+        ]
     }
 }
 ```
 
 ### 9. **Get top payment methods**
 
+- `year`: The year for which to retrieve sales data (e.g., `2025`).
+- `month`: The month for which to retrieve sales data (e.g., `01`).
+
+> Note: If the `year` parameter is not provided, the system will default to the current year.
+
 **GET** `/mercadolibre/top-payment-methods/{client_id}`
-
-
 
 #### Response (Success)
 ```json
