@@ -3,15 +3,14 @@
 namespace App\Jobs;
 
 use App\Models\SyncStatus;
-use App\Models\Product; //FALTA HACER EL PRODUCT MODEL MI GENTE
+use App\Models\Product;
+use App\Events\SyncStatusUpdated;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Broadcast;
 
 class SyncProductsJob implements ShouldQueue
 {
@@ -26,6 +25,7 @@ class SyncProductsJob implements ShouldQueue
 
     public function handle()
     {
+        // Obtener el estado de sincronización en progreso
         $sync = SyncStatus::where('status', 'in_progress')->first();
 
         if (!$sync) {
@@ -39,23 +39,31 @@ class SyncProductsJob implements ShouldQueue
         $processed = 0;
 
         foreach ($this->products as $productData) {
-            Product::create($productData);
-            $processed++;
+            try {
+                Product::create($productData);
+                $processed++;
 
-            $sync->processed_products = $processed;
-            $sync->save();
+                $sync->processed_products = $processed;
+                $sync->save();
 
-            // Emitir evento WebSocket para actualizar el frontend
-            Broadcast::channel('sync-status', function () use ($sync) {
-                return ['processed' => $sync->processed_products, 'total' => $sync->total_products];
-            });
+                // Emitir evento para notificar al frontend
+                broadcast(new SyncStatusUpdated($sync));
 
-            sleep(1); // Simulamos tiempo de proceso
+                sleep(1); // Simula tiempo de procesamiento
+
+            } catch (\Exception $e) {
+                Log::error('Error al sincronizar producto: ' . $e->getMessage());
+            }
         }
 
+        // Finalizar la sincronización
         $sync->status = 'completed';
         $sync->end_time = now();
         $sync->save();
+
+        // Emitir evento final de actualización
+        broadcast(new SyncStatusUpdated($sync));
     }
 }
+
 
