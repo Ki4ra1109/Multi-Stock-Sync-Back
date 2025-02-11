@@ -10,21 +10,21 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up()
-{
-    Schema::create('sync_status', function (Blueprint $table) {
-        $table->id();
-        $table->enum('status', ['pending', 'in_progress', 'completed', 'failed'])->default('pending');
-        $table->timestamp('start_time')->nullable();
-        $table->timestamp('end_time')->nullable();
-        $table->integer('total_products')->default(0);
-        $table->integer('processed_products')->default(0);
-        $table->integer('estimated_duration')->nullable(); // Tiempo en segundos
-        $table->timestamps();
-    });
-}
+    {
+        Schema::create('estado_sincronizacion', function (Blueprint $table) {
+            $table->id();
+            $table->enum('estado', ['pendiente', 'en_progreso', 'completado', 'fallido'])->default('pendiente');
+            $table->timestamp('hora_inicio')->nullable();
+            $table->timestamp('hora_fin')->nullable();
+            $table->integer('total_productos')->default(0);
+            $table->integer('productos_procesados')->default(0);
+            $table->integer('duracion_estimada')->nullable();
+            $table->timestamps();
+        });
+    }
 
     /**
-     * Reverse the migrations.
+     * Revierte las migraciones.
      */
     public function down(): void
     {
