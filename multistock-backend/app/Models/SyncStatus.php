@@ -9,14 +9,14 @@ class SyncStatus extends Model
 {
     use HasFactory;
 
+    protected $table = 'estado_sincronizacion'; // Table name
+
     protected $fillable = [
-        'status',
-        'start_time',
-        'end_time',
-        'total_products',
-        'processed_products',
-        'estimated_duration',
+        'estado',
+        'inicio',
+        'fin',
+        'total_productos',
+        'productos_procesados',
+        'duracion_estimada',
     ];
 }
-
-
