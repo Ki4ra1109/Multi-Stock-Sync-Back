@@ -8,10 +8,9 @@ use Illuminate\Http\Request;
 
 class getTopPaymentMethodsController
 {
-
     /**
      * Get top payment methods from MercadoLibre API using client_id.
-    */
+     */
     public function getTopPaymentMethods($clientId)
     {
         // Get credentials by client_id
@@ -76,15 +75,25 @@ class getTopPaymentMethodsController
         $orders = $response->json()['results'];
         $paymentMethods = [];
 
+        // Iterate through the orders to count the payment methods
         foreach ($orders as $order) {
             foreach ($order['payments'] as $payment) {
                 $method = $payment['payment_type'];
+
+                // Check if payment method already exists, if not, initialize with 0
                 if (!isset($paymentMethods[$method])) {
                     $paymentMethods[$method] = 0;
                 }
                 $paymentMethods[$method]++;
             }
         }
+
+        // Ensure the payment methods are initialized with 0 if not present
+        $paymentMethods['credit_card'] = $paymentMethods['credit_card'] ?? 0; // Example for credit_card
+        $paymentMethods['debit_card'] = $paymentMethods['debit_card'] ?? 0;   // Example for debit_card
+
+        // Remove 'paypal' if exists in the response
+        unset($paymentMethods['paypal']);
 
         // Sort payment methods by usage
         arsort($paymentMethods);
@@ -93,9 +102,8 @@ class getTopPaymentMethodsController
         return response()->json([
             'status' => 'success',
             'message' => 'Métodos de pago más utilizados obtenidos con éxito.',
-            'request_date' => date('Y-m-d H:i:s'), // Include the request date
+            'request_date' => date('Y-m-d H:i:s'),
             'data' => $paymentMethods,
         ]);
     }
-    
 }

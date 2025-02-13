@@ -59,13 +59,10 @@ use App\Http\Controllers\MercadoLibre\Products\getProductReviewsController;
 use App\Http\Controllers\MercadoLibre\Products\saveProductsController;
 
 // SyncStatus //
-
 use App\Http\Controllers\SyncStatusController;
-Route::get('/sync-status', [SyncStatusController::class, 'getStatus']);
 
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
-});
+Route::post('/sincronizar', [SyncStatusController::class, 'iniciarSincronizacion']);
+Route::get('/estado-sincronizacion', [SyncStatusController::class, 'estadoSincronizacion']);
 
 // Public routes
 Route::post('/login', [AuthController::class, 'login']); // Login user
