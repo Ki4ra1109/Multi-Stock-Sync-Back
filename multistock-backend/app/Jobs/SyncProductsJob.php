@@ -24,30 +24,43 @@ class SyncProductsJob implements ShouldQueue
 
     public function handle()
     {
-        $sincronizacion = SyncStatus::where('estado', 'en_progreso')->first();
+        // Buscar si hay una sincronización en progreso
+        $sincronizacion = SyncStatus::where('status', 'in_progress')->first();
 
         if (!$sincronizacion) {
+            Log::warning('No hay sincronización en progreso. Terminando job.');
             return;
         }
 
-        $sincronizacion->inicio = now();
-        $sincronizacion->total_productos = count($this->productos);
+        // Marcar el inicio de la sincronización
+        $sincronizacion->start_time = now();
+        $sincronizacion->total_products = count($this->productos);
         $sincronizacion->save();
 
         $procesados = 0;
 
         foreach ($this->productos as $productoData) {
-            Product::create($productoData);
-            $procesados++;
+            try {
+                Product::create($productoData);
+                $procesados++;
 
-            $sincronizacion->productos_procesados = $procesados;
-            $sincronizacion->save();
+                // Actualizar la cantidad de productos procesados
+                $sincronizacion->processed_products = $procesados;
+                $sincronizacion->updated_at = now();
+                $sincronizacion->save();
 
-            sleep(1);
+                sleep(1); // Simulación de un proceso más lento
+
+            } catch (\Exception $e) {
+                Log::error('Error al procesar producto: ' . $e->getMessage());
+            }
         }
 
-        $sincronizacion->estado = 'completado';
-        $sincronizacion->fin = now();
+        // Finalizar la sincronización
+        $sincronizacion->status = 'completed';
+        $sincronizacion->end_time = now();
         $sincronizacion->save();
+
+        Log::info('Sincronización de productos completada con éxito.');
     }
 }
