@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\AuthController;
 
-use App\Http\Controllers\ClientesController;
+
 
 use App\Http\Controllers\BrandsController;
 use App\Http\Controllers\StockController;
@@ -64,7 +64,6 @@ use App\Http\Controllers\SyncStatusController;
 // Public routes
 Route::post('/login', [AuthController::class, 'login']); // Login user
 Route::post('/users', [UserController::class, 'store']); // Create user
-Route::get('/info', [InfoController::class, 'getInfo']);// Info route
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
