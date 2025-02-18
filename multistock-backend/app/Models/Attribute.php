@@ -12,9 +12,9 @@ class Attribute extends Model
     protected $table = 'attributes';
     protected $fillable = ['nombre', 'categoria_id'];
 
-    public function categories()
+    public function category()
     {
-        return $this->belongsTo(Categories::class);
+        return $this->belongsTo(Categories::class, 'categoria_id');
     }
 
     public function products()
