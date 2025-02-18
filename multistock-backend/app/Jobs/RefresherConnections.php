@@ -7,10 +7,10 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Models\MercadoLibreCredential;
 use Exception;
+use App\Http\Controllers\MercadoLibre\Connections\testAndRefreshConnectionController;
 
 class RefresherConnections implements ShouldQueue
 {
@@ -21,15 +21,6 @@ class RefresherConnections implements ShouldQueue
      */
     public function handle(): void
     {
-
-        $apiBaseUrl = config('services.mercadolibre.api_url', env('MERCADOLIBRE_API_URL'));
-
-        if (!$apiBaseUrl) {
-            Log::error("No se encontró la URL base para la API en .env");
-            return;
-        }
-
-
         $credentials = MercadoLibreCredential::pluck('client_id');
 
         if ($credentials->isEmpty()) {
@@ -37,17 +28,16 @@ class RefresherConnections implements ShouldQueue
             return;
         }
 
+        $controller = new testAndRefreshConnectionController();
+
         foreach ($credentials as $client_id) {
-            $url = "{$apiBaseUrl}/api/MercadoLibre/connections/test-connection/{$client_id}";
-
             try {
+                $response = $controller->testAndRefreshConnection($client_id);
 
-                $response = Http::timeout(10)->get($url);
-
-                if ($response->successful()) {
+                if ($response->getStatusCode() == 200) {
                     Log::info("Token refrescado correctamente para client_id: {$client_id}");
                 } else {
-                    Log::error("Error al refrescar el token para client_id: {$client_id}, Código HTTP: " . $response->status());
+                    Log::error("Error al refrescar el token para client_id: {$client_id}, Código HTTP: " . $response->getStatusCode());
                 }
             } catch (Exception $e) {
                 Log::error("Fallo la conexión al refrescar el token para client_id: {$client_id}, Error: " . $e->getMessage());
