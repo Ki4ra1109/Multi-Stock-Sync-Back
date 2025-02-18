@@ -11,5 +11,15 @@ class Product extends Model
 
     protected $table = 'products';
 
-    protected $fillable = ['nombre', 'precio', 'stock'];
+    protected $fillable = ['nombre', 'precio', 'stock', 'categoria_id'];
+
+    public function categories()
+    {
+        return $this->belongsTo(Categories::class);
+    }
+
+    public function attributes()
+    {
+        return $this->belongsToMany(Attributes::class, 'product_attributes')->withPivot('valor');
+    }
 }

@@ -13,9 +13,10 @@ return new class extends Migration
     {
         Schema::create('products', function (Blueprint $table) {
             $table->id();
-            $table->string('nombre'); // Nombre del producto
-            $table->decimal('precio', 10, 2); // Precio con dos decimales
-            $table->integer('stock'); // Stock disponible
+            $table->string('nombre');
+            $table->decimal('precio', 10, 0); 
+            $table->integer('stock')->default(0);
+            $table->foreignId('categoria_id')->constrained('categories')->onDelete('cascade');
             $table->timestamps();
         });
     }    
