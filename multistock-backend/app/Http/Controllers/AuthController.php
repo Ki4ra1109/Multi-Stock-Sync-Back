@@ -6,7 +6,6 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use App\Http\Controllers\AuthController;
 
 class AuthController extends Controller
 {
@@ -15,17 +14,20 @@ class AuthController extends Controller
      */
     public function login(Request $request)
     {
-        // Check if the request is empty or has invalid JSON
-        if (!$request->isJson() || empty($request->all())) {
-            return response()->json(['message' => 'Solicitud inválida'], 400);
-        }
-
-        $validated = $request->validate([
+        // Validación con mensajes personalizados
+        $request->validate([
             'email' => 'required|email',
             'password' => 'required|string',
+        ], [
+            'email.required' => 'El correo electrónico es obligatorio.',
+            'email.email' => 'El correo electrónico debe ser una dirección de correo válida.',
+            'password.required' => 'La contraseña es obligatoria.',
+            'password.string' => 'La contraseña debe ser una cadena de texto.',
         ]);
 
         // Check if email or password is empty
+        $validated = $request->all();
+
         if (empty($validated['email']) || empty($validated['password'])) {
             return response()->json(['message' => 'Credenciales inválidas'], 401);
         }
