@@ -70,7 +70,7 @@ class getOrderStatusesController
         $statuses = [
             'paid' => 0,
             'pending' => 0,
-            'canceled' => 0,
+            'cancelled' => 0,
         ];
         $products = [];
 
@@ -79,6 +79,7 @@ class getOrderStatusesController
                 $statuses[$order['status']]++;
             }
             foreach ($order['order_items'] as $item) {
+                $item['item']['status'] = $order['status']; // Add product status
                 $products[] = $item['item'];
             }
         }
