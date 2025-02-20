@@ -34,6 +34,7 @@ use App\Http\Controllers\MercadoLibre\Reportes\getTopSellingProductsController;
 use App\Http\Controllers\MercadoLibre\Reportes\getWeeksOfMonthController;
 use App\Http\Controllers\MercadoLibre\Reportes\summaryController;
 use App\Http\Controllers\MercadoLibre\Reportes\getSalesByDateRangeController;
+use App\Http\Controllers\ReviewController;
 
 
 // LOGIN //
@@ -101,6 +102,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Generate MerccadoLibre login Auth 2.0 URL
     Route::post('/mercadolibre/login', [loginController::class, 'login']);
+
+     // Retrieve reviews for a specific product
+    Route::get('/products/{product_id}/reviews', [ReviewController::class, 'getReviews']);
 
     // Handle MercadoLibre callback
     Route::get('/mercadolibre/callback', [handleCallbackController::class, 'handleCallback']);
