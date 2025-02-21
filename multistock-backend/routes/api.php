@@ -104,7 +104,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/mercadolibre/login', [loginController::class, 'login']);
 
      // Retrieve reviews for a specific product
-    Route::get('/products/{product_id}/reviews', [ReviewController::class, 'getReviews']);
+     Route::get('/products/{product_id}/reviews', [ReviewController::class, 'getReviews']);
 
     // Handle MercadoLibre callback
     Route::get('/mercadolibre/callback', [handleCallbackController::class, 'handleCallback']);

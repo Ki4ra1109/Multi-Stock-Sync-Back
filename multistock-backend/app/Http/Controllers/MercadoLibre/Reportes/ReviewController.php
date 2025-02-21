@@ -1,23 +1,24 @@
 <?php
-namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\Review;  // Review model
+use Illuminate\Support\Facades\Http;
 
 class ReviewController extends Controller
 {
-    public function getReviews($product_id)
+    public function getReviews($productId)
     {
-        // Get reviews for the product
-        $reviews = Review::where('product_id', $product_id)->get();
+        // Ingresar el token de la conexión acá
+        $accessToken = env('APP_USR-5822095179207900-022109-bc1711e2b00c06f2d5ffad0be732267d-1412503191');
 
-        // Calculate the average rating
-        $rating_average = $reviews->avg('rating');
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $accessToken,
+        ])->get("https://api.mercadolibre.com/reviews/item/{$productId}");
 
-        // Return the reviews and the average rating
-        return response()->json([
-            'reviews' => $reviews,
-            'rating_average' => $rating_average
-        ]);
+        if ($response->successful()) {
+            return response()->json($response->json());
+        } else {
+            return response()->json([
+                'error' => 'No se pudieron obtener las opiniones del producto.',
+            ], 500);
+        }
     }
 }
