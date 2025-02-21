@@ -1,8 +1,12 @@
 <?php
 
-use GuzzleHttp\Client;
+namespace App\Http\Controllers\MercadoLibre\Reportes;
 
-class ReviewController extends Controller
+use GuzzleHttp\Client;
+use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
+
+class reviewController extends Controller
 {
     private $client;
 
@@ -42,12 +46,19 @@ class ReviewController extends Controller
     // Función genérica para obtener opiniones desde la API
     private function getReviewsFromApi($productId, $token)
     {
-        $response = $this->client->request('GET', "https://api.mercadolibre.com/reviews/item/{$productId}", [
-            'headers' => [
-                'Authorization' => "Bearer {$token}",
-            ]
-        ]);
+        try {
+            // Realizar la solicitud GET a la API de Mercado Libre
+            $response = $this->client->request('GET', "https://api.mercadolibre.com/reviews/item/{$productId}", [
+                'headers' => [
+                    'Authorization' => "Bearer {$token}",
+                ]
+            ]);
 
-        return json_decode($response->getBody()->getContents(), true);
+            // Si la respuesta es exitosa, devolver los datos en formato JSON
+            return response()->json(json_decode($response->getBody()->getContents(), true));
+        } catch (\Exception $e) {
+            // Si hay un error en la solicitud, devolver un mensaje de error
+            return response()->json(['error' => 'No se pudieron obtener las reseñas', 'message' => $e->getMessage()], 400);
+        }
     }
 }
