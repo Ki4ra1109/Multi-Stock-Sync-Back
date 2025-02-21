@@ -51,6 +51,7 @@ use App\Http\Controllers\MercadoLibre\Connections\testAndRefreshConnectionContro
 use App\Http\Controllers\MercadoLibre\Credentials\deleteCredentialsController;
 use App\Http\Controllers\MercadoLibre\Credentials\getAllCredentialsDataController;
 use App\Http\Controllers\MercadoLibre\Credentials\getCredentialsByClientIdController;
+use App\Http\Controllers\MercadoLibre\Credentials\refreshAccessTokenController;
 
 //  PRODUCTS  //
 
@@ -103,8 +104,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Generate MerccadoLibre login Auth 2.0 URL
     Route::post('/mercadolibre/login', [loginController::class, 'login']);
 
-     // Retrieve reviews for a specific product
-     Route::get('/products/{product_id}/reviews', [ReviewController::class, 'getReviews']);
+    // Retrieve reviews for a specific product
+    Route::get('/products/{product_id}/reviews', [ReviewController::class, 'getReviews']);
 
     // Handle MercadoLibre callback
     Route::get('/mercadolibre/callback', [handleCallbackController::class, 'handleCallback']);
@@ -177,4 +178,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Save MercadoLibre products to database
     Route::get('/mercadolibre/save-products/{client_id}', [MercadoLibreProductController::class, 'saveProducts']);
+
+    // Refresh MercadoLibre access token
+    Route::post('/mercadolibre/refresh-token', [refreshAccessTokenController::class, 'refreshToken']);
 });
