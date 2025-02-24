@@ -179,9 +179,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/mercadolibre/refresh-token', [refreshAccessTokenController::class, 'refreshToken']);
 
     // REVIEWS
-    Route::get('reviews/{seller}/{product_id}', [reviewController::class, 'getReviews']);
-    Route::get('/reviews/crazyfamily/{productId}', [reviewController::class, 'getReviewsCrazyFamily']);
-    Route::get('/reviews/ofertasimperdibleschile/{productId}', [reviewController::class, 'getReviewsOfertasImperdiblesChile']);
-    Route::get('/reviews/lenceriaonline/{productId}', [reviewController::class, 'getReviewsLenceriaOnline']);
-    Route::get('/reviews/comercializadoraabizicl/{productId}', [reviewController::class, 'getReviewsComercializadoraAbiziCl']);
+    Route::get('reviews/{clientId}/{productId}', [ReviewController::class, 'getReviewsByClientId']);
 });
