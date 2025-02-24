@@ -12,13 +12,13 @@ class ProductAttribute extends Model
     protected $table = 'product_attributes';
     protected $fillable = ['producto_id', 'atributo_id', 'valor'];
 
-    public function products()
+    public function product()
     {
-        return $this->belongsTo(Products::class);
+        return $this->belongsTo(Product::class, 'producto_id');
     }
 
-    public function attributes()
+    public function attribute()
     {
-        return $this->belongsTo(Attributes::class);
+        return $this->belongsTo(Attribute::class, 'atributo_id');
     }
 }
