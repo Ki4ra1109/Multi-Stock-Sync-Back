@@ -51,6 +51,10 @@ class getTopSellingProductsController
         $year = request()->query('year', date('Y')); // Default to current year
         $month = request()->query('month'); // Month is optional
 
+        // Get query parameters for pagination
+        $page = request()->query('page', 1); // Default to page 1
+        $perPage = request()->query('per_page', 10); // Default to 10 items per page
+
         // Calculate date range based on the provided year and month
         if ($month) {
             // If month is provided, get the date range for the specified month
@@ -101,11 +105,19 @@ class getTopSellingProductsController
             return $b['quantity'] - $a['quantity'];
         });
 
-        // Return top-selling products data
+        // Paginate the results
+        $totalProducts = count($productSales);
+        $totalPages = ceil($totalProducts / $perPage);
+        $offset = ($page - 1) * $perPage;
+        $productSales = array_slice($productSales, $offset, $perPage);
+
+        // Return top-selling products data with pagination
         return response()->json([
             'status' => 'success',
             'message' => 'Productos más vendidos obtenidos con éxito.',
             'total_sales' => $totalSales,
+            'current_page' => $page,
+            'total_pages' => $totalPages,
             'data' => $productSales,
         ]);
     }
