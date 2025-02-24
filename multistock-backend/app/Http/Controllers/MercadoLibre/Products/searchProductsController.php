@@ -83,6 +83,10 @@ class searchProductsController extends Controller
         $products = $response->json()['results'];
         $total = $response->json()['paging']['total'];
 
+        // Calculate pagination details
+        $totalPages = ceil($total / $limit);
+        $currentPage = ($offset / $limit) + 1;
+
         // Enhance products with status by fetching detailed information
         $enhancedProducts = [];
         foreach ($products as $product) {
@@ -121,6 +125,8 @@ class searchProductsController extends Controller
                 'total' => $total,
                 'limit' => $limit,
                 'offset' => $offset,
+                'total_pages' => $totalPages,
+                'current_page' => $currentPage,
             ],
         ]);
     }
