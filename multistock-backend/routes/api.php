@@ -180,4 +180,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // REVIEWS
     Route::get('reviews/{clientId}/{productId}', [reviewController::class, 'getReviewsByClientId']);
+
+    // ITEMS
+    Route::post('/mercadolibre/items', [ItemController::class, 'store']);
+    Route::put('/mercadolibre/items/{item_id}', [ItemController::class, 'update']);
 });
