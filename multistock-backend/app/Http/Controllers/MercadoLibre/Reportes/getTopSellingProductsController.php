@@ -100,10 +100,11 @@ class getTopSellingProductsController
 
                     if (!isset($productSales[$productId])) {
                         $productSales[$productId] = [
+                            'id' => $productId,
+                            'variation_id' => $variationId,
                             'title' => $item['item']['title'],
                             'quantity' => 0,
                             'total_amount' => 0,
-                            'variation_id' => $variationId,
                             'size' => $size,
                         ];
                     }
@@ -134,3 +135,4 @@ class getTopSellingProductsController
         ]);
     }
 }
+

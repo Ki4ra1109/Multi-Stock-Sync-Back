@@ -2,99 +2,160 @@
 
 namespace App\Http\Controllers\MercadoLibre\Products;
 
-use App\Http\Controllers\Controller;
+use App\Models\Product;
+use App\Models\MercadoLibreCredential;
 use Illuminate\Http\Request;
-use App\Models\Item;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
-class ItemController extends Controller
+class itemController
 {
     /**
-     * Store a new product.
+     * Crear un nuevo producto en MercadoLibre y guardarlo en la base de datos.
      */
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'title'        => 'required|string',
-            'price'        => 'required|numeric',
-            'stock'        => 'required|integer',
-            'sku'          => 'required|string|unique:items',
-            'category_id'  => 'required|string',
-            'size'         => 'nullable|string',
-            'description'  => 'nullable|string',
-            'images'       => 'nullable|array',
-            'images.*'     => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
-            'image_urls'   => 'nullable|array',
-            'image_urls.*' => 'nullable|url'
+        $request->validate([
+            'client_id'   => 'required|string',
+            'title'       => 'required|string',
+            'price'       => 'required|numeric',
+            'stock'       => 'required|integer',
+            'sku'         => 'required|string|unique:products,sku',
+            'category_id' => 'required|string',
+            'size'        => 'nullable|string',
+            'description' => 'nullable|string',
+            'images.*'    => 'image|mimes:jpeg,png,jpg,gif',
+            'image_urls.*'=> 'url',
         ]);
 
-        $imagePaths = [];
+        // Buscar credenciales de MercadoLibre
+        $credentials = MercadoLibreCredential::where('client_id', $request->client_id)->first();
+        if (!$credentials || $credentials->isTokenExpired()) {
+            return response()->json(['status' => 'error', 'message' => 'Credenciales no válidas o token expirado.'], 401);
+        }
 
-        // Save images uploaded from the PC
+        // Procesar imágenes (subir locales y combinar con URLs)
+        $imageUrls = $request->image_urls ?? [];
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
                 $path = $image->store('products', 'public');
-                $imagePaths[] = asset("storage/$path");
+                $imageUrls[] = asset("storage/$path");
             }
         }
 
-        // Add image URLs sent as text
-        if (!empty($data['image_urls'])) {
-            $imagePaths = array_merge($imagePaths, $data['image_urls']);
+        // Datos del producto para MercadoLibre
+        $productData = [
+            'title'        => $request->title,
+            'category_id'  => $request->category_id,
+            'price'        => $request->price,
+            'currency_id'  => 'CLP',
+            'available_quantity' => $request->stock,
+            'buying_mode'  => 'buy_it_now',
+            'listing_type_id' => 'gold_special',
+            'description'  => ['plain_text' => $request->description ?? ''],
+            'pictures'     => array_map(fn($url) => ['source' => $url], $imageUrls),
+            'attributes'   => [
+                ['id' => 'SIZE', 'value_name' => $request->size ?? ''],
+            ]
+        ];
+
+        // Publicar en MercadoLibre
+        $response = Http::withToken($credentials->access_token)
+            ->post('https://api.mercadolibre.com/items', $productData);
+
+        if ($response->failed()) {
+            return response()->json(['status' => 'error', 'message' => 'Error al publicar en MercadoLibre.', 'error' => $response->json()], $response->status());
         }
 
-        // Create the product in the database
-        $item = Item::create(array_merge($data, ['images' => json_encode($imagePaths)]));
+        $mlProduct = $response->json();
 
-        return response()->json([
-            'status'  => 'success',
-            'message' => 'Producto creado exitosamente.',
-            'data'    => $item
-        ], 201);
+        // Guardar en la base de datos
+        $product = Product::create([
+            'ml_id'       => $mlProduct['id'],
+            'client_id'   => $request->client_id,
+            'title'       => $request->title,
+            'price'       => $request->price,
+            'stock'       => $request->stock,
+            'sku'         => $request->sku,
+            'category_id' => $request->category_id,
+            'size'        => $request->size,
+            'description' => $request->description,
+            'images'      => json_encode($imageUrls),
+        ]);
+
+        return response()->json(['status' => 'success', 'message' => 'Producto creado exitosamente.', 'data' => $product]);
     }
 
     /**
-     * Update an existing product.
+     * Editar un producto en MercadoLibre y actualizarlo en la base de datos.
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, $item_id)
     {
-        $item = Item::findOrFail($id);
-
-        $data = $request->validate([
-            'title'        => 'sometimes|string',
-            'price'        => 'sometimes|numeric',
-            'stock'        => 'sometimes|integer',
-            'sku'          => 'sometimes|string|unique:items,sku,' . $id,
-            'category_id'  => 'sometimes|string',
-            'size'         => 'nullable|string',
-            'description'  => 'nullable|string',
-            'images'       => 'nullable|array',
-            'images.*'     => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
-            'image_urls'   => 'nullable|array',
-            'image_urls.*' => 'nullable|url'
+        $request->validate([
+            'client_id'   => 'required|string',
+            'title'       => 'sometimes|string',
+            'price'       => 'sometimes|numeric',
+            'stock'       => 'sometimes|integer',
+            'category_id' => 'sometimes|string',
+            'size'        => 'nullable|string',
+            'description' => 'nullable|string',
+            'images.*'    => 'image|mimes:jpeg,png,jpg,gif',
+            'image_urls.*'=> 'url',
         ]);
 
-        $imagePaths = json_decode($item->images, true) ?? [];
+        // Buscar credenciales de MercadoLibre
+        $credentials = MercadoLibreCredential::where('client_id', $request->client_id)->first();
+        if (!$credentials || $credentials->isTokenExpired()) {
+            return response()->json(['status' => 'error', 'message' => 'Credenciales no válidas o token expirado.'], 401);
+        }
 
-        // Save new images if they are sent
+        // Buscar producto en la base de datos
+        $product = Product::where('ml_id', $item_id)->first();
+        if (!$product) {
+            return response()->json(['status' => 'error', 'message' => 'Producto no encontrado en el sistema.'], 404);
+        }
+
+        // Procesar imágenes (subir locales y combinar con URLs)
+        $imageUrls = $request->image_urls ?? json_decode($product->images, true);
         if ($request->hasFile('images')) {
             foreach ($request->file('images') as $image) {
                 $path = $image->store('products', 'public');
-                $imagePaths[] = asset("storage/$path");
+                $imageUrls[] = asset("storage/$path");
             }
         }
 
-        // Add new URLs if they are sent
-        if (!empty($data['image_urls'])) {
-            $imagePaths = array_merge($imagePaths, $data['image_urls']);
+        // Datos del producto para MercadoLibre
+        $productData = array_filter([
+            'title'         => $request->title ?? $product->title,
+            'price'         => $request->price ?? $product->price,
+            'available_quantity' => $request->stock ?? $product->stock,
+            'category_id'   => $request->category_id ?? $product->category_id,
+            'description'   => $request->description ? ['plain_text' => $request->description] : null,
+            'pictures'      => array_map(fn($url) => ['source' => $url], $imageUrls),
+            'attributes'    => [
+                ['id' => 'SIZE', 'value_name' => $request->size ?? $product->size ?? ''],
+            ]
+        ]);
+
+        // Actualizar en MercadoLibre
+        $response = Http::withToken($credentials->access_token)
+            ->put("https://api.mercadolibre.com/items/{$item_id}", $productData);
+
+        if ($response->failed()) {
+            return response()->json(['status' => 'error', 'message' => 'Error al actualizar en MercadoLibre.', 'error' => $response->json()], $response->status());
         }
 
-        $item->update(array_merge($data, ['images' => json_encode($imagePaths)]));
+        // Actualizar en la base de datos
+        $product->update(array_filter([
+            'title'       => $request->title,
+            'price'       => $request->price,
+            'stock'       => $request->stock,
+            'category_id' => $request->category_id,
+            'size'        => $request->size,
+            'description' => $request->description,
+            'images'      => json_encode($imageUrls),
+        ]));
 
-        return response()->json([
-            'status'  => 'success',
-            'message' => 'Producto actualizado exitosamente.',
-            'data'    => $item
-        ]);
+        return response()->json(['status' => 'success', 'message' => 'Producto actualizado correctamente.', 'data' => $product]);
     }
 }
