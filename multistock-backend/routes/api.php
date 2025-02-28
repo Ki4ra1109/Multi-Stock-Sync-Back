@@ -189,6 +189,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/mercadolibre/items/{item_id}', [itemController::class, 'update']);
 
     // PRODUCT REPORT
-    Route::get('/mercadolibre/products/{clientId}', [productReportController::class, 'listProductsByClientIdWithPaymentStatus']);
-
+    Route::get('/mercadolibre/client-item-list/{client_id}', [productReportController::class, 'listProductsByClientIdWithPaymentStatus']);
+    
 });
