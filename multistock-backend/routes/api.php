@@ -35,6 +35,8 @@ use App\Http\Controllers\MercadoLibre\Reportes\getWeeksOfMonthController;
 use App\Http\Controllers\MercadoLibre\Reportes\summaryController;
 use App\Http\Controllers\MercadoLibre\Reportes\getSalesByDateRangeController;
 use App\Http\Controllers\MercadoLibre\Reportes\reviewController;
+use App\Http\Controllers\MercadoLibre\Reportes\productReportController;
+
 
 // LOGIN //
 
@@ -187,5 +189,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/mercadolibre/items/{item_id}', [itemController::class, 'update']);
 
     // PRODUCT REPORT
-    
+    Route::get('/mercadolibre/products/{clientId}', [productReportController::class, 'listProductsByClientIdWithPaymentStatus']);
+
 });
