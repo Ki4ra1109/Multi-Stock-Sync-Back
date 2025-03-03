@@ -36,6 +36,10 @@ use App\Http\Controllers\MercadoLibre\Reportes\summaryController;
 use App\Http\Controllers\MercadoLibre\Reportes\getSalesByDateRangeController;
 use App\Http\Controllers\MercadoLibre\Reportes\reviewController;
 use App\Http\Controllers\MercadoLibre\Reportes\productReportController;
+use App\Http\Controllers\MercadoLibre\Reportes\getStockRotationController;
+use App\Http\Controllers\MercadoLibre\Reportes\getStockReceptionController;
+use App\Http\Controllers\MercadoLibre\Reportes\getAvailableForReceptionController;
+use App\Http\Controllers\MercadoLibre\Reportes\getProductsToDispatchController;
 
 
 // LOGIN //
@@ -190,5 +194,17 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // PRODUCT REPORT
     Route::get('/mercadolibre/client-item-list/{client_id}', [productReportController::class, 'listProductsByClientIdWithPaymentStatus']);
+
+    // Stock Rotation
+    Route::get('/mercadolibre/stock-rotation/{client_id}', [getStockRotationController::class, 'getStockRotation']);
+
+    // Stock Reception
+    Route::get('/mercadolibre/stock-reception/{client_id}', [getStockReceptionController::class, 'getStockReception']);
+
+    // Available for Reception
+    Route::get('/mercadolibre/available-for-reception/{client_id}', [getAvailableForReceptionController::class, 'getAvailableForReception']);
+
+    // Products to Dispatch
+    Route::get('/mercadolibre/products-to-dispatch/{client_id}', [getProductsToDispatchController::class, 'getProductsToDispatch']);
     
 });
