@@ -38,8 +38,7 @@ class getStockReceptionController
         }
 
         $userId = $response->json()['id'];
-
-        // Definir la fecha de búsqueda (por defecto, el mes actual)
+        
         $year = request()->query('year', date('Y'));
         $month = request()->query('month');
 
@@ -54,7 +53,6 @@ class getStockReceptionController
             $dateTo = "{$year}-12-31T23:59:59.999-00:00";
         }
 
-        // Llamada a la API de MercadoLibre para obtener los pedidos pendientes de despacho
         $response = Http::withToken($credentials->access_token)
             ->get("https://api.mercadolibre.com/orders/search?seller={$userId}&order.status=ready_to_ship&order.date_created.from={$dateFrom}&order.date_created.to={$dateTo}");
 
