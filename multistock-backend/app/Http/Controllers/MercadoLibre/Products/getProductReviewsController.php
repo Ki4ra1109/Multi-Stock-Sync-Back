@@ -48,11 +48,11 @@ class getProductReviewsController extends Controller
         $paging = ['total' => 0, 'limit' => count($productIdsArray), 'offset' => 0];
 
         foreach ($productIdsArray as $productId) {
-            // API request to get product reviews
+            
             $response = Http::withToken($credentials->access_token)
                 ->get("https://api.mercadolibre.com/reviews/item/{$productId}");
 
-            // Validate response
+            
             if ($response->failed()) {
                 return response()->json([
                     'status' => 'error',
