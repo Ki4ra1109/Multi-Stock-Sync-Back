@@ -178,7 +178,14 @@ class getStockReceptionController
         }
 
         $response = Http::withToken($credentials->access_token)
-            ->get("https://api.mercadolibre.com/orders/search?seller={$userId}&order.status=received&order.date_created.from={$dateFrom}&order.date_created.to={$dateTo}");
+            ->get("https://api.mercadolibre.com/orders/search", [
+                'seller' => $userId,
+                'order.status' => 'paid',
+                'order.date_created.from' => $dateFrom,
+                'order.date_created.to' => $dateTo,
+                'offset' => ($page - 1) * $perPage,
+                'limit' => $perPage
+            ]);
 
         if ($response->failed()) {
             return response()->json([
@@ -194,63 +201,21 @@ class getStockReceptionController
         foreach ($orders as $order) {
             foreach ($order['order_items'] as $item) {
                 $productId = $item['item']['id'];
-                $variationId = $item['item']['variation_id'] ?? null;
-                $size = null;
-
-                // Obtener detalles del producto para encontrar la talla
-                $productDetailsResponse = Http::withToken($credentials->access_token)
-                    ->get("https://api.mercadolibre.com/items/{$productId}");
-
-                if ($productDetailsResponse->successful()) {
-                    $productData = $productDetailsResponse->json();
-
-                    // Si hay una variante específica, obtener la información de la variante
-                    if ($variationId) {
-                        $variationResponse = Http::withToken($credentials->access_token)
-                            ->get("https://api.mercadolibre.com/items/{$productId}/variations/{$variationId}");
-
-                        if ($variationResponse->successful()) {
-                            $variationData = $variationResponse->json();
-
-                            foreach ($variationData['attribute_combinations'] ?? [] as $attribute) {
-                                if (in_array(strtolower($attribute['id']), ['size', 'talle'])) {
-                                    $size = $attribute['value_name'];
-                                    break;
-                                }
-                            }
-                        }
-                    }
-
-                    if (!isset($receivedStock[$productId])) {
-                        $receivedStock[$productId] = [
-                            'id' => $productId,
-                            'variation_id' => $variationId,
-                            'title' => $item['item']['title'],
-                            'quantity' => 0,
-                            'size' => $size,
-                        ];
-                    }
-
-                    $receivedStock[$productId]['quantity'] += $item['quantity'];
+                if (!isset($receivedStock[$productId])) {
+                    $receivedStock[$productId] = [
+                        'id' => $productId,
+                        'title' => $item['item']['title'],
+                        'quantity' => 0,
+                    ];
                 }
+                $receivedStock[$productId]['quantity'] += $item['quantity'];
             }
         }
-
-        usort($receivedStock, function ($a, $b) {
-            return $b['quantity'] - $a['quantity'];
-        });
-
-        $totalProducts = count($receivedStock);
-        $totalPages = ceil($totalProducts / $perPage);
-        $offset = ($page - 1) * $perPage;
-        $receivedStock = array_slice($receivedStock, $offset, $perPage);
 
         return response()->json([
             'status' => 'success',
             'message' => 'Recepción de stock obtenida con éxito.',
-            'current_page' => $page,
-            'total_pages' => $totalPages,
-            'data' => $receivedStock,
+            'data' => array_values($receivedStock),
         ]);
     }
 }
