@@ -6,7 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use App\Models\MercadoLibreCredential;
 
-class ProductRotationController extends Controller
+class productRotationController extends Controller
 {
     /**
      * Get products with the highest and lowest rotation.
