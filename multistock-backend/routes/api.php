@@ -35,6 +35,8 @@ use App\Http\Controllers\MercadoLibre\Reportes\getWeeksOfMonthController;
 use App\Http\Controllers\MercadoLibre\Reportes\summaryController;
 use App\Http\Controllers\MercadoLibre\Reportes\getSalesByDateRangeController;
 use App\Http\Controllers\MercadoLibre\Reportes\reviewController;
+use App\Http\Controllers\MercadoLibre\Reportes\productReportController;
+
 
 // LOGIN //
 
@@ -58,6 +60,7 @@ use App\Http\Controllers\MercadoLibre\Products\listProductByClientIdController;
 use App\Http\Controllers\MercadoLibre\Products\searchProductsController;
 use App\Http\Controllers\MercadoLibre\Products\getProductReviewsController;
 use App\Http\Controllers\MercadoLibre\Products\saveProductsController;
+use App\Http\Controllers\MercadoLibre\Products\itemController;
 
 // SyncStatus //
 use App\Http\Controllers\SyncStatusController;
@@ -180,4 +183,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // REVIEWS
     Route::get('reviews/{clientId}/{productId}', [reviewController::class, 'getReviewsByClientId']);
+
+    // ITEMS
+    Route::post('/mercadolibre/items', [itemController::class, 'store']);
+    Route::put('/mercadolibre/items/{item_id}', [itemController::class, 'update']);
+
+    // PRODUCT REPORT
+    Route::get('/mercadolibre/client-item-list/{client_id}', [productReportController::class, 'listProductsByClientIdWithPaymentStatus']);
+    
 });

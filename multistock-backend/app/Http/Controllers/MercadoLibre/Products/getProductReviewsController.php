@@ -17,11 +17,12 @@ class getProductReviewsController extends Controller
     }
 
     /**
-     * Get product reviews from MercadoLibre API using product_id.
+     * Get product reviews from MercadoLibre API using product_ids.
      */
-    public function getProductReviews($productId, Request $request)
+    public function getProductReviews(Request $request)
     {
         $clientId = $request->query('client_id');
+        $productIds = $request->query('product_ids'); // Expecting a comma-separated list of product IDs
 
         // Get credentials by client_id
         $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
@@ -42,24 +43,36 @@ class getProductReviewsController extends Controller
             ], 401);
         }
 
-        // API request to get product reviews
-        $response = Http::withToken($credentials->access_token)
-            ->get("https://api.mercadolibre.com/reviews/item/{$productId}");
+        $productIdsArray = explode(',', $productIds);
+        $reviews = [];
+        $paging = ['total' => 0, 'limit' => count($productIdsArray), 'offset' => 0];
 
-        // Validate response
-        if ($response->failed()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Error al conectar con la API de MercadoLibre.',
-                'error' => $response->json(),
-            ], $response->status());
+        foreach ($productIdsArray as $productId) {
+            
+            $response = Http::withToken($credentials->access_token)
+                ->get("https://api.mercadolibre.com/reviews/item/{$productId}");
+
+            
+            if ($response->failed()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Error al conectar con la API de MercadoLibre.',
+                    'error' => $response->json(),
+                ], $response->status());
+            }
+
+            $reviews["product_{$productId}"] = $response->json();
+            $paging['total'] += count($response->json());
         }
 
         // Return product reviews data
         return response()->json([
             'status' => 'success',
             'message' => 'Opiniones obtenidas con éxito.',
-            'data' => $response->json(),
+            'data' => [
+                'paging' => $paging,
+                'reviews' => $reviews,
+            ],
         ]);
     }
 }
