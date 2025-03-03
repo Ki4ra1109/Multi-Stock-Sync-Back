@@ -6,7 +6,7 @@ use App\Models\MercadoLibreCredential;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
 
-class ReviewController
+class reviewController
 {
     /**
      * Get reviews from MercadoLibre API using client_id.
