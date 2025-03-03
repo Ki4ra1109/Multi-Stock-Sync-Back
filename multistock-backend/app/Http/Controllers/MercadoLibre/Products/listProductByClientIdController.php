@@ -13,10 +13,10 @@ class listProductByClientIdController
      */
     public function listProductsByClientId($clientId)
     {
-        // Get credentials by client_id
+        // Obtener credenciales por client_id
         $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
 
-        // Check if credentials exist
+        // Validar si existen credenciales
         if (!$credentials) {
             return response()->json([
                 'status' => 'error',
@@ -24,7 +24,7 @@ class listProductByClientIdController
             ], 404);
         }
 
-        // Check if token is expired
+        // Verificar si el token ha expirado
         if ($credentials->isTokenExpired()) {
             return response()->json([
                 'status' => 'error',
@@ -32,7 +32,7 @@ class listProductByClientIdController
             ], 401);
         }
 
-        // Get user id from token
+        // Obtener el ID del usuario en MercadoLibre
         $response = Http::withToken($credentials->access_token)
             ->get('https://api.mercadolibre.com/users/me');
 
@@ -46,18 +46,17 @@ class listProductByClientIdController
 
         $userId = $response->json()['id'];
 
-        // Get query parameters
-        $limit = request()->query('limit', 50); // Default limit to 50
-        $offset = request()->query('offset', 0); // Default offset to 0
+        // Obtener parámetros de paginación
+        $limit = request()->query('limit', 50);
+        $offset = request()->query('offset', 0);
 
-        // API request to get products with limit and offset
+        // Obtener productos con paginación
         $response = Http::withToken($credentials->access_token)
             ->get("https://api.mercadolibre.com/users/{$userId}/items/search", [
                 'limit' => $limit,
                 'offset' => $offset,
             ]);
 
-        // Validate response
         if ($response->failed()) {
             return response()->json([
                 'status' => 'error',
@@ -66,11 +65,11 @@ class listProductByClientIdController
             ], $response->status());
         }
 
-        // Get product IDs and total count
+        // Obtener los IDs de productos y el total
         $productIds = $response->json()['results'];
         $total = $response->json()['paging']['total'];
 
-        // Fetch detailed product data
+        // Obtener detalles de los productos
         $products = [];
         foreach ($productIds as $productId) {
             $productResponse = Http::withToken($credentials->access_token)
@@ -78,6 +77,16 @@ class listProductByClientIdController
 
             if ($productResponse->successful()) {
                 $productData = $productResponse->json();
+
+                // Obtener nombre de la categoría
+                $categoryName = 'Desconocida';
+                if (!empty($productData['category_id'])) {
+                    $categoryResponse = Http::get("https://api.mercadolibre.com/categories/{$productData['category_id']}");
+                    if ($categoryResponse->successful()) {
+                        $categoryName = $categoryResponse->json()['name'] ?? 'Desconocida';
+                    }
+                }
+
                 $products[] = [
                     'id' => $productData['id'],
                     'title' => $productData['title'],
@@ -89,11 +98,12 @@ class listProductByClientIdController
                     'permalink' => $productData['permalink'],
                     'status' => $productData['status'],
                     'category_id' => $productData['category_id'],
+                    'category_name' => $categoryName,
                 ];
             }
         }
 
-        // Return products data with pagination info
+        // Retornar los productos con paginación
         return response()->json([
             'status' => 'success',
             'message' => 'Productos obtenidos con éxito.',

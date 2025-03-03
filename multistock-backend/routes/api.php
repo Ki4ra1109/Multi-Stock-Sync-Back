@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\AuthController;
 
-use App\Http\Controllers\ClientesController;
+
 
 use App\Http\Controllers\BrandsController;
 use App\Http\Controllers\StockController;
@@ -34,6 +34,8 @@ use App\Http\Controllers\MercadoLibre\Reportes\getTopSellingProductsController;
 use App\Http\Controllers\MercadoLibre\Reportes\getWeeksOfMonthController;
 use App\Http\Controllers\MercadoLibre\Reportes\summaryController;
 use App\Http\Controllers\MercadoLibre\Reportes\getSalesByDateRangeController;
+use App\Http\Controllers\MercadoLibre\Reportes\reviewController;
+use App\Http\Controllers\MercadoLibre\Reportes\productReportController;
 
 
 // LOGIN //
@@ -50,6 +52,7 @@ use App\Http\Controllers\MercadoLibre\Connections\testAndRefreshConnectionContro
 use App\Http\Controllers\MercadoLibre\Credentials\deleteCredentialsController;
 use App\Http\Controllers\MercadoLibre\Credentials\getAllCredentialsDataController;
 use App\Http\Controllers\MercadoLibre\Credentials\getCredentialsByClientIdController;
+use App\Http\Controllers\MercadoLibre\Credentials\refreshAccessTokenController;
 
 //  PRODUCTS  //
 
@@ -57,6 +60,7 @@ use App\Http\Controllers\MercadoLibre\Products\listProductByClientIdController;
 use App\Http\Controllers\MercadoLibre\Products\searchProductsController;
 use App\Http\Controllers\MercadoLibre\Products\getProductReviewsController;
 use App\Http\Controllers\MercadoLibre\Products\saveProductsController;
+use App\Http\Controllers\MercadoLibre\Products\itemController;
 
 // SyncStatus //
 use App\Http\Controllers\SyncStatusController;
@@ -64,7 +68,6 @@ use App\Http\Controllers\SyncStatusController;
 // Public routes
 Route::post('/login', [AuthController::class, 'login']); // Login user
 Route::post('/users', [UserController::class, 'store']); // Create user
-Route::get('/info', [InfoController::class, 'getInfo']);// Info route
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
@@ -174,4 +177,18 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Save MercadoLibre products to database
     Route::get('/mercadolibre/save-products/{client_id}', [MercadoLibreProductController::class, 'saveProducts']);
+
+    // Refresh MercadoLibre access token
+    Route::post('/mercadolibre/refresh-token', [refreshAccessTokenController::class, 'refreshToken']);
+
+    // REVIEWS
+    Route::get('reviews/{clientId}/{productId}', [reviewController::class, 'getReviewsByClientId']);
+
+    // ITEMS
+    Route::post('/mercadolibre/items', [itemController::class, 'store']);
+    Route::put('/mercadolibre/items/{item_id}', [itemController::class, 'update']);
+
+    // PRODUCT REPORT
+    Route::get('/mercadolibre/client-item-list/{client_id}', [productReportController::class, 'listProductsByClientIdWithPaymentStatus']);
+    
 });

@@ -12,9 +12,9 @@ return new class extends Migration
     public function up()
     {
         Schema::create('attributes', function (Blueprint $table) {
-            $table->id('atributo_id');
-            $table->string('nombre');
-            $table->foreignId('categoria_id')->constrained('categories')->onDelete('cascade');
+            $table->id();
+            $table->string('name'); // Cambio de 'nombre' a 'name'
+            $table->foreignId('category_id')->constrained('categories')->onDelete('cascade'); // Cambio 'categoria_id' a 'category_id'
             $table->timestamps();
         });
     }

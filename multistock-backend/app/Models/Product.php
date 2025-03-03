@@ -13,13 +13,13 @@ class Product extends Model
 
     protected $fillable = ['nombre', 'precio', 'stock', 'categoria_id'];
 
-    public function categories()
+    public function category()
     {
-        return $this->belongsTo(Categories::class);
+        return $this->belongsTo(Category::class, 'categoria_id'); // Nombre correcto del modelo
     }
 
     public function attributes()
     {
-        return $this->belongsToMany(Attributes::class, 'product_attributes')->withPivot('valor');
+        return $this->belongsToMany(Attribute::class, 'product_attributes', 'producto_id', 'atributo_id')->withPivot('valor');
     }
 }

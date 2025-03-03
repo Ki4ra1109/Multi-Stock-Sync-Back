@@ -13,7 +13,7 @@ class DatabaseSeeder extends Seeder
     {
         // Register seeders
         $this->call([
-            BrandsSeeder::class,
+
         ]);
     }
 }

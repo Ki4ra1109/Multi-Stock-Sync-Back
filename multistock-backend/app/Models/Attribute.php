@@ -14,11 +14,11 @@ class Attribute extends Model
 
     public function category()
     {
-        return $this->belongsTo(Categories::class, 'categoria_id');
+        return $this->belongsTo(Category::class, 'categoria_id');
     }
 
     public function products()
     {
-        return $this->belongsToMany(Products::class, 'product_attributes')->withPivot('valor');
+        return $this->belongsToMany(Product::class, 'product_attributes')->withPivot('valor');
     }
 }
