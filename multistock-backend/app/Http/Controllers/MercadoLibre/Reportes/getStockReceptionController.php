@@ -201,14 +201,26 @@ class getStockReceptionController
         foreach ($orders as $order) {
             foreach ($order['order_items'] as $item) {
                 $productId = $item['item']['id'];
+                $quantity = $item['quantity'];
+                $unitPrice = $item['unit_price'];
+                $totalAmount = $quantity * $unitPrice;
+                $dateCreated = $order['date_created'];
+                $deliveredBy = $order['buyer']['nickname'];
+
                 if (!isset($receivedStock[$productId])) {
                     $receivedStock[$productId] = [
                         'id' => $productId,
                         'title' => $item['item']['title'],
                         'quantity' => 0,
+                        'unit_price' => $unitPrice,
+                        'total_amount' => 0,
+                        'date_created' => $dateCreated,
+                        'delivered_by' => $deliveredBy,
                     ];
                 }
-                $receivedStock[$productId]['quantity'] += $item['quantity'];
+
+                $receivedStock[$productId]['quantity'] += $quantity;
+                $receivedStock[$productId]['total_amount'] += $totalAmount;
             }
         }
 
