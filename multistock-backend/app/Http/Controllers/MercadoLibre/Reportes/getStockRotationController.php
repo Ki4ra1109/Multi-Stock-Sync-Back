@@ -71,7 +71,7 @@ class getStockRotationController
         foreach ($orders as $order) {
             foreach ($order['order_items'] as $item) {
                 $productId = $item['item']['id'];
-                $variationId = $item['item']['variation_id'] ?? null;
+                $variationId = $item['item']['variation_id'] ?? 'N/A';
                 $size = 'N/A';
 
                 // Obtener detalles del producto para encontrar la talla
@@ -82,7 +82,7 @@ class getStockRotationController
                     $productData = $productDetailsResponse->json();
 
                     // Si hay una variante específica, obtener la información de la variante
-                    if ($variationId) {
+                    if ($variationId !== 'N/A') {
                         $variationResponse = Http::withToken($credentials->access_token)
                             ->get("https://api.mercadolibre.com/items/{$productId}/variations/{$variationId}");
 
