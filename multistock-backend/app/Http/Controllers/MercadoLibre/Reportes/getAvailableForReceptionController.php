@@ -10,6 +10,7 @@ class getAvailableForReceptionController
 {
     public function getAvailableForReception($clientId)
     {
+        // 🔹 Buscar credenciales en la base de datos
         $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
 
         if (!$credentials) {
@@ -19,6 +20,7 @@ class getAvailableForReceptionController
             ], 404);
         }
 
+        // 🔹 Validar si el token ha expirado
         if ($credentials->isTokenExpired()) {
             return response()->json([
                 'status' => 'error',
@@ -26,8 +28,23 @@ class getAvailableForReceptionController
             ], 401);
         }
 
+        // 🔹 Obtener el ID del usuario
         $response = Http::withToken($credentials->access_token)
-            ->get('https://api.mercadolibre.com/shipments/search?seller={$credentials->user_id}&status=to_be_received');
+            ->get('https://api.mercadolibre.com/users/me');
+
+        if ($response->failed()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No se pudo obtener el ID del usuario. Valide su token.',
+                'error' => $response->json(),
+            ], 500);
+        }
+
+        $userId = $response->json()['id'];
+
+        // 🔹 Consultar envíos pendientes de recepción
+        $response = Http::withToken($credentials->access_token)
+            ->get("https://api.mercadolibre.com/shipments/search?seller={$userId}&status=to_be_received");
 
         if ($response->failed()) {
             return response()->json([
@@ -38,26 +55,19 @@ class getAvailableForReceptionController
         }
 
         $shipments = $response->json()['results'];
-        $productsToReceive = [];
 
-        foreach ($shipments as $shipment) {
-            foreach ($shipment['items'] as $item) {
-                $productId = $item['item']['id'];
-                if (!isset($productsToReceive[$productId])) {
-                    $productsToReceive[$productId] = [
-                        'id' => $productId,
-                        'title' => $item['item']['title'],
-                        'quantity' => 0,
-                    ];
-                }
-                $productsToReceive[$productId]['quantity'] += $item['quantity'];
-            }
+        // 🔹 Validar si hay envíos disponibles
+        if (empty($shipments)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No se encontraron envíos pendientes de recepción.',
+            ], 404);
         }
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Productos disponibles por recepción obtenidos con éxito.',
-            'data' => array_values($productsToReceive),
+            'message' => 'Envíos pendientes de recepción obtenidos con éxito.',
+            'data' => $shipments,
         ]);
     }
 }
