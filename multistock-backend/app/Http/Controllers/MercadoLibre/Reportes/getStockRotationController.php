@@ -72,7 +72,7 @@ class getStockRotationController
             foreach ($order['order_items'] as $item) {
                 $productId = $item['item']['id'];
                 $variationId = $item['item']['variation_id'] ?? null;
-                $size = null;
+                $size = 'N/A';
 
                 // Obtener detalles del producto para encontrar la talla
                 $productDetailsResponse = Http::withToken($credentials->access_token)
