@@ -60,6 +60,7 @@ class reviewController
 
         $productData = $productResponse->json();
         $sellerId = $productData['seller_id'] ?? null;
+        $productName = $productData['title'] ?? 'N/A';
 
         // Check if seller_id is available
         if (!$sellerId) {
@@ -83,11 +84,17 @@ class reviewController
 
         $reviews = $reviewResponse->json();
 
-        // Return reviews data
+        // Return reviews data with product name and ID
         return response()->json([
             'status' => 'success',
             'message' => 'Reviews obtenidas con éxito.',
-            'data' => $reviews,
+            'data' => [
+                'product' => [
+                    'id' => $productId,
+                    'name' => $productName,
+                ],
+                'reviews' => $reviews,
+            ],
         ]);
     }
 
@@ -137,6 +144,7 @@ class reviewController
 
             $productData = $productResponse->json();
             $sellerId = $productData['seller_id'] ?? null;
+            $productName = $productData['title'] ?? 'N/A';
 
             // Check if seller_id is available
             if (!$sellerId) {
@@ -159,11 +167,17 @@ class reviewController
             }
 
             $reviews = $reviewResponse->json();
-            $reviewsData[$productId] = $reviews['reviews'] ?? [];
+            $reviewsData[$productId] = [
+                'product' => [
+                    'id' => $productId,
+                    'name' => $productName,
+                ],
+                'reviews' => $reviews['reviews'] ?? [],
+            ];
             $totalReviews += count($reviews['reviews'] ?? []);
         }
 
-        // Return reviews data
+        // Return reviews data with product name and ID
         return response()->json([
             'status' => 'success',
             'message' => 'Reviews obtenidas con éxito.',
