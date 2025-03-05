@@ -186,23 +186,22 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/mercadolibre/refresh-token', [refreshAccessTokenController::class, 'refreshToken']);
 
     // REVIEWS
-    Route::get('/reviews/{clientId}/{productId}', [reviewController::class, 'getReviewsByClientId']);
-
+    Route::get('/reviews/{clientId}', [reviewController::class, 'getBatchReviewsByClientId']);
     // ITEMS
-    Route::post('/mercadolibre/items', [itemController::class, 'store']);
-    Route::put('/mercadolibre/items/{item_id}', [itemController::class, 'update']);
+    Route::post('/mercadolibre/items', [itemController::class, 'store']); // MercadoLibre items routes.
+    Route::put('/mercadolibre/items/{item_id}', [itemController::class, 'update']); // Create and update items.
 
     // PRODUCT REPORT
     Route::get('/mercadolibre/client-item-list/{client_id}', [productReportController::class, 'listProductsByClientIdWithPaymentStatus']);
 
-    // Stock Rotation listo
+    // Stock Rotation
     Route::get('/mercadolibre/stock-rotation/{client_id}', [getStockRotationController::class, 'getStockRotation']);
 
-    // Stock Reception listo
+    // Stock Reception
     Route::get('/mercadolibre/stock-reception/{client_id}', [getStockReceptionController::class, 'getStockReception']);
 
-    // Available for Reception
-    Route::get('/mercadolibre/available-for-reception/{client_id}', [getAvailableForReceptionController::class, 'getAvailableForReception']);
+    // Available for Reception 
+    Route::get('/mercadolibre/available-for-reception/{client_id}', [getAvailableForReceptionController::class, 'getAvailableForReception']); // PAUSADO
 
     // Products to Dispatch
     Route::get('/mercadolibre/products-to-dispatch/{client_id}', [getProductsToDispatchController::class, 'getProductsToDispatch']);
