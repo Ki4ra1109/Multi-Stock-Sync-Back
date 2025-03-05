@@ -80,9 +80,8 @@ class getOrderStatusesController
             }
             foreach ($order['order_items'] as $item) {
                 $item['item']['status'] = $order['status'];
-                if ($item['item']['condition'] === 'new') {
-                    $item['item']['condition'] = 'PAGADO';
-                }
+                // Remove condition
+                unset($item['item']['condition']);
                 $products[] = $item['item'];
             }
         }
