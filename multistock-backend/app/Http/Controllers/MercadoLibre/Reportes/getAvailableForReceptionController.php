@@ -10,7 +10,7 @@ class getAvailableForReceptionController
 {
     public function getAvailableForReception($clientId)
     {
-        // 🔹 Buscar credenciales en la base de datos
+        
         $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
 
         if (!$credentials) {
@@ -20,7 +20,7 @@ class getAvailableForReceptionController
             ], 404);
         }
 
-        // 🔹 Validar si el token ha expirado
+        
         if ($credentials->isTokenExpired()) {
             return response()->json([
                 'status' => 'error',
@@ -28,7 +28,7 @@ class getAvailableForReceptionController
             ], 401);
         }
 
-        // 🔹 Obtener el ID del usuario
+        
         $response = Http::withToken($credentials->access_token)
             ->get('https://api.mercadolibre.com/users/me');
 
@@ -42,7 +42,7 @@ class getAvailableForReceptionController
 
         $userId = $response->json()['id'];
 
-        // 🔹 Consultar envíos pendientes de recepción
+        
         $response = Http::withToken($credentials->access_token)
             ->get("https://api.mercadolibre.com/shipments/search?seller={$userId}&status=to_be_received");
 
@@ -56,7 +56,7 @@ class getAvailableForReceptionController
 
         $shipments = $response->json()['results'];
 
-        // 🔹 Validar si hay envíos disponibles
+        
         if (empty($shipments)) {
             return response()->json([
                 'status' => 'error',

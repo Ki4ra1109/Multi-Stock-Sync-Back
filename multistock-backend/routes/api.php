@@ -195,14 +195,14 @@ Route::middleware('auth:sanctum')->group(function () {
     // PRODUCT REPORT
     Route::get('/mercadolibre/client-item-list/{client_id}', [productReportController::class, 'listProductsByClientIdWithPaymentStatus']);
 
-    // Stock Rotation listo
+    // Stock Rotation
     Route::get('/mercadolibre/stock-rotation/{client_id}', [getStockRotationController::class, 'getStockRotation']);
 
-    // Stock Reception listo
+    // Stock Reception
     Route::get('/mercadolibre/stock-reception/{client_id}', [getStockReceptionController::class, 'getStockReception']);
 
-    // Available for Reception
-    Route::get('/mercadolibre/available-for-reception/{client_id}', [getAvailableForReceptionController::class, 'getAvailableForReception']);
+    // Available for Reception 
+    Route::get('/mercadolibre/available-for-reception/{client_id}', [getAvailableForReceptionController::class, 'getAvailableForReception']); // PAUSADO
 
     // Products to Dispatch
     Route::get('/mercadolibre/products-to-dispatch/{client_id}', [getProductsToDispatchController::class, 'getProductsToDispatch']);
