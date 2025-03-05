@@ -56,7 +56,7 @@ class getProductsToDispatchController
         $response = Http::withToken($credentials->access_token)
             ->get("https://api.mercadolibre.com/orders/search", [
                 'seller' => $userId,
-                'order.status' => 'ready_to_ship',
+                'order.status' => 'paid',
                 'order.date_created.from' => $dateFrom,
                 'order.date_created.to' => $dateTo,
                 'offset' => ($page - 1) * $perPage,
@@ -77,18 +77,18 @@ class getProductsToDispatchController
         foreach ($orders as $order) {
             foreach ($order['order_items'] as $item) {
                 $productId = $item['item']['id'];
-                $variationId = $item['item']['variation_id'] ?? null;
-                $size = null;
+                $variationId = $item['item']['variation_id'] ?? 'N/A';
+                $size = 'N/A';
 
-                // Obtener detalles del producto para encontrar la talla
+                
                 $productDetailsResponse = Http::withToken($credentials->access_token)
                     ->get("https://api.mercadolibre.com/items/{$productId}");
 
                 if ($productDetailsResponse->successful()) {
                     $productData = $productDetailsResponse->json();
 
-                    // Si hay una variante específica, obtener la información de la variante
-                    if ($variationId) {
+                    
+                    if ($variationId !== 'N/A') {
                         $variationResponse = Http::withToken($credentials->access_token)
                             ->get("https://api.mercadolibre.com/items/{$productId}/variations/{$variationId}");
 
@@ -104,12 +104,26 @@ class getProductsToDispatchController
                         }
                     }
 
+                    $shipmentId = $order['shipping']['id'];
+                    $shipmentHistoryResponse = Http::withToken($credentials->access_token)
+                        ->get("https://api.mercadolibre.com/shipments/{$shipmentId}/history", [
+                            'headers' => [
+                                'x-format-new' => 'true'
+                            ]
+                        ]);
+
+                    $shipmentHistory = [];
+                    if ($shipmentHistoryResponse->successful()) {
+                        $shipmentHistory = $shipmentHistoryResponse->json();
+                    }
+
                     $productsToDispatch[] = [
                         'id' => $productId,
                         'variation_id' => $variationId,
                         'title' => $item['item']['title'],
                         'quantity' => $item['quantity'],
                         'size' => $size,
+                        'shipment_history' => $shipmentHistory,
                     ];
                 }
             }
