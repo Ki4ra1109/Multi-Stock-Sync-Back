@@ -188,7 +188,7 @@ class reviewController
             }
         }
 
-        // Return reviews data with product name and ID
+        
         return response()->json([
             'status' => 'success',
             'message' => 'Reviews obtenidas con éxito.',
