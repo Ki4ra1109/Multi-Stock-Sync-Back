@@ -79,7 +79,10 @@ class getOrderStatusesController
                 $statuses[$order['status']]++;
             }
             foreach ($order['order_items'] as $item) {
-                $item['item']['status'] = $order['status']; // Add product status
+                $item['item']['status'] = $order['status'];
+                if ($item['item']['condition'] === 'new') {
+                    $item['item']['condition'] = 'PAGADO';
+                }
                 $products[] = $item['item'];
             }
         }

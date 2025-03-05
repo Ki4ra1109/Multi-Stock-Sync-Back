@@ -39,8 +39,29 @@ class getProductsToDispatchController
 
         $userId = $response->json()['id'];
 
+        $year = request()->query('year', date('Y'));
+        $month = request()->query('month');
+
+        $page = request()->query('page', 1);
+        $perPage = request()->query('per_page', 10);
+
+        if ($month) {
+            $dateFrom = "{$year}-{$month}-01T00:00:00.000-00:00";
+            $dateTo = date("Y-m-t\T23:59:59.999-00:00", strtotime($dateFrom));
+        } else {
+            $dateFrom = "{$year}-01-01T00:00:00.000-00:00";
+            $dateTo = "{$year}-12-31T23:59:59.999-00:00";
+        }
+
         $response = Http::withToken($credentials->access_token)
-            ->get("https://api.mercadolibre.com/orders/search?seller={$userId}&order.status=ready_to_ship");
+            ->get("https://api.mercadolibre.com/orders/search", [
+                'seller' => $userId,
+                'order.status' => 'ready_to_ship',
+                'order.date_created.from' => $dateFrom,
+                'order.date_created.to' => $dateTo,
+                'offset' => ($page - 1) * $perPage,
+                'limit' => $perPage
+            ]);
 
         if ($response->failed()) {
             return response()->json([
