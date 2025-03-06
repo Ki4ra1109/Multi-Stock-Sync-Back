@@ -186,7 +186,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/mercadolibre/refresh-token', [refreshAccessTokenController::class, 'refreshToken']);
 
     // REVIEWS
-    Route::get('/reviews/{clientId}', [reviewController::class, 'getBatchReviewsByClientId']);
+    Route::get('/reviews/{clientId}', [reviewController::class, 'getReviewsByClientId']);
     // ITEMS
     Route::post('/mercadolibre/items', [itemController::class, 'store']); // MercadoLibre items routes.
     Route::put('/mercadolibre/items/{item_id}', [itemController::class, 'update']); // Create and update items.
