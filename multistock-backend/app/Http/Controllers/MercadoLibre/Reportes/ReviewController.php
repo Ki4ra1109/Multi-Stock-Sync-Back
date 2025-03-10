@@ -60,6 +60,7 @@ class ReviewController
             foreach ($order['order_items'] as $item) {
                 $productId = $item['item']['id'];
                 $productName = $item['item']['title'];
+                $productPrice = $item['unit_price'];
 
                 $reviewResponse = Http::withToken($credentials->access_token)
                     ->get("https://api.mercadolibre.com/reviews/item/{$productId}?access_token={$credentials->access_token}");
@@ -73,30 +74,19 @@ class ReviewController
                     'product' => [
                         'id' => $productId,
                         'name' => $productName,
+                        'price' => $productPrice,
                     ],
-                    'reviews' => array_map(function ($review) {
+                    'reviews' => array_filter(array_map(function ($review) {
                         return [
                             'rating' => $review['rating'] ?? null,
                             'comment' => $review['content'] ?? null,
                             'full_review' => $review['content'] ? $review : null,
                         ];
-                    }, $reviews['reviews'] ?? []),
+                    }, $reviews['reviews'] ?? []), function ($review) {
+                        return !empty($review['comment']);
+                    }),
                 ];
             }
-        }
-
-        // Filter reviews to show all data for those with comments, and only rating and name for those without comments
-        foreach ($reviewsData as $productId => &$productReviews) {
-            $productReviews['reviews'] = array_map(function ($review) {
-                if ($review['comment']) {
-                    return $review['full_review'];
-                } else {
-                    return [
-                        'rating' => $review['rating'],
-                        'name' => $review['name'],
-                    ];
-                }
-            }, $productReviews['reviews']);
         }
 
         return response()->json([
