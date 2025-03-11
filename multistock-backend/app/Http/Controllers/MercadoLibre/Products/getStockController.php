@@ -63,6 +63,8 @@ class getStockController
                     'id' => $itemData['id'],
                     'title' => $itemData['title'],
                     'available_quantity' => $itemData['available_quantity'],
+                    'stock_reload_date' => $itemData['date_created'],
+                    'purchase_sale_date' => $itemData['last_updated'],
                 ];
             }
         }

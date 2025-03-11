@@ -65,6 +65,7 @@ use App\Http\Controllers\MercadoLibre\Products\searchProductsController;
 use App\Http\Controllers\MercadoLibre\Products\getProductReviewsController;
 use App\Http\Controllers\MercadoLibre\Products\saveProductsController;
 use App\Http\Controllers\MercadoLibre\Products\itemController;
+use App\Http\Controllers\MercadoLibre\Products\getStockController;
 
 // SyncStatus //
 use App\Http\Controllers\SyncStatusController;
@@ -205,5 +206,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Products to Dispatch
     Route::get('/mercadolibre/products-to-dispatch/{client_id}', [getProductsToDispatchController::class, 'getProductsToDispatch']);
+    
+    // Get stock of products
+    Route::get('/mercadolibre/stock/{client_id}', [getStockController::class, 'getStock']);
     
 });
