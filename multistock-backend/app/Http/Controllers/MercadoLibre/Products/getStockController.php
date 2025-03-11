@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 
 class getStockController
 {
-    public function getStock($clientId)
+    public function getStock($clientId, $year = null, $month = null, $day = null)
     {
         $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
 
@@ -39,8 +39,25 @@ class getStockController
 
         $userId = $response->json()['id'];
 
+        $url = "https://api.mercadolibre.com/users/{$userId}/items/search";
+        $queryParams = [];
+
+        if ($year) {
+            $queryParams['year'] = $year;
+        }
+        if ($month) {
+            $queryParams['month'] = $month;
+        }
+        if ($day) {
+            $queryParams['day'] = $day;
+        }
+
+        if (!empty($queryParams)) {
+            $url .= '?' . http_build_query($queryParams);
+        }
+
         $response = Http::withToken($credentials->access_token)
-            ->get("https://api.mercadolibre.com/users/{$userId}/items/search");
+            ->get($url);
 
         if ($response->failed()) {
             return response()->json([
