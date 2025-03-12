@@ -205,10 +205,28 @@ class getStockReceptionController
                 $dateCreated = $order['date_created'];
                 $deliveredBy = $order['buyer']['nickname'];
 
+                // Obtener detalles del producto para el SKU
+            $productDetailsResponse = Http::withToken($credentials->access_token)
+            ->get("https://api.mercadolibre.com/items/{$productId}");
+
+            $sku = 'No tiene SKU';
+
+                if ($productDetailsResponse->successful()) {
+                    $productData = $productDetailsResponse->json();
+
+                    foreach ($productData['attributes'] as $attribute) {
+                        if (strtolower($attribute['name']) === 'sku') {
+                            $sku = $attribute['value_name'] ?? 'No tiene SKU';
+                            break;
+                        }
+                    }
+                }
+
                 if (!isset($receivedStock[$productId])) {
                     $receivedStock[$productId] = [
                         'id' => $productId,
                         'title' => $item['item']['title'],
+                        'sku' => $sku,
                         'quantity' => 0,
                         'unit_price' => $unitPrice,
                         'total_amount' => 0,
