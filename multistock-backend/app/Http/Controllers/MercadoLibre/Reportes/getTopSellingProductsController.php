@@ -76,34 +76,29 @@ class getTopSellingProductsController
                 $sku = null;
                 $barcode = null;
 
-                // Obtener detalles del producto para encontrar la talla, SKU y código de barras
                 $productDetailsResponse = Http::withToken($credentials->access_token)
                     ->get("https://api.mercadolibre.com/items/{$productId}");
 
                 if ($productDetailsResponse->successful()) {
                     $productData = $productDetailsResponse->json();
-                
-                    // Inicializar valores por defecto
-                    $sku = 'No tiene SKU';
+
+                    $sku = 'No se encuentra disponible en mercado libre';
                     $size = null;
-                
-                    // Buscar SKU entre los atributos del producto
+
                     foreach ($productData['attributes'] as $attribute) {
                         if (strtolower($attribute['name']) === 'sku') {
                             $sku = $attribute['value_name'];
                             break;
                         }
                     }
-                
-                    // Si hay una variante específica, obtener la información de la variante
+
                     if ($variationId) {
                         $variationResponse = Http::withToken($credentials->access_token)
                             ->get("https://api.mercadolibre.com/items/{$productId}/variations/{$variationId}");
-                
+
                         if ($variationResponse->successful()) {
                             $variationData = $variationResponse->json();
-                
-                            // Buscar el tamaño en las combinaciones de atributos de la variante
+
                             foreach ($variationData['attribute_combinations'] ?? [] as $attribute) {
                                 if (in_array(strtolower($attribute['id']), ['size', 'talle'])) {
                                     $size = $attribute['value_name'];
@@ -112,8 +107,7 @@ class getTopSellingProductsController
                             }
                         }
                     }
-                
-                    // Agregar el producto a la lista
+
                     if (!isset($productSales[$productId])) {
                         $productSales[$productId] = [
                             'id' => $productId,
@@ -123,14 +117,14 @@ class getTopSellingProductsController
                             'quantity' => 0,
                             'total_amount' => 0,
                             'size' => $size,
+                            'variation_attributes' => $productData['attributes'],
                         ];
                     }
-                
+
                     $productSales[$productId]['quantity'] += $item['quantity'];
                     $productSales[$productId]['total_amount'] += $item['quantity'] * $item['unit_price'];
                     $totalSales += $item['quantity'] * $item['unit_price'];
                 }
-                    
             }
         }
 
