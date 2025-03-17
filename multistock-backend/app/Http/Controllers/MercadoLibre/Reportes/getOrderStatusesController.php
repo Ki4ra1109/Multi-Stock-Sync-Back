@@ -85,11 +85,22 @@ class getOrderStatusesController
                     // Inicializar valores por defecto
                     $sku = 'No tiene SKU';
                 
-                    // Buscar SKU entre los atributos del producto
-                    foreach ($productData['attributes'] as $attribute) {
-                        if (strtolower($attribute['name']) === 'sku' || strtolower($attribute['id']) === 'SELLER_SKU' || strtolower($attribute['name']) === 'seller custom field') {
-                            $sku = $attribute['value_name'];
-                            break;
+                    // Verificar si el producto tiene atributos
+                    if (empty($productData['attributes'])) {
+                        $sku = 'No posee atributos';
+                        $productData['attributes'][] = [
+                            'name' => 'No posee atributos',
+                            'id' => 'NO_ATTRIBUTES',
+                            'value_id' => null,
+                            'value_name' => 'No posee atributos'
+                        ];
+                    } else {
+                        // Buscar SKU entre los atributos del producto
+                        foreach ($productData['attributes'] as $attribute) {
+                            if (strtolower($attribute['name']) === 'sku' || strtolower($attribute['id']) === 'SELLER_SKU' || strtolower($attribute['name']) === 'seller custom field') {
+                                $sku = $attribute['value_name'];
+                                break;
+                            }
                         }
                     }
                 
@@ -109,6 +120,7 @@ class getOrderStatusesController
                 $item['item']['status'] = $order['status'];
                 $item['item']['title'] = $item['item']['title'];
                 $item['item']['sale_number'] = $order['id'];
+                $item['item']['variation_attributes'] = $productData['attributes'];
 
                 // Remove condition
                 unset($item['item']['condition']);
@@ -196,15 +208,24 @@ class getOrderStatusesController
 
                 if ($productDetailsResponse->successful()) {
                     $productData = $productDetailsResponse->json();
-
-                    // Inicializar valores por defecto
+                    
                     $sku = 'No tiene SKU';
-
-                    // Buscar el SKU en los atributos del producto
-                    foreach ($productData['attributes'] as $attribute) {
-                        if (strtolower($attribute['name']) === 'sku' || strtolower($attribute['id']) === 'SELLER_SKU' || strtolower($attribute['name']) === 'seller custom field') {
-                            $sku = $attribute['value_name'];
-                            break;
+                    // Verificar si el producto tiene atributos
+                    if (empty($productData['attributes'])) {
+                        $sku = 'No posee atributos';
+                        $productData['attributes'][] = [
+                            'name' => 'No posee atributos',
+                            'id' => 'NO_ATTRIBUTES',
+                            'value_id' => null,
+                            'value_name' => 'No posee atributos'
+                        ];
+                    } else {
+                        // Buscar el SKU en los atributos del producto
+                        foreach ($productData['attributes'] as $attribute) {
+                            if (strtolower($attribute['name']) === 'sku' || strtolower($attribute['id']) === 'SELLER_SKU' || strtolower($attribute['name']) === 'seller custom field') {
+                                $sku = $attribute['value_name'];
+                                break;
+                            }
                         }
                     }
 
@@ -219,6 +240,7 @@ class getOrderStatusesController
                 $item['item']['status'] = $order['status'];
                 $item['item']['title'] = $item['item']['title'];
                 $item['item']['sale_number'] = $order['id'];
+                $item['item']['variation_attributes'] = $productData['attributes'];
 
                 // Remove condition
                 unset($item['item']['condition']);
