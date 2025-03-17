@@ -98,12 +98,7 @@ class getStockSalesHistoryController
                         $productTitle = $item['item']['title'] ?? 'Sin nombre';
 
                         $salesDetails[] = [
-                            'order_id' => $orderId,
-                            'product_id' => $productId,
-                            'product_title' => $productTitle,
                             'quantity' => $quantity,
-                            'unit_price' => $unitPrice,
-                            'total_price' => $unitPrice * $quantity,
                             'sale_date' => $saleDate,
                         ];
 
