@@ -46,16 +46,9 @@ class listProductByClientIdController
 
         $userId = $response->json()['id'];
 
-        // Obtener parámetros de paginación
-        $limit = request()->query('limit', 50);
-        $offset = request()->query('offset', 0);
-
-        // Obtener productos con paginación
+        // Obtener productos sin paginación
         $response = Http::withToken($credentials->access_token)
-            ->get("https://api.mercadolibre.com/users/{$userId}/items/search", [
-                'limit' => $limit,
-                'offset' => $offset,
-            ]);
+            ->get("https://api.mercadolibre.com/users/{$userId}/items/search");
 
         if ($response->failed()) {
             return response()->json([
@@ -103,16 +96,12 @@ class listProductByClientIdController
             }
         }
 
-        // Retornar los productos con paginación
+        // Retornar los productos
         return response()->json([
             'status' => 'success',
             'message' => 'Productos obtenidos con éxito.',
             'data' => $products,
-            'pagination' => [
-                'total' => $total,
-                'limit' => $limit,
-                'offset' => $offset,
-            ],
+            'total' => $total,
         ]);
     }
 }
