@@ -73,7 +73,7 @@ class getOrderStatusesController
             foreach ($order['order_items'] as $item) {
                 // Obtener SKU del producto
                 $productId = $item['item']['id'];
-                $sku = 'No tiene SKU'; 
+                $sku = 'No se encuentra disponible en mercado libre'; 
 
                 // Obtener detalles del producto para obtener el SKU
                 $productDetailsResponse = Http::withToken($credentials->access_token)
@@ -81,19 +81,46 @@ class getOrderStatusesController
 
                 if ($productDetailsResponse->successful()) {
                     $productData = $productDetailsResponse->json();
-
-                    // Buscar el SKU en los atributos del producto
-                    foreach ($productData['attributes'] as $attribute) {
-                        if (strtolower($attribute['name']) === 'sku') {
-                            $sku = $attribute['value_name'];
-                            break;
+                
+                    // Inicializar valores por defecto
+                    $sku = 'No se encuentra disponible en mercado libre';
+                
+                    // Verificar si el producto tiene atributos
+                    if (empty($productData['attributes'])) {
+                        $sku = 'No posee atributos';
+                        $productData['attributes'][] = [
+                            'name' => 'No posee atributos',
+                            'id' => 'NO_ATTRIBUTES',
+                            'value_id' => null,
+                            'value_name' => 'No posee atributos'
+                        ];
+                    } else {
+                        // Buscar SKU entre los atributos del producto
+                        foreach ($productData['attributes'] as $attribute) {
+                            if (strtolower($attribute['name']) === 'sku' || strtolower($attribute['id']) === 'SELLER_SKU' || strtolower($attribute['name']) === 'seller custom field') {
+                                $sku = $attribute['value_name'];
+                                break;
+                            }
                         }
+                    }
+                
+                    // Verificar si el SKU está en el campo 'seller_custom_field'
+                    if ($sku === 'No se encuentra disponible en mercado libre' && isset($productData['seller_custom_field'])) {
+                        $sku = $productData['seller_custom_field'];
+                    }
+
+                    // Verificar si el SKU está en el campo 'seller_sku'
+                    if ($sku === 'No se encuentra disponible en mercado libre' && isset($productData['seller_sku'])) {
+                        $sku = $productData['seller_sku'];
                     }
                 }
 
-                // Asignar el SKU al producto y agregarlo a la lista de productos
+                // Asignar el SKU, título y número de venta al producto y agregarlo a la lista de productos
                 $item['item']['sku'] = $sku;
                 $item['item']['status'] = $order['status'];
+                $item['item']['title'] = $item['item']['title'];
+                $item['item']['sale_number'] = $order['id'];
+                $item['item']['variation_attributes'] = $productData['attributes'];
 
                 // Remove condition
                 unset($item['item']['condition']);
@@ -173,7 +200,7 @@ class getOrderStatusesController
             foreach ($order['order_items'] as $item) {
                 // Obtener SKU del producto
                 $productId = $item['item']['id'];
-                $sku = 'No tiene SKU'; 
+                $sku = 'No se encuentra disponible en mercado libre'; 
 
                 // Obtener detalles del producto para obtener el SKU
                 $productDetailsResponse = Http::withToken($credentials->access_token)
@@ -181,19 +208,39 @@ class getOrderStatusesController
 
                 if ($productDetailsResponse->successful()) {
                     $productData = $productDetailsResponse->json();
-
-                    // Buscar el SKU en los atributos del producto
-                    foreach ($productData['attributes'] as $attribute) {
-                        if (strtolower($attribute['name']) === 'sku') {
-                            $sku = $attribute['value_name'];
-                            break;
+                    
+                    $sku = 'No se encuentra disponible en mercado libre';
+                    // Verificar si el producto tiene atributos
+                    if (empty($productData['attributes'])) {
+                        $sku = 'No posee atributos';
+                        $productData['attributes'][] = [
+                            'name' => 'No posee atributos',
+                            'id' => 'NO_ATTRIBUTES',
+                            'value_id' => null,
+                            'value_name' => 'No posee atributos'
+                        ];
+                    } else {
+                        // Buscar el SKU en los atributos del producto
+                        foreach ($productData['attributes'] as $attribute) {
+                            if (strtolower($attribute['name']) === 'sku' || strtolower($attribute['id']) === 'SELLER_SKU' || strtolower($attribute['name']) === 'seller custom field') {
+                                $sku = $attribute['value_name'];
+                                break;
+                            }
                         }
+                    }
+
+                    // Verificar si el SKU está en el campo 'seller_custom_field'
+                    if ($sku === 'No se encuentra disponible en mercado libre' && isset($productData['seller_custom_field'])) {
+                        $sku = $productData['seller_custom_field'];
                     }
                 }
 
-                // Asignar el SKU al producto
+                // Asignar el SKU, título y número de venta al producto
                 $item['item']['sku'] = $sku;
                 $item['item']['status'] = $order['status'];
+                $item['item']['title'] = $item['item']['title'];
+                $item['item']['sale_number'] = $order['id'];
+                $item['item']['variation_attributes'] = $productData['attributes'];
 
                 // Remove condition
                 unset($item['item']['condition']);
