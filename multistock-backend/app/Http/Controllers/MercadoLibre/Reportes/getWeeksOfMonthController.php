@@ -16,7 +16,7 @@ class getWeeksOfMonthController
     {
         // Get the year and month from the request
         $year = $request->query('year', date('Y')); // Default to current year
-        $month = $request->query('month', date('m')); // Default to current month
+        $month = $request->query('month', date('m'));
 
         // Validate year and month
         if (!checkdate($month, 1, $year)) {
