@@ -81,19 +81,34 @@ class getOrderStatusesController
 
                 if ($productDetailsResponse->successful()) {
                     $productData = $productDetailsResponse->json();
-
-                    // Buscar el SKU en los atributos del producto
+                
+                    // Inicializar valores por defecto
+                    $sku = 'No tiene SKU';
+                
+                    // Buscar SKU entre los atributos del producto
                     foreach ($productData['attributes'] as $attribute) {
-                        if (strtolower($attribute['name']) === 'sku') {
+                        if (strtolower($attribute['name']) === 'sku' || strtolower($attribute['id']) === 'SELLER_SKU' || strtolower($attribute['name']) === 'seller custom field') {
                             $sku = $attribute['value_name'];
                             break;
                         }
                     }
+                
+                    // Verificar si el SKU está en el campo 'seller_custom_field'
+                    if ($sku === 'No tiene SKU' && isset($productData['seller_custom_field'])) {
+                        $sku = $productData['seller_custom_field'];
+                    }
+
+                    // Verificar si el SKU está en el campo 'seller_sku'
+                    if ($sku === 'No tiene SKU' && isset($productData['seller_sku'])) {
+                        $sku = $productData['seller_sku'];
+                    }
                 }
 
-                // Asignar el SKU al producto y agregarlo a la lista de productos
+                // Asignar el SKU, título y número de venta al producto y agregarlo a la lista de productos
                 $item['item']['sku'] = $sku;
                 $item['item']['status'] = $order['status'];
+                $item['item']['title'] = $item['item']['title'];
+                $item['item']['sale_number'] = $order['id'];
 
                 // Remove condition
                 unset($item['item']['condition']);
@@ -182,18 +197,28 @@ class getOrderStatusesController
                 if ($productDetailsResponse->successful()) {
                     $productData = $productDetailsResponse->json();
 
+                    // Inicializar valores por defecto
+                    $sku = 'No tiene SKU';
+
                     // Buscar el SKU en los atributos del producto
                     foreach ($productData['attributes'] as $attribute) {
-                        if (strtolower($attribute['name']) === 'sku') {
+                        if (strtolower($attribute['name']) === 'sku' || strtolower($attribute['id']) === 'SELLER_SKU' || strtolower($attribute['name']) === 'seller custom field') {
                             $sku = $attribute['value_name'];
                             break;
                         }
                     }
+
+                    // Verificar si el SKU está en el campo 'seller_custom_field'
+                    if ($sku === 'No tiene SKU' && isset($productData['seller_custom_field'])) {
+                        $sku = $productData['seller_custom_field'];
+                    }
                 }
 
-                // Asignar el SKU al producto
+                // Asignar el SKU, título y número de venta al producto
                 $item['item']['sku'] = $sku;
                 $item['item']['status'] = $order['status'];
+                $item['item']['title'] = $item['item']['title'];
+                $item['item']['sale_number'] = $order['id'];
 
                 // Remove condition
                 unset($item['item']['condition']);
