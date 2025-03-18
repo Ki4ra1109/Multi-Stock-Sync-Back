@@ -123,6 +123,7 @@ class getProductsToDispatchController
                         'title' => $item['item']['title'],
                         'quantity' => $item['quantity'],
                         'size' => $size,
+                        'sku' => $item['item']['seller_custom_field'] ?? 'N/A',
                         'shipment_history' => $shipmentHistory,
                     ];
                 }

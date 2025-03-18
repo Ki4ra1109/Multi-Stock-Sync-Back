@@ -83,11 +83,7 @@ class getOrderStatusesController
                     $productData = $productDetailsResponse->json();
                 
                     // Inicializar valores por defecto
-<<<<<<< HEAD
                     $sku = 'No tiene SKU';
-=======
-                    $sku = 'No se encuentra disponible en mercado libre';
->>>>>>> b60504d2ef801068544a9f85792a3ea6989a4385
                 
                     // Verificar si el producto tiene atributos
                     if (empty($productData['attributes'])) {
@@ -109,20 +105,12 @@ class getOrderStatusesController
                     }
                 
                     // Verificar si el SKU está en el campo 'seller_custom_field'
-<<<<<<< HEAD
                     if ($sku === 'No tiene SKU' && isset($productData['seller_custom_field'])) {
-=======
-                    if ($sku === 'No se encuentra disponible en mercado libre' && isset($productData['seller_custom_field'])) {
->>>>>>> b60504d2ef801068544a9f85792a3ea6989a4385
                         $sku = $productData['seller_custom_field'];
                     }
 
                     // Verificar si el SKU está en el campo 'seller_sku'
-<<<<<<< HEAD
                     if ($sku === 'No tiene SKU' && isset($productData['seller_sku'])) {
-=======
-                    if ($sku === 'No se encuentra disponible en mercado libre' && isset($productData['seller_sku'])) {
->>>>>>> b60504d2ef801068544a9f85792a3ea6989a4385
                         $sku = $productData['seller_sku'];
                     }
                 }
@@ -221,11 +209,7 @@ class getOrderStatusesController
                 if ($productDetailsResponse->successful()) {
                     $productData = $productDetailsResponse->json();
                     
-<<<<<<< HEAD
                     $sku = 'No tiene SKU';
-=======
-                    $sku = 'No se encuentra disponible en mercado libre';
->>>>>>> b60504d2ef801068544a9f85792a3ea6989a4385
                     // Verificar si el producto tiene atributos
                     if (empty($productData['attributes'])) {
                         $sku = 'No posee atributos';
@@ -246,11 +230,7 @@ class getOrderStatusesController
                     }
 
                     // Verificar si el SKU está en el campo 'seller_custom_field'
-<<<<<<< HEAD
                     if ($sku === 'No tiene SKU' && isset($productData['seller_custom_field'])) {
-=======
-                    if ($sku === 'No se encuentra disponible en mercado libre' && isset($productData['seller_custom_field'])) {
->>>>>>> b60504d2ef801068544a9f85792a3ea6989a4385
                         $sku = $productData['seller_custom_field'];
                     }
                 }
