@@ -115,6 +115,22 @@ class getProductsToDispatchController
                     $shipmentHistory = [];
                     if ($shipmentHistoryResponse->successful()) {
                         $shipmentHistory = $shipmentHistoryResponse->json();
+
+                        // Traducir estado del envío si existe
+                        if (isset($shipmentHistory['status'])) {
+                            $translations = [
+                                'pending' => 'pendiente',
+                                'shipped' => 'enviado',
+                                'delivered' => 'entregado',
+                                'not_delivered' => 'no entregado',
+                                'returned' => 'devuelto',
+                                'cancelled' => 'cancelado',
+                                'ready_to_ship' => 'listo para enviar',
+                                'handling' => 'en preparación',
+                            ];
+
+                            $shipmentHistory['status'] = $translations[$shipmentHistory['status']] ?? $shipmentHistory['status'];
+                        }
                     }
 
                     $productsToDispatch[] = [
