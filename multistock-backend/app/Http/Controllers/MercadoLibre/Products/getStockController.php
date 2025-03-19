@@ -76,13 +76,17 @@ class getStockController
 
             if ($itemResponse->successful()) {
                 $itemData = $itemResponse->json();
+                $sku = $itemData['seller_custom_field'] ?? null;
+                if ($sku === $itemData['id']) {
+                    $sku = null;
+                }
                 $productsStock[] = [
                     'id' => $itemData['id'],
                     'title' => $itemData['title'],
                     'available_quantity' => $itemData['available_quantity'],
                     'stock_reload_date' => $itemData['date_created'],
                     'purchase_sale_date' => $itemData['last_updated'],
-                    'sku' => $itemData['seller_custom_field'] ?? 'N/A',
+                    'sku' => $sku,
                     'details' => $itemData['attributes'],
                 ];
             }
