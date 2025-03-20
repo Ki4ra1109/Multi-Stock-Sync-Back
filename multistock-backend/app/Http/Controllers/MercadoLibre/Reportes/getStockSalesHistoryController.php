@@ -12,7 +12,7 @@ class getStockSalesHistoryController
     public function getStockSalesHistory($clientId, $productId)
     {
         try {
-            set_time_limit(180);
+            set_time_limit(180); // Extender tiempo máximo de ejecución
 
             $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
 
@@ -116,13 +116,17 @@ class getStockSalesHistoryController
                 }
             }
 
+            // Obtener la fecha de la última venta
+            $lastSaleDate = !empty($salesDetails) ? end($salesDetails)['sale_date'] : 'No hay ventas registradas';
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Historial de ventas del producto',
                 'total_sales' => $totalSales,
                 'sales_count' => count($salesDetails),
+                'last_sale_date' => $lastSaleDate, // Se agrega la fecha de la última venta
                 'data' => array_values($salesData),
-                'sales' => $salesDetails, // Cambio de "orders" a "sales"
+                'sales' => $salesDetails, 
             ]);
 
         } catch (Exception $e) {
