@@ -52,6 +52,7 @@ class getStockSalesHistoryController
             $allSales = [];
             $offset = 0;
             $limit = 50;
+            $totalProducts = 0; // Contador de productos
 
             // Obtener todas las órdenes pagadas filtradas por producto
             do {
@@ -72,9 +73,10 @@ class getStockSalesHistoryController
                 // Filtrar las órdenes para incluir solo las que contienen el producto específico
                 foreach ($orders as $order) {
                     foreach ($order['order_items'] as $item) {
+                        $totalProducts++; // Incrementar el contador de productos por cada ítem en el pedido
                         if ($item['item']['id'] == $productId) {
                             $allSales[] = $order;
-                            break; // Salta al siguiente pedido si ya encontró el producto
+                            break; // Salta al siguiente pedido si ya encontró el producto específico
                         }
                     }
                 }
@@ -125,6 +127,7 @@ class getStockSalesHistoryController
                 'total_sales' => $totalSales,
                 'sales_count' => count($salesDetails),
                 'last_sale_date' => $lastSaleDate, // Se agrega la fecha de la última venta
+                'total_products' => $totalProducts, // Añadir el contador de productos
                 'data' => array_values($salesData),
                 'sales' => $salesDetails, 
             ]);
