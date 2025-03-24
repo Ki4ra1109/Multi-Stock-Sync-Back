@@ -52,7 +52,6 @@ class getHistoryDispatchController
             $allSales = [];
             $offset = 0;
             $limit = 50;
-            $totalProducts = 0;
 
             // Obtener todas las órdenes pagadas filtradas por producto
             do {
@@ -74,7 +73,6 @@ class getHistoryDispatchController
                 // Filtrar las órdenes para incluir solo las que contienen el producto específico
                 foreach ($orders as $order) {
                     foreach ($order['order_items'] as $item) {
-                        $totalProducts++;
                         if ($item['item']['id'] == $productId) {
                             $allSales[] = $order;
                             break; // Salta al siguiente pedido si ya encontró el producto específico
@@ -87,45 +85,61 @@ class getHistoryDispatchController
             } while (count($orders) == $limit);
 
             // Procesar las órdenes para extraer datos relevantes
-            $totalSales = 0;
-            $salesData = [];
-            $salesDetails = [];
             $shippingDetails = [];
             $maxShipments = 500; // Límite de 500 envíos
-            $shipmentCount = 0; 
+            $shipmentCount = 0;
+
+            // Estructura para evitar duplicados por shipping_id
+            $processedShipments = [];
 
             foreach ($allSales as $order) {
+                $shippingId = $order['shipping']['id'] ?? null;
+
+                if (!$shippingId || isset($processedShipments[$shippingId])) {
+                    continue; // Saltar si ya procesamos este envío
+                }
+
+                // Obtener ID del cliente (buyer)
+                $customerId = $order['buyer']['id'] ?? 'No disponible';
+
+                // Inicializar cantidad total de productos en esta orden
+                $totalItems = 0;
+
                 foreach ($order['order_items'] as $item) {
                     if ($item['item']['id'] == $productId) {
-                        if ($shipmentCount >= $maxShipments) {
-                            break 2; // Salir de ambos bucles
-                        }
-            
-                        // Obtener los detalles de envío usando el id
-                        $responseShipping = Http::withToken($credentials->access_token)
-                            ->get("https://api.mercadolibre.com/shipments/{$order['shipping']['id']}");
-            
-                        //Verifica si se obtuvo la información
-                        if ($responseShipping->successful()) {
-                            $shippingData = $responseShipping->json();
-            
-                            //Fecha de envío
-                            $dateShipped = isset($shippingData['status_history']['date_shipped'])
-                                ? date('Y-m-d H:i:s', strtotime($shippingData['status_history']['date_shipped']))
-                                : 'No disponible';
-            
-                            //Detalles Envio
-                            $shippingDetails[] = [
-                                'shipping_id' => $shippingData['id'] ?? 'No disponible',
-                                'status' => $shippingData['status'] ?? 'Desconocido',
-                                'tracking_number' => $shippingData['tracking_number'] ?? 'No disponible',
-                                'date_shipped' => $dateShipped, // Aquí estamos colocando la fecha de envío
-                            ];
-            
-                            //Contador de envíos
-                            $shipmentCount++;
-                        }
+                        $totalItems += $item['quantity'] ?? 1;
                     }
+                }
+
+                if ($shipmentCount >= $maxShipments) {
+                    break;
+                }
+
+                // Obtener los detalles de envío
+                $responseShipping = Http::withToken($credentials->access_token)
+                    ->get("https://api.mercadolibre.com/shipments/{$shippingId}");
+
+                if ($responseShipping->successful()) {
+                    $shippingData = $responseShipping->json();
+
+                    // Fecha de envío
+                    $dateShipped = isset($shippingData['status_history']['date_shipped'])
+                        ? date('Y-m-d H:i:s', strtotime($shippingData['status_history']['date_shipped']))
+                        : 'No disponible';
+
+                    // Guardar detalles del envío
+                    $shippingDetails[] = [
+                        'shipping_id' => $shippingData['id'] ?? 'No disponible',
+                        'status' => $shippingData['status'] ?? 'Desconocido',
+                        'tracking_number' => $shippingData['tracking_number'] ?? 'No disponible',
+                        'date_shipped' => $dateShipped,
+                        'total_items' => $totalItems, // Cantidad total de productos en la orden
+                        'customer_id' => $customerId,  // ID del cliente
+                    ];
+
+                    // Marcar este shipping_id como procesado
+                    $processedShipments[$shippingId] = true;
+                    $shipmentCount++;
                 }
             }
 
