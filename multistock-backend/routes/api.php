@@ -41,7 +41,7 @@ use App\Http\Controllers\MercadoLibre\Reportes\getStockReceptionController;
 use App\Http\Controllers\MercadoLibre\Reportes\getAvailableForReceptionController;
 use App\Http\Controllers\MercadoLibre\Reportes\getProductsToDispatchController;
 use App\Http\Controllers\MercadoLibre\Reportes\getStockSalesHistoryController;
-use App\Http\Controllers\MercadoLibre\Reportes\getDispatchHistoryController;
+use App\Http\Controllers\MercadoLibre\Reportes\getHistoryDispatchController;
 
 
 // LOGIN //
@@ -184,6 +184,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Get stock sales history
     Route::get('mercadolibre/stock-sales-history/{clientId}/{productId}', [getStockSalesHistoryController::class, 'getStockSalesHistory']);
+
+    // Get dispach history
+    Route::get('mercadolibre/history-dispatch/{clientId}/{productId}', [getHistoryDispatchController::class, 'getHistoryDispatch']);
 
     // Save MercadoLibre products to database
     Route::get('/mercadolibre/save-products/{client_id}', [MercadoLibreProductController::class, 'saveProducts']);
