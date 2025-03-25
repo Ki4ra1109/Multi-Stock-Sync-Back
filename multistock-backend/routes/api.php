@@ -218,5 +218,8 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // Get stock of products
     Route::get('/mercadolibre/stock/{client_id}', [getStockController::class, 'getStock']);
+
+    // Get Dispatch History
+    Route::get('/mercadolibre/dispatch-history/{client_id}/{productId}', [getDispatchHistoryController::class, 'getDispatchHistory']);
     
 });

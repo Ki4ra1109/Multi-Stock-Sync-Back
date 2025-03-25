@@ -126,6 +126,22 @@ class getHistoryDispatchController
                     $dateShipped = isset($shippingData['status_history']['date_shipped'])
                         ? date('Y-m-d H:i:s', strtotime($shippingData['status_history']['date_shipped']))
                         : 'No disponible';
+                    
+                    // Traducir estado del envío si existe
+                    if (isset($shippingData['status'])) {
+                        $translations = [
+                            'pending' => 'pendiente',
+                            'shipped' => 'enviado',
+                            'delivered' => 'entregado',
+                            'not_delivered' => 'no entregado',
+                            'returned' => 'devuelto',
+                            'cancelled' => 'cancelado',
+                            'ready_to_ship' => 'listo para enviar',
+                            'handling' => 'en preparación',
+                        ];
+
+                        $shippingData['status'] = $translations[$shippingData['status']] ?? $shippingData['status'];
+                    }
 
                     // Guardar detalles del envío
                     $shippingDetails[] = [
