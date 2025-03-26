@@ -73,32 +73,29 @@ class getTopSellingProductsController
                 $productId = $item['item']['id'];
                 $variationId = $item['item']['variation_id'] ?? null;
                 $size = null;
-                $sku = null;
-                $barcode = null;
-
+                
+                // Primero intenta obtener el SKU del ítem del pedido
+                $sku = $item['item']['seller_sku'] ?? null;
+        
                 $productDetailsResponse = Http::withToken($credentials->access_token)
                     ->get("https://api.mercadolibre.com/items/{$productId}");
-
+        
                 if ($productDetailsResponse->successful()) {
                     $productData = $productDetailsResponse->json();
-
-                    $sku = 'No se encuentra disponible en mercado libre';
-                    $size = null;
-
-                    foreach ($productData['attributes'] as $attribute) {
-                        if (strtolower($attribute['name']) === 'sku') {
-                            $sku = $attribute['value_name'];
-                            break;
-                        }
+                    
+                    // Si no se encontró SKU en el ítem, intenta obtenerlo del producto
+                    if (empty($sku)) {
+                        $sku = $productData['seller_sku'] ?? 'No se encuentra disponible en mercado libre';
                     }
-
+        
+                    // Resto del código para manejar variaciones...
                     if ($variationId) {
                         $variationResponse = Http::withToken($credentials->access_token)
                             ->get("https://api.mercadolibre.com/items/{$productId}/variations/{$variationId}");
-
+        
                         if ($variationResponse->successful()) {
                             $variationData = $variationResponse->json();
-
+        
                             foreach ($variationData['attribute_combinations'] ?? [] as $attribute) {
                                 if (in_array(strtolower($attribute['id']), ['size', 'talle'])) {
                                     $size = $attribute['value_name'];
@@ -107,7 +104,7 @@ class getTopSellingProductsController
                             }
                         }
                     }
-
+        
                     if (!isset($productSales[$productId])) {
                         $productSales[$productId] = [
                             'id' => $productId,
@@ -120,7 +117,7 @@ class getTopSellingProductsController
                             'variation_attributes' => $productData['attributes'],
                         ];
                     }
-
+        
                     $productSales[$productId]['quantity'] += $item['quantity'];
                     $productSales[$productId]['total_amount'] += $item['quantity'] * $item['unit_price'];
                     $totalSales += $item['quantity'] * $item['unit_price'];
