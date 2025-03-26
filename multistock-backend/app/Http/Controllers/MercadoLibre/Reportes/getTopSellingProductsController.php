@@ -73,28 +73,72 @@ class getTopSellingProductsController
                 $productId = $item['item']['id'];
                 $variationId = $item['item']['variation_id'] ?? null;
                 $size = null;
+                $skuSource = 'not_found';
                 
-                // Primero intenta obtener el SKU del ítem del pedido
-                $sku = $item['item']['seller_sku'] ?? null;
-        
+                // 1. Primero buscar en seller_custom_field del ítem del pedido
+                $sku = $item['item']['seller_custom_field'] ?? null;
+                
+                // 2. Si no está, buscar en seller_sku del ítem del pedido
+                if (empty($sku)) {
+                    $sku = $item['item']['seller_sku'] ?? null;
+                    if ($sku) {
+                        $skuSource = 'item_seller_sku';
+                    }
+                } else {
+                    $skuSource = 'item_seller_custom_field';
+                }
+
                 $productDetailsResponse = Http::withToken($credentials->access_token)
                     ->get("https://api.mercadolibre.com/items/{$productId}");
-        
+
                 if ($productDetailsResponse->successful()) {
                     $productData = $productDetailsResponse->json();
                     
-                    // Si no se encontró SKU en el ítem, intenta obtenerlo del producto
+                    // 3. Si no se encontró en el ítem, buscar en seller_sku del producto
                     if (empty($sku)) {
-                        $sku = $productData['seller_sku'] ?? 'No se encuentra disponible en mercado libre';
+                        if (isset($productData['seller_sku'])) {
+                            $sku = $productData['seller_sku'];
+                            $skuSource = 'product_seller_sku';
+                        }
                     }
-        
+
+                    // 4. Si aún no se encontró, buscar en los atributos del producto
+                    if (empty($sku) && isset($productData['attributes'])) {
+                        foreach ($productData['attributes'] as $attribute) {
+                            if (in_array(strtolower($attribute['id']), ['seller_sku', 'sku', 'codigo', 'reference', 'product_code']) || 
+                                in_array(strtolower($attribute['name']), ['sku', 'código', 'referencia', 'codigo', 'código de producto'])) {
+                                $sku = $attribute['value_name'];
+                                $skuSource = 'product_attributes';
+                                break;
+                            }
+                        }
+                    }
+
+                    // 5. Si sigue sin encontrarse, intentar con el modelo como último recurso
+                    if (empty($sku) && isset($productData['attributes'])) {
+                        foreach ($productData['attributes'] as $attribute) {
+                            if (strtolower($attribute['id']) === 'model' || 
+                                strtolower($attribute['name']) === 'modelo') {
+                                $sku = 'MOD-' . $attribute['value_name'];
+                                $skuSource = 'model_fallback';
+                                break;
+                            }
+                        }
+                    }
+
+                    // 6. Establecer mensaje predeterminado si no se encontró SKU
+                    if (empty($sku)) {
+                        $sku = 'No se encuentra disponible en mercado libre';
+                    }
+
+                    // Manejo de variaciones (tamaño)
                     if ($variationId) {
                         $variationResponse = Http::withToken($credentials->access_token)
                             ->get("https://api.mercadolibre.com/items/{$productId}/variations/{$variationId}");
-        
+
                         if ($variationResponse->successful()) {
                             $variationData = $variationResponse->json();
-        
+
                             foreach ($variationData['attribute_combinations'] ?? [] as $attribute) {
                                 if (in_array(strtolower($attribute['id']), ['size', 'talle'])) {
                                     $size = $attribute['value_name'];
@@ -103,20 +147,21 @@ class getTopSellingProductsController
                             }
                         }
                     }
-        
+
                     if (!isset($productSales[$productId])) {
                         $productSales[$productId] = [
                             'id' => $productId,
                             'variation_id' => $variationId,
                             'title' => $item['item']['title'],
                             'sku' => $sku,
+                            'sku_source' => $skuSource,
                             'quantity' => 0,
                             'total_amount' => 0,
                             'size' => $size,
                             'variation_attributes' => $productData['attributes'],
                         ];
                     }
-        
+
                     $productSales[$productId]['quantity'] += $item['quantity'];
                     $productSales[$productId]['total_amount'] += $item['quantity'] * $item['unit_price'];
                     $totalSales += $item['quantity'] * $item['unit_price'];
