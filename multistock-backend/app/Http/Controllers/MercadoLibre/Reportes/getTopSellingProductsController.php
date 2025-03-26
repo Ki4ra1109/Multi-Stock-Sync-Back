@@ -88,7 +88,6 @@ class getTopSellingProductsController
                         $sku = $productData['seller_sku'] ?? 'No se encuentra disponible en mercado libre';
                     }
         
-                    // Resto del código para manejar variaciones...
                     if ($variationId) {
                         $variationResponse = Http::withToken($credentials->access_token)
                             ->get("https://api.mercadolibre.com/items/{$productId}/variations/{$variationId}");
