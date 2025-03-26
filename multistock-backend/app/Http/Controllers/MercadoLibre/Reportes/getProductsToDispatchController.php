@@ -80,14 +80,56 @@ class getProductsToDispatchController
                 $variationId = $item['item']['variation_id'] ?? 'N/A';
                 $size = 'N/A';
 
-                
                 $productDetailsResponse = Http::withToken($credentials->access_token)
                     ->get("https://api.mercadolibre.com/items/{$productId}");
 
                 if ($productDetailsResponse->successful()) {
                     $productData = $productDetailsResponse->json();
 
+                    // 1. Primero buscar en seller_custom_field del ítem del pedido
+                    $sku = $item['item']['seller_custom_field'] ?? null;
+                    $skuSource = 'not_found';
                     
+                    // 2. Si no está, buscar en seller_sku del producto
+                    if (empty($sku)) {
+                        if (isset($productData['seller_sku'])) {
+                            $sku = $productData['seller_sku'];
+                            $skuSource = 'seller_sku';
+                        }
+                    } else {
+                        $skuSource = 'seller_custom_field';
+                    }
+
+                    // 3. Si aún no se encontró, buscar en los atributos del producto
+                    if (empty($sku) && isset($productData['attributes'])) {
+                        foreach ($productData['attributes'] as $attribute) {
+                            if (in_array(strtolower($attribute['id']), ['seller_sku', 'sku', 'codigo', 'reference', 'product_code']) || 
+                                in_array(strtolower($attribute['name']), ['sku', 'código', 'referencia', 'codigo', 'código de producto'])) {
+                                $sku = $attribute['value_name'];
+                                $skuSource = 'attributes';
+                                break;
+                            }
+                        }
+                    }
+
+                    // 4. Si sigue sin encontrarse, intentar con el modelo como último recurso
+                    if (empty($sku) && isset($productData['attributes'])) {
+                        foreach ($productData['attributes'] as $attribute) {
+                            if (strtolower($attribute['id']) === 'model' || 
+                                strtolower($attribute['name']) === 'modelo') {
+                                $sku = 'MOD-' . $attribute['value_name'];
+                                $skuSource = 'model_fallback';
+                                break;
+                            }
+                        }
+                    }
+
+                    // 5. Establecer mensaje predeterminado si no se encontró SKU
+                    if (empty($sku)) {
+                        $sku = 'No se encuentra disponible en mercado libre';
+                    }
+
+                    // Manejo de variaciones (tamaño)
                     if ($variationId !== 'N/A') {
                         $variationResponse = Http::withToken($credentials->access_token)
                             ->get("https://api.mercadolibre.com/items/{$productId}/variations/{$variationId}");
@@ -104,6 +146,7 @@ class getProductsToDispatchController
                         }
                     }
 
+                    // Historial de envío
                     $shipmentId = $order['shipping']['id'];
                     $shipmentHistoryResponse = Http::withToken($credentials->access_token)
                         ->get("https://api.mercadolibre.com/shipments/{$shipmentId}/history", [
@@ -116,7 +159,7 @@ class getProductsToDispatchController
                     if ($shipmentHistoryResponse->successful()) {
                         $shipmentHistory = $shipmentHistoryResponse->json();
 
-                        // Traducir estado del envío si existe
+                        // Traducir estado del envío
                         if (isset($shipmentHistory['status'])) {
                             $translations = [
                                 'pending' => 'pendiente',
@@ -128,7 +171,6 @@ class getProductsToDispatchController
                                 'ready_to_ship' => 'listo para enviar',
                                 'handling' => 'en preparación',
                             ];
-
                             $shipmentHistory['status'] = $translations[$shipmentHistory['status']] ?? $shipmentHistory['status'];
                         }
                     }
@@ -139,7 +181,10 @@ class getProductsToDispatchController
                         'title' => $item['item']['title'],
                         'quantity' => $item['quantity'],
                         'size' => $size,
-                        'sku' => $item['item']['seller_custom_field'] ?? 'N/A',
+                        'sku' => $sku,
+                        'sku_source' => $skuSource,
+                        'sku_missing_reason' => $skuSource === 'not_found' ? 
+                            'No se encontraron campos seller_custom_field, seller_sku ni atributos SKU en el producto' : null,
                         'shipment_history' => $shipmentHistory,
                     ];
                 }
