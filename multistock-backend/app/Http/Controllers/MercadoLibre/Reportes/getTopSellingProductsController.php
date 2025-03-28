@@ -119,7 +119,7 @@ class getTopSellingProductsController
                         foreach ($productData['attributes'] as $attribute) {
                             if (strtolower($attribute['id']) === 'model' || 
                                 strtolower($attribute['name']) === 'modelo') {
-                                $sku = 'MOD-' . $attribute['value_name'];
+                                $sku = $attribute['value_name'];
                                 $skuSource = 'model_fallback';
                                 break;
                             }

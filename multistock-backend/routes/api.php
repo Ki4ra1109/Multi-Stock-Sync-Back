@@ -186,7 +186,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('mercadolibre/stock-sales-history/{clientId}/{productId}', [getStockSalesHistoryController::class, 'getStockSalesHistory']);
 
     // Get dispach history
-    Route::get('mercadolibre/history-dispatch/{clientId}/{productId}', [getHistoryDispatchController::class, 'getHistoryDispatch']);
+    Route::get('mercadolibre/history-dispatch/{clientId}/{productId}/{skuSearch}', [getHistoryDispatchController::class, 'getHistoryDispatch']);
 
     // Save MercadoLibre products to database
     Route::get('/mercadolibre/save-products/{client_id}', [MercadoLibreProductController::class, 'saveProducts']);
