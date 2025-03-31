@@ -85,9 +85,9 @@ class getHistoryDispatchController
 
             // Procesar las órdenes para extraer datos relevantes
             $shippingDetails = [];
-            $maxShipments = 500; // Límite de 500 envíos
+            $maxShipments = 200; // Límite de 500 envíos
             $shipmentCount = 0;
-
+            $skuFound = False;
             // Estructura para evitar duplicados por shipping_id
             $processedShipments = [];
 
@@ -116,6 +116,11 @@ class getHistoryDispatchController
                     $dateShipped = isset($shippingData['status_history']['date_shipped'])
                         ? date('Y-m-d H:i:s', strtotime($shippingData['status_history']['date_shipped']))
                         : 'No disponible';
+
+                    $dateEstimed = isset($shippingData['shipping_option']['estimated_delivery_time']["date"])
+                    ? date('Y-m-d H:i:s', strtotime($shippingData['shipping_option']['estimated_delivery_time']["date"]))
+                    : 'No disponible';
+
                     
                     // Traducir estado del envío si existe
                     if (isset($shippingData['status'])) {
@@ -143,75 +148,114 @@ class getHistoryDispatchController
                     // 4. Si sigue sin encontrarse, intentar con el modelo como último recurso
                     // 5. Despues de todo esto, se comprueba el estado del sku y se guarda el despacho.
 
-                    if($productDetailsResponse->successful()){
-                        $productData = $productDetailsResponse->json();
-
-                        $sku = $item['item']['seller_custom_field'] ?? null;
-                        $skuSource = 'not_found';
-
-                        if (empty($sku)) {
-                            if (isset($productData['seller_sku'])) {
-                                $sku = $productData['seller_sku'];
-                                $skuSource = 'seller_sku';
-                                if ($sku != $skuSearch) {
-                                    $sku = null;
-                                }
-                            }
-                        } else {
-                            $skuSource = 'seller_custom_field';
-                        }
-
-                        if (empty($sku) && isset($productData['attributes'])) {
-                            foreach ($productData['attributes'] as $attribute) {
-                                if (in_array(strtolower($attribute['id']), ['seller_sku', 'sku', 'codigo', 'reference', 'product_code']) || 
-                                    in_array(strtolower($attribute['name']), ['sku', 'código', 'referencia', 'codigo', 'código de producto'])) {
-                                    $sku = $attribute['value_name'];
-                                    if ($sku != $skuSearch) {
-                                        $sku = null;
-                                    }
-                                    $skuSource = 'attributes';
-                                    break;
-                                }
-                            }
-                        }
-
-                        if (empty($sku) && isset($productData['attributes'])) {
-                            foreach ($productData['attributes'] as $attribute) {
-                                if (strtolower($attribute['id']) === 'model' || 
-                                    strtolower($attribute['name']) === 'modelo') {
-                                    $sku = $attribute['value_name'];
-                                    if ($sku != $skuSearch) {
-                                        $sku = null;
-                                    }
-                                    $skuSource = 'model_fallback';
-                                    break;
-                                }
-                            }
-                        }
-
+                    if($skuFound === True){
                         if (empty($sku) === true) {
                             $shippingDetails[] = [
+                                "Producto Id" => $productId,
                                 'shipping_id' => $shippingData['id'] ?? 'No disponible',
                                 'status' => $shippingData['status'] ?? 'Desconocido',
                                 'tracking_number' => $shippingData['tracking_number'] ?? 'No disponible',
                                 'date_shipped' => $dateShipped,
+                                "date_estimed_arrival" => $dateEstimed,
                                 'total_items' => $item_quantity ?? [0],
                                 'customer_id' => $customerId,  // ID del cliente
                                 "sku" => $skuSearch ?? 'No disponible',
+                                "sku_source" => $skuSource,
                             ];
                         }else{
                             $shippingDetails[] = [
+                                "Producto Id" => $productId,
                                 'shipping_id' => $shippingData['id'] ?? 'No disponible',
                                 'status' => $shippingData['status'] ?? 'Desconocido',
                                 'tracking_number' => $shippingData['tracking_number'] ?? 'No disponible',
                                 'date_shipped' => $dateShipped,
+                                "date_estimed_arrival" => $dateEstimed,
                                 'total_items' => $item_quantity ?? [0],
                                 'customer_id' => $customerId,  // ID del cliente
                                 "sku" => $sku ?? 'No disponible',
+                                "sku_source" => $skuSource,
                             ];
                         }
-                    
+                    }else{
+                        if($productDetailsResponse->successful()){
+                            $productData = $productDetailsResponse->json();
+    
+                            $sku = $item['item']['seller_custom_field'] ?? null;
+                            $skuSource = 'not_found';
+    
+                            if (empty($sku)) {
+                                if (isset($productData['seller_sku'])) {
+                                    $sku = $productData['seller_sku'];
+                                    $skuSource = 'seller_sku';
+                                    if ($sku != $skuSearch) {
+                                        $sku = null;
+                                    }
+                                }
+                            } else {
+                                $skuSource = 'seller_custom_field';
+                            }
+    
+                            if (empty($sku) && isset($productData['attributes'])) {
+                                foreach ($productData['attributes'] as $attribute) {
+                                    if (in_array(strtolower($attribute['id']), ['seller_sku', 'sku', 'codigo', 'reference', 'product_code']) || 
+                                        in_array(strtolower($attribute['name']), ['sku', 'código', 'referencia', 'codigo', 'código de producto'])) {
+                                        $sku = $attribute['value_name'];
+                                        if ($sku != $skuSearch) {
+                                            $sku = null;
+                                        }
+                                        $skuSource = 'attributes';
+                                        break;
+                                    }
+                                }
+                            }
+    
+                            if (empty($sku) && isset($productData['attributes'])) {
+                                foreach ($productData['attributes'] as $attribute) {
+                                    if (strtolower($attribute['id']) === 'model' || 
+                                        strtolower($attribute['name']) === 'modelo') {
+                                        $sku = $attribute['value_name'];
+                                        if ($sku != $skuSearch) {
+                                            $sku = null;
+                                        }
+                                        $skuSource = 'model_fallback';
+                                        break;
+                                    }
+                                }
+                            }
+    
+                            if (empty($sku) === true) {
+                                $skuFound = True;
+                                $shippingDetails[] = [
+                                    "Producto Id" => $productId,
+                                    'shipping_id' => $shippingData['id'] ?? 'No disponible',
+                                    'status' => $shippingData['status'] ?? 'Desconocido',
+                                    'tracking_number' => $shippingData['tracking_number'] ?? 'No disponible',
+                                    'date_shipped' => $dateShipped,
+                                    "date_estimed_arrival" => $dateEstimed,
+                                    'total_items' => $item_quantity ?? [0],
+                                    'customer_id' => $customerId,  // ID del cliente
+                                    "sku" => $skuSearch ?? 'No disponible',
+                                    "sku_source" => $skuSource,
+                                ];
+                            }else{
+                                $skuFound = True;
+                                $shippingDetails[] = [
+                                    "Producto Id" => $productId,
+                                    'shipping_id' => $shippingData['id'] ?? 'No disponible',
+                                    'status' => $shippingData['status'] ?? 'Desconocido',
+                                    'tracking_number' => $shippingData['tracking_number'] ?? 'No disponible',
+                                    'date_shipped' => $dateShipped,
+                                    "date_estimed_arrival" => $dateEstimed,
+                                    'total_items' => $item_quantity ?? [0],
+                                    'customer_id' => $customerId,  // ID del cliente
+                                    "sku" => $sku ?? 'No disponible',
+                                    "sku_source" => $skuSource,
+                                ];
+                            }
+
+                        }
                     }
+                    
                     // Marcar este shipping_id como procesado
                     $processedShipments[$shippingId] = true;
                     $shipmentCount++;
