@@ -13,6 +13,18 @@ class listProductByClientIdController
      */
     public function listProductsByClientId($clientId)
     {
+        // Diccionario de estados traducidos
+        $statusDictionary = [
+            'active' => 'Activo',
+            'paused' => 'Pausado',
+            'closed' => 'Cerrado',
+            'under_review' => 'En revisión',
+            'inactive' => 'Inactivo',
+            'payment_required' => 'Pago requerido',
+            'not_yet_active' => 'Aún no activo',
+            'deleted' => 'Eliminado',
+        ];
+
         // Obtener credenciales por client_id
         $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
 
@@ -80,6 +92,9 @@ class listProductByClientIdController
                     }
                 }
 
+                // Traducir estado si existe en el diccionario
+                $translatedStatus = $statusDictionary[$productData['status']] ?? $productData['status'];
+
                 $products[] = [
                     'id' => $productData['id'],
                     'title' => $productData['title'],
@@ -90,6 +105,7 @@ class listProductByClientIdController
                     'thumbnail' => $productData['thumbnail'],
                     'permalink' => $productData['permalink'],
                     'status' => $productData['status'],
+                    'status_translated' => $translatedStatus,
                     'category_id' => $productData['category_id'],
                     'category_name' => $categoryName,
                 ];
