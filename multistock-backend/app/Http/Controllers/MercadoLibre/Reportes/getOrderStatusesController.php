@@ -85,7 +85,31 @@ class getOrderStatusesController
                     
                     // Si no se encontró SKU en el ítem, intenta obtenerlo del producto
                     if (empty($sku)) {
-                        $sku = $productData['seller_sku'] ?? 'No se encuentra disponible en mercado libre';
+                        if (isset($productData['seller_sku'])) {
+                            $sku = $productData['seller_sku'];
+                        }
+                    }
+
+                    // 4. Si aún no se encontró, buscar en los atributos del producto
+                    if (empty($sku) && isset($productData['attributes'])) {
+                        foreach ($productData['attributes'] as $attribute) {
+                            if (in_array(strtolower($attribute['id']), ['seller_sku', 'sku', 'codigo', 'reference', 'product_code']) || 
+                                in_array(strtolower($attribute['name']), ['sku', 'código', 'referencia', 'codigo', 'código de producto'])) {
+                                $sku = $attribute['value_name'];
+                                break;
+                            }
+                        }
+                    }
+
+                    // 5. Si sigue sin encontrarse, intentar con el modelo como último recurso
+                    if (empty($sku) && isset($productData['attributes'])) {
+                        foreach ($productData['attributes'] as $attribute) {
+                            if (strtolower($attribute['id']) === 'model' || 
+                                strtolower($attribute['name']) === 'modelo') {
+                                $sku = $attribute['value_name'];
+                                break;
+                            }
+                        }
                     }
 
                     // Asignar el SKU, título y número de venta al producto y agregarlo a la lista de productos
