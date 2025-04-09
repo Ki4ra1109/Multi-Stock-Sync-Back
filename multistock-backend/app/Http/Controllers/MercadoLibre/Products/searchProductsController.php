@@ -21,10 +21,10 @@ class searchProductsController extends Controller
      */
     public function searchProducts($clientId, Request $request)
     {
-        // Get credentials by client_id
+        // Obtener credenciales por client_id
         $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
 
-        // Check if credentials exist
+        // Validar si existen credenciales
         if (!$credentials) {
             return response()->json([
                 'status' => 'error',
@@ -32,7 +32,7 @@ class searchProductsController extends Controller
             ], 404);
         }
 
-        // Check if token is expired
+        // Verificar si el token ha expirado
         if ($credentials->isTokenExpired()) {
             return response()->json([
                 'status' => 'error',
@@ -40,37 +40,32 @@ class searchProductsController extends Controller
             ], 401);
         }
 
-        // Get user information from token
-        $userResponse = Http::withToken($credentials->access_token)
+        // Obtener el ID del usuario en MercadoLibre
+        $response = Http::withToken($credentials->access_token)
             ->get('https://api.mercadolibre.com/users/me');
 
-        if ($userResponse->failed()) {
+        if ($response->failed()) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'No se pudo obtener el ID del usuario. Por favor, valide su token.',
-                'error' => $userResponse->json(),
+                'error' => $response->json(),
             ], 500);
         }
 
-        $userData = $userResponse->json();
-        $userId = $userData['id'];
-        $userNickname = $userData['nickname'];
+        $userId = $response->json()['id'];
 
-        // Get query parameters
-        $searchTerm = $request->query('q', ''); // Search term
-        $limit = $request->query('limit', 50); // Default limit to 50
-        $offset = $request->query('offset', 0); // Default offset to 0
+        $searchTerm = $request->query('q', ''); // Término de búsqueda
+        $limit = $request->query('limit', 50); // Límite predeterminado a 50
+        $offset = $request->query('offset', 0); // Desplazamiento predeterminado a 0
 
-        // API request to search products with search term, limit, and offset
+        // Realizar la solicitud a la API de MercadoLibre para obtener productos según el término de búsqueda
         $response = Http::withToken($credentials->access_token)
-            ->get("https://api.mercadolibre.com/sites/MLC/search", [
+            ->get("https://api.mercadolibre.com/users/{$userId}/items/search", [
                 'q' => $searchTerm,
-                'seller_id' => $userId,
                 'limit' => $limit,
                 'offset' => $offset,
             ]);
 
-        // Validate response
         if ($response->failed()) {
             return response()->json([
                 'status' => 'error',
@@ -79,23 +74,29 @@ class searchProductsController extends Controller
             ], $response->status());
         }
 
-        // Get product data and total count
-        $products = $response->json()['results'];
+        // Obtener los IDs de productos y el total
+        $productIds = $response->json()['results'];
         $total = $response->json()['paging']['total'];
 
-        // Calculate pagination details
-        $totalPages = ceil($total / $limit);
-        $currentPage = ($offset / $limit) + 1;
-
-        // Enhance products with status by fetching detailed information
-        $enhancedProducts = [];
-        foreach ($products as $product) {
+        // Obtener detalles de los productos
+        $products = [];
+        foreach ($productIds as $productId) {
             $productResponse = Http::withToken($credentials->access_token)
-                ->get("https://api.mercadolibre.com/items/{$product['id']}");
+                ->get("https://api.mercadolibre.com/items/{$productId}");
 
             if ($productResponse->successful()) {
                 $productData = $productResponse->json();
-                $enhancedProducts[] = [
+
+                // Obtener nombre de la categoría
+                $categoryName = 'Desconocida';
+                if (!empty($productData['category_id'])) {
+                    $categoryResponse = Http::get("https://api.mercadolibre.com/categories/{$productData['category_id']}");
+                    if ($categoryResponse->successful()) {
+                        $categoryName = $categoryResponse->json()['name'] ?? 'Desconocida';
+                    }
+                }
+
+                $products[] = [
                     'id' => $productData['id'],
                     'title' => $productData['title'],
                     'price' => $productData['price'],
@@ -106,28 +107,17 @@ class searchProductsController extends Controller
                     'permalink' => $productData['permalink'],
                     'status' => $productData['status'],
                     'category_id' => $productData['category_id'],
+                    'category_name' => $categoryName,
                 ];
             }
         }
 
-        // Return products data with pagination info and user details
+        // Retornar los productos
         return response()->json([
             'status' => 'success',
             'message' => 'Productos obtenidos con éxito.',
-            'client' => [
-                'id' => $userId,
-                'nickname' => $userNickname,
-                'email' => $userData['email'] ?? 'N/A',
-                'country_id' => $userData['country_id'],
-            ],
-            'data' => $enhancedProducts,
-            'pagination' => [
-                'total' => $total,
-                'limit' => $limit,
-                'offset' => $offset,
-                'total_pages' => $totalPages,
-                'current_page' => $currentPage,
-            ],
+            'data' => $products,
+            'total' => $total,
         ]);
     }
 }
