@@ -5,6 +5,7 @@ namespace App\Http\Controllers\MercadoLibre\Reportes;
 use App\Models\MercadoLibreCredential;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
+use Carbon\Carbon;
 
 class getAvailableForReceptionController
 {
@@ -43,9 +44,18 @@ class getAvailableForReceptionController
         $userId = $response->json()['id'];
 
         
-        $response = Http::withToken($credentials->access_token)
-            ->get("https://api.mercadolibre.com/shipments/search?seller={$userId}&status=to_be_received");
+        $to = Carbon::now()->toIso8601String(); // Fecha y hora actual
+        $from = Carbon::now()->subDays(30)->toIso8601String(); // Fecha y hora 30 días atrás
+        $allSales = [];
 
+        $response = Http::withToken($credentials->access_token)
+                ->get("https://api.mercadolibre.com/orders/search", [
+                    'seller' => $userId,
+                    'order.status' => 'paid',
+                    'order.date_created.from' => $from,
+                    'order.date_created.to' => $to,
+                    'sort' => 'date_desc',
+                ]);
         if ($response->failed()) {
             return response()->json([
                 'status' => 'error',
@@ -53,11 +63,28 @@ class getAvailableForReceptionController
                 'error' => $response->json(),
             ], $response->status());
         }
-
-        $shipments = $response->json()['results'];
-
         
-        if (empty($shipments)) {
+        $allSales[] = $response->json()['results'];
+        $shippingDetails = [];
+        
+        foreach($allSales as $orders){
+            foreach($orders as $order){
+                $shippingId = $order['shipping']['id'] ?? null;
+        
+                if (!$shippingId || isset($processedShipments[$shippingId])) continue;
+        
+                $processedShipments[$shippingId] = true;
+        
+                $response = Http::withToken($credentials->access_token)
+                    ->get("https://api.mercadolibre.com/shipments/{$shippingId}");
+        
+                if ($response['status'] === "shipped") {
+                    $shippingDetails[] = $response->json();
+                }
+            }
+        }
+        
+        if (empty($shippingDetails)) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'No se encontraron envíos pendientes de recepción.',
@@ -67,7 +94,7 @@ class getAvailableForReceptionController
         return response()->json([
             'status' => 'success',
             'message' => 'Envíos pendientes de recepción obtenidos con éxito.',
-            'data' => $shipments,
+            'data' => $shippingDetails,
         ]);
     }
 }
