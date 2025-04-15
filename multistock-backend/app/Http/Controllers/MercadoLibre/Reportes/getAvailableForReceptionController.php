@@ -27,6 +27,7 @@ class getAvailableForReceptionController
             ], 401);
         }
 
+        // Obtener user ID
         $userResponse = Http::withToken($credentials->access_token)
             ->get('https://api.mercadolibre.com/users/me');
 
@@ -42,6 +43,7 @@ class getAvailableForReceptionController
         $to = Carbon::now()->toIso8601String();
         $from = Carbon::now()->subDays(30)->toIso8601String();
 
+        // Obtener órdenes de los últimos 30 días
         $response = Http::withToken($credentials->access_token)
             ->get("https://api.mercadolibre.com/orders/search", [
                 'seller' => $userId,
@@ -78,7 +80,7 @@ class getAvailableForReceptionController
             if ($shipmentResponse->successful()) {
                 $shipmentData = $shipmentResponse->json();
 
-                // ✅ Filtrar solo los envíos entregados
+                // Filtrar solo los envíos entregados
                 if ($shipmentData['status'] === 'delivered') {
                     $shippingDetails[] = $shipmentData;
                 }
