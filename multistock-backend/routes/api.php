@@ -110,6 +110,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/warehouse-stock/{id}', [WarehouseCompaniesController::class, 'stock_update']); // Update stock for a warehouse
     Route::delete('/warehouse-stock/{id}', [WarehouseCompaniesController::class, 'stock_delete']); // Delete stock for a warehouse
 
+    // Company-specific routes
+    Route::get('/companies', [WarehouseCompaniesController::class, 'company_list_all']);
+    Route::post('/companies', [WarehouseCompaniesController::class, 'company_store']);
+    Route::get('/companies/{id}', [WarehouseCompaniesController::class, 'company_show']);
+    Route::patch('/companies/{id}', [WarehouseCompaniesController::class, 'company_update']);
+    Route::delete('/companies/{id}', [WarehouseCompaniesController::class, 'company_delete']);
+
+
     // Generate MerccadoLibre login Auth 2.0 URL
     Route::post('/mercadolibre/login', [loginController::class, 'login']);
 
