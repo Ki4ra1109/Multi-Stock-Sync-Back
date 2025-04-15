@@ -183,7 +183,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/mercadolibre/sales-by-date-range/{client_id}', [getSalesByDateRangeController::class, 'getSalesByDateRange']);
 
     // Get stock sales history
-    Route::get('mercadolibre/stock-sales-history/{clientId}/{productId}', [getStockSalesHistoryController::class, 'getStockSalesHistory']);
+    Route::get('/mercadolibre/stock-sales-history/{clientId}/{productId}', [getStockSalesHistoryController::class, 'getStockSalesHistory']);
 
     // Get dispach history
 

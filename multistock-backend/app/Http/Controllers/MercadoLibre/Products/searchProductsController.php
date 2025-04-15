@@ -9,22 +9,23 @@ use Illuminate\Http\Request;
 
 class searchProductsController extends Controller
 {
-    protected $mercadoLibreQueries;
-
-    public function __construct()
-    {
-        // No need for MercadoLibreQueries dependency
-    }
-
-    /**
-     * Search products from MercadoLibre API using client_id and search term.
-     */
     public function searchProducts($clientId, Request $request)
     {
+        // Diccionario de estados traducidos
+        $statusDictionary = [
+            'active' => 'Activo',
+            'paused' => 'Pausado',
+            'closed' => 'Cerrado',
+            'under_review' => 'En revisión',
+            'inactive' => 'Inactivo',
+            'payment_required' => 'Pago requerido',
+            'not_yet_active' => 'Aún no activo',
+            'deleted' => 'Eliminado',
+        ];
+
         // Obtener credenciales por client_id
         $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
 
-        // Validar si existen credenciales
         if (!$credentials) {
             return response()->json([
                 'status' => 'error',
@@ -32,7 +33,6 @@ class searchProductsController extends Controller
             ], 404);
         }
 
-        // Verificar si el token ha expirado
         if ($credentials->isTokenExpired()) {
             return response()->json([
                 'status' => 'error',
@@ -40,7 +40,6 @@ class searchProductsController extends Controller
             ], 401);
         }
 
-        // Obtener el ID del usuario en MercadoLibre
         $response = Http::withToken($credentials->access_token)
             ->get('https://api.mercadolibre.com/users/me');
 
@@ -53,12 +52,10 @@ class searchProductsController extends Controller
         }
 
         $userId = $response->json()['id'];
+        $searchTerm = $request->query('q', '');
+        $limit = $request->query('limit', 50);
+        $offset = $request->query('offset', 0);
 
-        $searchTerm = $request->query('q', ''); // Término de búsqueda
-        $limit = $request->query('limit', 50); // Límite predeterminado a 50
-        $offset = $request->query('offset', 0); // Desplazamiento predeterminado a 0
-
-        // Realizar la solicitud a la API de MercadoLibre para obtener productos según el término de búsqueda
         $response = Http::withToken($credentials->access_token)
             ->get("https://api.mercadolibre.com/users/{$userId}/items/search", [
                 'q' => $searchTerm,
@@ -74,12 +71,10 @@ class searchProductsController extends Controller
             ], $response->status());
         }
 
-        // Obtener los IDs de productos y el total
         $productIds = $response->json()['results'];
         $total = $response->json()['paging']['total'];
-
-        // Obtener detalles de los productos
         $products = [];
+
         foreach ($productIds as $productId) {
             $productResponse = Http::withToken($credentials->access_token)
                 ->get("https://api.mercadolibre.com/items/{$productId}");
@@ -87,7 +82,6 @@ class searchProductsController extends Controller
             if ($productResponse->successful()) {
                 $productData = $productResponse->json();
 
-                // Obtener nombre de la categoría
                 $categoryName = 'Desconocida';
                 if (!empty($productData['category_id'])) {
                     $categoryResponse = Http::get("https://api.mercadolibre.com/categories/{$productData['category_id']}");
@@ -95,6 +89,8 @@ class searchProductsController extends Controller
                         $categoryName = $categoryResponse->json()['name'] ?? 'Desconocida';
                     }
                 }
+
+                $translatedStatus = $statusDictionary[$productData['status']] ?? $productData['status'];
 
                 $products[] = [
                     'id' => $productData['id'],
@@ -106,13 +102,13 @@ class searchProductsController extends Controller
                     'thumbnail' => $productData['thumbnail'],
                     'permalink' => $productData['permalink'],
                     'status' => $productData['status'],
+                    'status_translated' => $translatedStatus,
                     'category_id' => $productData['category_id'],
                     'category_name' => $categoryName,
                 ];
             }
         }
 
-        // Retornar los productos
         return response()->json([
             'status' => 'success',
             'message' => 'Productos obtenidos con éxito.',

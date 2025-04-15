@@ -5,12 +5,12 @@ namespace App\Http\Controllers\MercadoLibre\Reportes;
 use App\Models\MercadoLibreCredential;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
+use Carbon\Carbon;
 
 class getAvailableForReceptionController
 {
     public function getAvailableForReception($clientId)
     {
-        
         $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
 
         if (!$credentials) {
@@ -20,7 +20,6 @@ class getAvailableForReceptionController
             ], 404);
         }
 
-        
         if ($credentials->isTokenExpired()) {
             return response()->json([
                 'status' => 'error',
@@ -28,23 +27,31 @@ class getAvailableForReceptionController
             ], 401);
         }
 
-        
-        $response = Http::withToken($credentials->access_token)
+        $userResponse = Http::withToken($credentials->access_token)
             ->get('https://api.mercadolibre.com/users/me');
 
-        if ($response->failed()) {
+        if ($userResponse->failed()) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'No se pudo obtener el ID del usuario. Valide su token.',
-                'error' => $response->json(),
+                'error' => $userResponse->json(),
             ], 500);
         }
 
-        $userId = $response->json()['id'];
+        $userId = $userResponse->json()['id'];
+        $to = Carbon::now()->toIso8601String();
+        $from = Carbon::now()->subDays(30)->toIso8601String();
 
-        
         $response = Http::withToken($credentials->access_token)
-            ->get("https://api.mercadolibre.com/shipments/search?seller={$userId}&status=to_be_received");
+            ->get("https://api.mercadolibre.com/orders/search", [
+                'seller' => $userId,
+                'order.status' => 'paid',
+                'order.date_created.from' => $from,
+                'order.date_created.to' => $to,
+                'sort' => 'date_desc',
+                'limit' => 50,
+                'offset' => 0,
+            ]);
 
         if ($response->failed()) {
             return response()->json([
@@ -54,20 +61,41 @@ class getAvailableForReceptionController
             ], $response->status());
         }
 
-        $shipments = $response->json()['results'];
+        $orders = $response->json()['results'] ?? [];
+        $processedShipments = [];
+        $shippingDetails = [];
 
-        
-        if (empty($shipments)) {
+        foreach ($orders as $order) {
+            $shippingId = $order['shipping']['id'] ?? null;
+
+            if (!$shippingId || isset($processedShipments[$shippingId])) continue;
+
+            $processedShipments[$shippingId] = true;
+
+            $shipmentResponse = Http::withToken($credentials->access_token)
+                ->get("https://api.mercadolibre.com/shipments/{$shippingId}");
+
+            if ($shipmentResponse->successful()) {
+                $shipmentData = $shipmentResponse->json();
+
+                // ✅ Filtrar solo los envíos entregados
+                if ($shipmentData['status'] === 'delivered') {
+                    $shippingDetails[] = $shipmentData;
+                }
+            }
+        }
+
+        if (empty($shippingDetails)) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'No se encontraron envíos pendientes de recepción.',
+                'message' => 'No se encontraron envíos entregados disponibles para recepción.',
             ], 404);
         }
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Envíos pendientes de recepción obtenidos con éxito.',
-            'data' => $shipments,
+            'message' => 'Envíos entregados obtenidos con éxito.',
+            'data' => $shippingDetails,
         ]);
     }
 }
