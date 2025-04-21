@@ -79,7 +79,7 @@ Route::post('/users', [UserController::class, 'store']); // Create user
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/logout', [AuthController::class, 'logout']); // Logout users
+    Route::post('/logout', [AuthController::class, 'logout']); 
 
     // USERS
 
