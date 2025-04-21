@@ -110,6 +110,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/warehouse-stock', [WarehouseCompaniesController::class, 'stock_store']); // Create stock for a warehouse
     Route::patch('/warehouse-stock/{id}', [WarehouseCompaniesController::class, 'stock_update']); // Update stock for a warehouse
     Route::delete('/warehouse-stock/{id}', [WarehouseCompaniesController::class, 'stock_delete']); // Delete stock for a warehouse
+    Route::get('/warehouse-stock/{id}', [WarehouseCompaniesController::class, 'getStockByWarehouse']); // Get stock for a warehouse by its ID
 
     // Company-specific routes
     Route::get('/companies', [WarehouseCompaniesController::class, 'company_list_all']);
