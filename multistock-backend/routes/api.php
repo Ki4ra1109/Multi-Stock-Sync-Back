@@ -101,6 +101,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Warehouse-specific routes
 
+    // WAREHOUSES (CRUD completo)
+    Route::get('/warehouses', [WarehouseCompaniesController::class, 'warehouse_list_all']);         // Listar todas las bodegas
+    Route::get('/warehouses/{id}', [WarehouseCompaniesController::class, 'warehouse_show']);        // Ver bodega específica
+    Route::post('/warehouses', [WarehouseCompaniesController::class, 'warehouse_store']);           // Crear bodega
+    Route::patch('/warehouses/{id}', [WarehouseCompaniesController::class, 'warehouse_update']);    // Actualizar bodega
+    Route::delete('/warehouses/{id}', [WarehouseCompaniesController::class, 'warehouse_delete']);   // Eliminar bodega
+
     // Stock-specific routes
     Route::post('/warehouse-stock', [WarehouseCompaniesController::class, 'stock_store']); // Create stock for a warehouse
     Route::put('/warehouse-stock/{id_mlc}', [WarehouseCompaniesController::class, 'stock_update']); // Actualizar por id_mlc
