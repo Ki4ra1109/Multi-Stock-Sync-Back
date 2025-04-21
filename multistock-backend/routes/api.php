@@ -100,11 +100,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/clientes/{id}', [ClientesController::class, 'destroy']); // Delete a client
 
     // Warehouse-specific routes
-    Route::get('/warehouses', [WarehouseCompaniesController::class, 'warehouse_list_all']); // List all warehouses
-    Route::post('/warehouses', [WarehouseCompaniesController::class, 'warehouse_store']); // Create a warehouse
-    Route::patch('/warehouses/{id}', [WarehouseCompaniesController::class, 'warehouse_update']); // Update a warehouse
-    Route::get('/warehouses/{id}', [WarehouseCompaniesController::class, 'warehouse_show']); // Get a warehouse by its ID
-    Route::delete('/warehouses/{id}', [WarehouseCompaniesController::class, 'warehouse_delete']); // Delete a warehouse
+    // Stock-specific routes
+    Route::post('/warehouse-stock', [WarehouseCompaniesController::class, 'stock_store']); // Create stock for a warehouse
+    Route::put('/warehouse-stock/{id_mlc}', [WarehouseCompaniesController::class, 'stock_update']);// Update stock for a warehouse
+    Route::delete('/warehouse-stock/{id}', [WarehouseCompaniesController::class, 'stock_delete']); // Delete stock for a warehouse
+    Route::get('/warehouse-stock/{id}', [WarehouseCompaniesController::class, 'getStockByWarehouse']); // Get stock for a warehouse by its ID
 
     // Stock-specific routes
     Route::post('/warehouse-stock', [WarehouseCompaniesController::class, 'stock_store']); // Create stock for a warehouse
