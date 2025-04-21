@@ -68,6 +68,7 @@ use App\Http\Controllers\MercadoLibre\Products\getProductReviewsController;
 use App\Http\Controllers\MercadoLibre\Products\saveProductsController;
 use App\Http\Controllers\MercadoLibre\Products\itemController;
 use App\Http\Controllers\MercadoLibre\Products\getStockController;
+use App\Http\Controllers\MercadoLibre\Products\putProductoByUpdateController;
 
 // SyncStatus //
 use App\Http\Controllers\SyncStatusController;
@@ -229,4 +230,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // Get Dispatch History
     Route::get('/mercadolibre/history-dispatch/{client_id}/{skuSearch}', [getHistoryDispatchController::class, 'getHistoryDispatch']);
     
+    //Update stock
+    Route::put('/mercadolibre/update-stock/{client_id}/{productId}', [putProductoByUpdateController::class, 'putProductoByUpdate']);
 });
