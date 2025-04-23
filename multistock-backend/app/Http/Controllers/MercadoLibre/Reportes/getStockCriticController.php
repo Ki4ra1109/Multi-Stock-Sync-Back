@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 class getStockCriticController{
 
     public function getStockCritic($clienteId, $year = null, $month = null, $day = null){
+        set_time_limit(0); // Desactivar el límite de tiempo de ejecución
         // Obtener las credenciales de Mercado Libre por client_id
         $credentials = MercadoLibreCredential::where('client_id', $clienteId)->first();
 
@@ -40,6 +41,11 @@ class getStockCriticController{
         }
 
         $userId = $response->json()['id'];
+        $limit = 100;
+        $offset = 0;
+        $items = [];
+        $productsStock = [];
+        $totalItems = 0;
 
         $url = "https://api.mercadolibre.com/users/{$userId}/items/search";
         $queryParams = [];
@@ -59,7 +65,10 @@ class getStockCriticController{
         }
 
         $response = Http::withToken($credentials->access_token)
-            ->get($url);
+            ->get($url, [
+                'limit' => $limit,
+                'offset' => $offset,
+            ]);
 
         if ($response->failed()) {
             return response()->json([
@@ -73,6 +82,7 @@ class getStockCriticController{
         $productsStock = [];
 
         foreach ($items as $itemId) {
+            $totalItems++;
             $itemResponse = Http::withToken($credentials->access_token)
                 ->get("https://api.mercadolibre.com/items/{$itemId}");
 
@@ -141,6 +151,7 @@ class getStockCriticController{
         return response()->json([
             'status' => 'success',
             'message' => 'Stock de productos obtenidos con éxito.',
+            "products_count" => $totalItems,
             'data' => $productsStock,
         ]);
     }
