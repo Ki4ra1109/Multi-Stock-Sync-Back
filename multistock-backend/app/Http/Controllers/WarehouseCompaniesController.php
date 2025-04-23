@@ -226,48 +226,25 @@ class WarehouseCompaniesController extends Controller
     }
 
     /**
-     * Create stock for a warehouse.
-     */
-    public function stock_store(Request $request)
+ * Create stock for a warehouse via URL parameters.
+ */
+public function stock_store_by_url($id_mlc, $warehouse_id, $stock, $client_id)
 {
-    $rules = [
-        'id_mlc' => 'required|string|max:100',
-        'warehouse_stock' => 'required|integer',
-        'warehouse_id' => 'required|integer|exists:warehouses,id',
-        'client_id' => 'required|integer|exists:mercado_libre_credentials,client_id',
-    ];
-
-    $validator = \Validator::make($request->all(), $rules);
-
-    if ($validator->fails()) {
-        $missingFields = array_keys($validator->failed());
-        return response()->json(['message' => 'Faltan campos requeridos.', 'fields' => $missingFields], 422);
-    }
-
-    $validated = $validator->validated();
-
-    // Obtener credenciales
-    $credentials = \App\Models\MercadoLibreCredential::where('client_id', $validated['client_id'])->first();
-
-    if (!$credentials || $credentials->isTokenExpired()) {
-        return response()->json([
-            'message' => 'Token inválido o expirado para el cliente.',
-            'error' => 'No se pudo autenticar con MercadoLibre.'
-        ], 401);
-    }
-
     try {
-        // Llamada autenticada a MercadoLibre con el token del cliente
+        // Verifica existencia de la bodega
+        $warehouse = Warehouse::findOrFail($warehouse_id);
+
+        // Verifica existencia y validez del token del cliente
+        $credentials = \App\Models\MercadoLibreCredential::where('client_id', $client_id)->first();
+        if (!$credentials || $credentials->isTokenExpired()) {
+            return response()->json(['message' => 'Token inválido o expirado para el cliente.'], 401);
+        }
+
+        // Llama a la API de MercadoLibre
         $response = Http::withToken($credentials->access_token)
-            ->get("https://api.mercadolibre.com/items/{$validated['id_mlc']}");
+            ->get("https://api.mercadolibre.com/items/{$id_mlc}");
 
         if ($response->failed()) {
-            \Log::error('Error al obtener producto desde la API de MercadoLibre', [
-                'id_mlc' => $validated['id_mlc'],
-                'status' => $response->status(),
-                'body' => $response->body()
-            ]);
-
             return response()->json([
                 'message' => 'No se pudo obtener el producto desde MercadoLibre.',
                 'status' => $response->status(),
@@ -281,21 +258,22 @@ class WarehouseCompaniesController extends Controller
         $price_clp = $productData['price'] ?? 0;
 
         // Crear el stock
-        $stock = StockWarehouse::create([
-            'thumbnail' => $thumbnail,
-            'id_mlc' => $validated['id_mlc'],
+        $stockRecord = StockWarehouse::create([
+            'id_mlc' => $id_mlc,
             'title' => $title,
+            'thumbnail' => $thumbnail,
             'price_clp' => $price_clp,
-            'warehouse_stock' => $validated['warehouse_stock'],
-            'warehouse_id' => $validated['warehouse_id'],
+            'warehouse_stock' => $stock,
+            'warehouse_id' => $warehouse_id,
         ]);
 
-        return response()->json(['message' => 'Stock creado con éxito.', 'data' => $stock], 201);
+        return response()->json(['message' => 'Producto agregado con éxito.', 'data' => $stockRecord], 201);
 
     } catch (\Exception $e) {
-        return response()->json(['message' => 'Error al crear el stock.', 'error' => $e->getMessage()], 500);
+        return response()->json(['message' => 'Error al agregar el producto.', 'error' => $e->getMessage()], 500);
     }
 }
+
 
 
     /**
