@@ -57,7 +57,10 @@ class getStockController
         }
 
         $response = Http::withToken($credentials->access_token)
-            ->get($url);
+            ->get($url, [
+                'limit' => 100,
+                'offset' => 0,
+            ]);
 
         if ($response->failed()) {
             return response()->json([
