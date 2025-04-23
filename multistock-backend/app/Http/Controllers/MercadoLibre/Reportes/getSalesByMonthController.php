@@ -51,10 +51,21 @@ class getSalesByMonthController
         // Calculate date range for the specified month and year
         $dateFrom = "{$year}-{$month}-01T00:00:00.000-00:00";
         $dateTo = date("Y-m-t\T23:59:59.999-00:00", strtotime($dateFrom));
+        $offset = 0;
+        $limit = 50;
+        $salesByMonth = [];
 
         // API request to get sales by month
+        do{
         $response = Http::withToken($credentials->access_token)
-            ->get("https://api.mercadolibre.com/orders/search?seller={$userId}&order.status=paid&order.date_created.from={$dateFrom}&order.date_created.to={$dateTo}");
+            ->get("https://api.mercadolibre.com/orders/search",[
+                "seller" => $userId,
+                'order.status' => 'paid',
+                'order.date_created.from' => $dateFrom,
+                'order.date_created.to' => $dateTo,
+                'offset' => $offset,
+                'limit' => $limit,
+            ]);
 
         // Validate response
         if ($response->failed()) {
@@ -67,7 +78,6 @@ class getSalesByMonthController
 
         // Process sales data
         $orders = $response->json()['results'];
-        $salesByMonth = [];
 
         foreach ($orders as $order) {
             $month = date('Y-m', strtotime($order['date_created']));
@@ -97,6 +107,8 @@ class getSalesByMonthController
                 ];
             }
         }
+        $offset += $limit;
+        } while (count($orders) == $limit);
 
         // Return sales by month data
         return response()->json([
