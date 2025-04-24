@@ -42,7 +42,7 @@ class WarehouseCompaniesController extends Controller
         // Crear empresa
         $company = Company::create([
             'name' => $name,
-            'client_id' => $client_id,
+            'id' => $client_id,
         ]);
 
         return response()->json([
