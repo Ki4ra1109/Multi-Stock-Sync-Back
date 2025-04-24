@@ -8,16 +8,10 @@ use Illuminate\Http\Request;
 
 class getDailySalesController
 {
-
-    /**
-     * Get daily sales from MercadoLibre API using client_id.
-    */
     public function getDailySales($clientId)
     {
-        // Get credentials by client_id
         $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
 
-        // Check if credentials exist
         if (!$credentials) {
             return response()->json([
                 'status' => 'error',
@@ -25,7 +19,6 @@ class getDailySalesController
             ], 404);
         }
 
-        // Check if token is expired
         if ($credentials->isTokenExpired()) {
             return response()->json([
                 'status' => 'error',
@@ -33,7 +26,6 @@ class getDailySalesController
             ], 401);
         }
 
-        // Get user id from token
         $response = Http::withToken($credentials->access_token)
             ->get('https://api.mercadolibre.com/users/me');
 
@@ -47,18 +39,13 @@ class getDailySalesController
 
         $userId = $response->json()['id'];
 
-        // Get query parameters for date
-        $date = request()->query('date', date('Y-m-d')); // Default to current date
-
-        // Calculate date range for the specified date
+        $date = request()->query('date', date('Y-m-d'));
         $dateFrom = "{$date}T00:00:00.000-00:00";
         $dateTo = "{$date}T23:59:59.999-00:00";
 
-        // API request to get sales for the specified date
         $response = Http::withToken($credentials->access_token)
             ->get("https://api.mercadolibre.com/orders/search?seller={$userId}&order.status=paid&order.date_created.from={$dateFrom}&order.date_created.to={$dateTo}");
 
-        // Validate response
         if ($response->failed()) {
             return response()->json([
                 'status' => 'error',
@@ -67,7 +54,6 @@ class getDailySalesController
             ], $response->status());
         }
 
-        // Process sales data
         $orders = $response->json()['results'];
         $totalSales = 0;
         $soldProducts = [];
@@ -75,28 +61,34 @@ class getDailySalesController
         foreach ($orders as $order) {
             $totalSales += $order['total_amount'];
 
-            // Extract sold products (titles and quantities)
             foreach ($order['order_items'] as $item) {
-                $soldProducts[] = [
-                    'order_id' => $order['id'], // MercadoLibre Order ID
-                    'order_date' => $order['date_created'], // Order date
-                    'title' => $item['item']['title'], // Product title
-                    'quantity' => $item['quantity'],  // Quantity sold
-                    'price' => $item['unit_price'],   // Price per unit
-                ];
+                $title = $item['item']['title'];
+                $thumbnail = $item['item']['thumbnail'] ?? null;
+
+                // Agrupar por título
+                if (!isset($soldProducts[$title])) {
+                    $soldProducts[$title] = [
+                        'title' => $title,
+                        'quantity' => 0,
+                        'total_amount' => 0,
+                        'thumbnail' => $thumbnail,
+                    ];
+                }
+
+                $soldProducts[$title]['quantity'] += $item['quantity'];
+                $soldProducts[$title]['total_amount'] += $item['quantity'] * $item['unit_price'];
             }
         }
 
-        // Return sales by date data, including sold products
         return response()->json([
             'status' => 'success',
             'message' => 'Ventas diarias obtenidas con éxito.',
             'data' => [
                 'date' => $date,
                 'total_sales' => $totalSales,
-                'sold_products' => $soldProducts, // List of sold products
+                'sold_products' => array_values($soldProducts), // devolver como lista
             ],
         ]);
     }
-    
 }
+    
