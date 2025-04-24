@@ -117,8 +117,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
 
     // Company-specific routes
-    Route::get('/companies', [WarehouseCompaniesController::class, 'company_list_all']);
-    Route::post('/companies', [WarehouseCompaniesController::class, 'company_store']);
+    Route::post('/companies/{name}/{client_id}', [WarehouseCompaniesController::class, 'company_store_by_url']);
     Route::get('/companies/{id}', [WarehouseCompaniesController::class, 'company_show']);
     Route::patch('/companies/{id}', [WarehouseCompaniesController::class, 'company_update']);
     Route::delete('/companies/{id}', [WarehouseCompaniesController::class, 'company_delete']);

@@ -31,16 +31,32 @@ class WarehouseCompaniesController extends Controller
     /**
      * Create a new company.
      */
-    public function company_store(Request $request)
-    {
-        $validated = $request->validate([
-            'name' => 'required|string|max:100',
+    public function company_store_by_url($name, $client_id)
+{
+    try {
+        // Validación básica
+        if (empty($name) || !is_numeric($client_id)) {
+            return response()->json(['message' => 'Parámetros inválidos.'], 422);
+        }
+
+        // Crear empresa
+        $company = Company::create([
+            'name' => $name,
+            'client_id' => $client_id,
         ]);
 
-        $company = Company::create(['name' => $validated['name']]);
+        return response()->json([
+            'message' => 'Empresa creada con éxito por URL.',
+            'data' => $company
+        ], 201);
 
-        return response()->json(['message' => 'Empresa creada con éxito.', 'data' => $company], 201);
+    } catch (\Exception $e) {
+        \Log::error('Error al crear empresa por URL:', ['error' => $e->getMessage()]);
+        return response()->json(['message' => 'Error al crear la empresa.', 'error' => $e->getMessage()], 500);
     }
+}
+
+
 
     /**
      * Create a new warehouse.
@@ -53,6 +69,7 @@ class WarehouseCompaniesController extends Controller
             // Validate the request data
             $validated = $request->validate([
                 'name' => 'required|string|max:100',
+                'client_id' => 'required|integer',
                 'location' => 'nullable|string|max:255',
                 'assigned_company_id' => 'required|integer',
             ]);
