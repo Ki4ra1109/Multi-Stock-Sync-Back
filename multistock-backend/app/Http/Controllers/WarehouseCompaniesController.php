@@ -42,7 +42,7 @@ class WarehouseCompaniesController extends Controller
         // Crear empresa
         $company = Company::create([
             'name' => $name,
-            'id' => $client_id,
+            'client_id' => $client_id,
         ]);
 
         return response()->json([
@@ -69,7 +69,6 @@ class WarehouseCompaniesController extends Controller
             // Validate the request data
             $validated = $request->validate([
                 'name' => 'required|string|max:100',
-                'client_id' => 'required|integer',
                 'location' => 'nullable|string|max:255',
                 'assigned_company_id' => 'required|integer',
             ]);
