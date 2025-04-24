@@ -13,7 +13,7 @@ class Company extends Model
     protected $table = 'companies';
 
     // Campos que se pueden asignar en masa
-    protected $fillable = ['name'];
+    protected $fillable = ['name', 'client_id'];
 
     /**
      * Relación uno a muchos con Warehouse.
