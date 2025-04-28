@@ -1,19 +1,20 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\MercadoLibre\Connections;
 
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Conexion;
 use Carbon\Carbon;
+use App\Models\MercadoLibreCredential;
 
-class ConexionController extends Controller
+class ConexionTokenController extends Controller
 {
     public function index()
     {
-        $conexiones = Conexion::all();
+        $conexiones = MercadoLibreCredential::all();
 
         $resultado = $conexiones->map(function ($conexion) {
-            $tokenVigente = $this->tokenEstaVigente($conexion->token_expires_at);
+            $tokenVigente = $this->tokenEstaVigente($conexion->expires_at);
 
             return [
                 'id' => $conexion->id,

@@ -9,7 +9,22 @@ class StockWarehouse extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['thumbnail', 'id_mlc', 'title', 'price_clp', 'warehouse_stock' , 'warehouse_id', 'category_id','attribute_id'];
+    protected $fillable = [
+        'id_mlc',
+        'title',
+        'price',
+        'condicion',
+        'currency_id',
+        'listing_type_id',
+        'available_quantity',
+        'warehouse_id',
+        'category_id',
+        'attribute', 
+        'pictures',  
+        'sale_terms', 
+        'shipping',  
+        'description', 
+    ];
 
     /**
      * Define a many-to-one relationship with Warehouse.
