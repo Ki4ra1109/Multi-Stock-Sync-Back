@@ -53,6 +53,7 @@ use App\Http\Controllers\MercadoLibre\Login\handleCallbackController;
 // CONNECTIONS //
 
 use App\Http\Controllers\MercadoLibre\Connections\testAndRefreshConnectionController;   
+use App\Http\Controllers\MercadoLibre\Connections\ConexionController;
 
 // CREDENTIALS //
 
@@ -131,6 +132,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Check MercadoLibre connection status
     Route::get('/mercadolibre/test-connection/{client_id}', [testAndRefreshConnectionController::class, 'testAndRefreshConnection']);
+    Route::get('/mercadolibre/conexion', [ConexionController::class, 'index']);
 
     // Get MercadoLibre credentials if are saved in db
     Route::get('/mercadolibre/credentials', [getAllCredentialsDataController::class, 'getAllCredentialsData']);

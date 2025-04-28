@@ -268,7 +268,22 @@ public function stock_store_by_url($id_mlc, $warehouse_id, $stock, $client_id)
             ], $response->status());
         }
 
+        // 🔥 Ahora sí, primero cargo el producto
         $productData = $response->json();
+
+        $attributesFiltered = [];
+
+        if (!empty($productData['attributes'])) {
+            foreach ($productData['attributes'] as $attribute) {
+                if (!empty($attribute['name']) && !empty($attribute['value_name'])) {
+                    $attributesFiltered[] = [
+                        'name' => $attribute['name'],
+                        'value_name' => $attribute['value_name'],
+                    ];
+                }
+            }
+        }
+
         $thumbnail = $productData['thumbnail'] ?? 'no asignado';
         $title = $productData['title'] ?? 'no asignado';
         $price_clp = $productData['price'] ?? 0;
@@ -281,6 +296,8 @@ public function stock_store_by_url($id_mlc, $warehouse_id, $stock, $client_id)
             'price_clp' => $price_clp,
             'warehouse_stock' => $stock,
             'warehouse_id' => $warehouse_id,
+            'category_id' => $category_id,
+            'attribute' => json_encode($attributesFiltered),
         ]);
 
         return response()->json(['message' => 'Producto agregado con éxito.', 'data' => $stockRecord], 201);
@@ -289,8 +306,6 @@ public function stock_store_by_url($id_mlc, $warehouse_id, $stock, $client_id)
         return response()->json(['message' => 'Error al agregar el producto.', 'error' => $e->getMessage()], 500);
     }
 }
-
-
 
     /**
      * Update stock for a warehouse.
