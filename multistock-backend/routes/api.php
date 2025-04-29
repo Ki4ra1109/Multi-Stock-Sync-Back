@@ -43,7 +43,7 @@ use App\Http\Controllers\MercadoLibre\Reportes\getProductsToDispatchController;
 use App\Http\Controllers\MercadoLibre\Reportes\getStockSalesHistoryController;
 use App\Http\Controllers\MercadoLibre\Reportes\getHistoryDispatchController;
 use App\Http\Controllers\MercadoLibre\Reportes\getStockCriticController;
-
+use App\Http\Controllers\MercadoLibre\Reportes\getUpcomingShipmentsController;
 
 // LOGIN //
 
@@ -229,6 +229,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Products to Dispatch
     Route::get('/mercadolibre/products-to-dispatch/{client_id}', [getProductsToDispatchController::class, 'getProductsToDispatch']);
+    Route::get('/mercadolibre/upcoming-shipments/{client_id}', [getUpcomingShipmentsController::class, 'getUpcomingShipments']);
     
     // Get stock of products
     Route::get('/mercadolibre/stock/{client_id}', [getStockController::class, 'getStock']);
