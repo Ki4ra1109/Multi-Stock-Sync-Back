@@ -46,6 +46,19 @@ use App\Http\Controllers\MercadoLibre\Reportes\getStockCriticController;
 use App\Http\Controllers\MercadoLibre\Reportes\getUpcomingShipmentsController;
 use App\Http\Controllers\MercadoLibre\Reportes\getDispatchEstimedLimitController;
 
+// WAREHOUSES //
+use App\Http\Controllers\Warehouses\warehouseListAllController;
+use App\Http\Controllers\Warehouses\warehouseNewCompanyController;
+use App\Http\Controllers\Warehouses\warehouseNewWarehouseStoreController;
+use App\Http\Controllers\Warehouses\warehouseShowByIdController;
+use App\Http\Controllers\Warehouses\warehouseUpdateCompanyNameController;
+use App\Http\Controllers\Warehouses\warehouseUpdateDetailsController;
+use App\Http\Controllers\Warehouses\warehouseDeleteCompanyByIdController;
+use App\Http\Controllers\Warehouses\warehouseDeleteWarehouseByIdController;
+use App\Http\Controllers\Warehouses\warehouseGetStockByWarehouseController;
+use App\Http\Controllers\Warehouses\warehouseCreateProductStockWarehouseController;
+use App\Http\Controllers\Warehouses\warehouseUpdateStockForWarehouseController;
+use App\Http\Controllers\Warehouses\warehouseDeleteStockController;
 
 // LOGIN //
 
@@ -106,24 +119,24 @@ Route::middleware('auth:sanctum')->group(function () {
     // Warehouse-specific routes
 
     // WAREHOUSES (CRUD completo)
-    Route::get('/warehouses', [WarehouseCompaniesController::class, 'warehouse_list_all']);         // Listar todas las bodegas
-    Route::get('/warehouses/{id}', [WarehouseCompaniesController::class, 'warehouse_show']);        // Ver bodega específica
-    Route::post('/warehouses', [WarehouseCompaniesController::class, 'warehouse_store']);           // Crear bodega
-    Route::patch('/warehouses/{id}', [WarehouseCompaniesController::class, 'warehouse_update']);    // Actualizar bodega
-    Route::delete('/warehouses/{id}', [WarehouseCompaniesController::class, 'warehouse_delete']);   // Eliminar bodega
+    Route::get("/warehouses-list", [warehouseListAllController::class, 'warehouse_list_all']);
+    Route::get('/warehouses/{id}', [warehouseShowByIdController::class, 'warehouse_show']);        // Ver bodega específica
+    Route::post('/warehouses', [warehouseNewWarehouseStoreController::class, 'warehouse_store']);           // Crear bodega
+    Route::patch('/warehouses/{id}', [warehouseUpdateDetailsController::class, 'warehouse_update']);    // Actualizar bodega
+    Route::delete('/warehouses/{id}', [warehouseDeleteWarehouseByIdController::class, 'warehouse_delete']);   // Eliminar bodega
 
     // Stock-specific routes
-    Route::post('/warehouse-stock-create', [WarehouseCompaniesController::class, 'stock_store_by_url']);
-    Route::put('/warehouse-stock/{id_mlc}', [WarehouseCompaniesController::class, 'stock_update']); // Actualizar por id_mlc
-    Route::delete('/warehouse-stock/{id}', [WarehouseCompaniesController::class, 'stock_delete']); // Eliminar por ID
-    Route::get('/warehouse/{warehouse_id}/stock', [WarehouseCompaniesController::class, 'getStockByWarehouse']); // Obtener stock por bodega
+    Route::post('/warehouse-stock-create', [warehouseCreateProductStockWarehouseController::class, 'stock_store_by_url']);
+    Route::put('/warehouse-stock/{id_mlc}', [warehouseUpdateStockForWarehouseController::class, 'stock_update']); // Actualizar por id_mlc
+    Route::delete('/warehouse-stock/{id}', [warehouseDeleteStockController::class, 'stock_delete']); // Eliminar por ID
+    Route::get('/warehouse/{warehouse_id}/stock', [warehouseGetStockByWarehouseController::class, 'getStockByWarehouse']); // Obtener stock por bodega
 
 
     // Company-specific routes
-    Route::post('/companies/{name}/{client_id}', [WarehouseCompaniesController::class, 'company_store_by_url']);
-    Route::get('/companies/{id}', [WarehouseCompaniesController::class, 'company_show']);
-    Route::patch('/companies/{id}', [WarehouseCompaniesController::class, 'company_update']);
-    Route::delete('/companies/{id}', [WarehouseCompaniesController::class, 'company_delete']);
+    Route::post('/companies/{name}/{client_id}', [warehouseNewCompanyController::class, 'company_store_by_url']);
+    Route::get('/companies/{id}', [warehouseCompanyShowController::class, 'company_show']);
+    Route::patch('/companies/{id}', [warehouseUpdateCompanyNameController::class, 'company_update']);
+    Route::delete('/companies/{id}', [warehouseDeleteCompanyByIdController::class, 'company_delete']);
 
 
     // Generate MerccadoLibre login Auth 2.0 URL
