@@ -53,6 +53,7 @@ use App\Http\Controllers\MercadoLibre\Login\handleCallbackController;
 // CONNECTIONS //
 
 use App\Http\Controllers\MercadoLibre\Connections\testAndRefreshConnectionController;   
+use App\Http\Controllers\MercadoLibre\Connections\ConexionTokenController;
 
 // CREDENTIALS //
 
@@ -110,7 +111,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/warehouses/{id}', [WarehouseCompaniesController::class, 'warehouse_delete']);   // Eliminar bodega
 
     // Stock-specific routes
-    Route::post('/warehouse-stock/{id_mlc}/{warehouse_id}/{stock}/{client_id}', [WarehouseCompaniesController::class, 'stock_store_by_url']); // Create stock for a warehouse
+    Route::post('/warehouse-stock-create', [WarehouseCompaniesController::class, 'stock_store_by_url']);
     Route::put('/warehouse-stock/{id_mlc}', [WarehouseCompaniesController::class, 'stock_update']); // Actualizar por id_mlc
     Route::delete('/warehouse-stock/{id}', [WarehouseCompaniesController::class, 'stock_delete']); // Eliminar por ID
     Route::get('/warehouse/{warehouse_id}/stock', [WarehouseCompaniesController::class, 'getStockByWarehouse']); // Obtener stock por bodega
@@ -131,6 +132,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Check MercadoLibre connection status
     Route::get('/mercadolibre/test-connection/{client_id}', [testAndRefreshConnectionController::class, 'testAndRefreshConnection']);
+    Route::get('/mercadolibre/conexionToken', [ConexionTokenController::class, 'index']);
 
     // Get MercadoLibre credentials if are saved in db
     Route::get('/mercadolibre/credentials', [getAllCredentialsDataController::class, 'getAllCredentialsData']);

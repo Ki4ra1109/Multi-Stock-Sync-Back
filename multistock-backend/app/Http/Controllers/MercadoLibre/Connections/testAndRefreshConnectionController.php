@@ -8,7 +8,6 @@ use Illuminate\Http\Request;
 
 class testAndRefreshConnectionController
 {
-
     /**
      * Test and refresh MercadoLibre connection.
      */
@@ -23,45 +22,49 @@ class testAndRefreshConnectionController
             ], 404);
         }
 
-        if ($credentials->isTokenExpired()) {
-            // Attempt to refresh the token
-            $response = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
+        // Intentar conexión inmediata
+        $response = Http::withToken($credentials->access_token)
+            ->get('https://api.mercadolibre.com/users/me');
+
+        if ($response->failed()) {
+            // Si falla, intentamos refrescar
+            $refreshResponse = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
                 'grant_type' => 'refresh_token',
                 'client_id' => $credentials->client_id,
                 'client_secret' => $credentials->client_secret,
                 'refresh_token' => $credentials->refresh_token,
             ]);
 
-            if ($response->failed()) {
+            if ($refreshResponse->failed()) {
                 return response()->json([
                     'status' => 'error',
                     'message' => 'Error al refrescar el token. Por favor, inicie sesión nuevamente.',
                 ], 401);
             }
 
-            $data = $response->json();
+            $data = $refreshResponse->json();
 
-            // Update tokens in the database
+            // Actualizar la base de datos con los nuevos tokens
             $credentials->update([
                 'access_token' => $data['access_token'],
                 'refresh_token' => $data['refresh_token'],
                 'expires_at' => now()->addSeconds($data['expires_in']),
-                'updated_at' => now(), // Update the updated_at timestamp
+                'updated_at' => now(),
             ]);
+
+            // Reintentar la conexión con el nuevo token
+            $response = Http::withToken($data['access_token'])
+                ->get('https://api.mercadolibre.com/users/me');
+
+            if ($response->failed()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Error al conectar después de refrescar. Token posiblemente inválido.',
+                ], 500);
+            }
         } else {
-            // Update the updated_at timestamp even if the token is not expired
+            // Si todo está bien desde el principio, solo actualizamos el updated_at
             $credentials->touch();
-        }
-
-        // Test the connection with the refreshed or existing token
-        $response = Http::withToken($credentials->access_token)
-            ->get('https://api.mercadolibre.com/users/me');
-
-        if ($response->failed()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Error al conectar con MercadoLibre. El token podría ser inválido.',
-            ], 500);
         }
 
         return response()->json([
@@ -70,5 +73,4 @@ class testAndRefreshConnectionController
             'data' => $response->json(),
         ]);
     }
-
 }

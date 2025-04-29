@@ -242,51 +242,66 @@ class WarehouseCompaniesController extends Controller
     }
 
     /**
- * Create stock for a warehouse via URL parameters.
+ /**
+ * Crear un nuevo producto
  */
-public function stock_store_by_url($id_mlc, $warehouse_id, $stock, $client_id)
+/**
+ * Crear un nuevo producto manualmente en la base de datos (sin buscar en MercadoLibre).
+ */
+public function stock_store_by_url(Request $request)
 {
     try {
-        // Verifica existencia de la bodega
-        $warehouse = Warehouse::findOrFail($warehouse_id);
-
-        // Verifica existencia y validez del token del cliente
-        $credentials = \App\Models\MercadoLibreCredential::where('client_id', $client_id)->first();
-        if (!$credentials || $credentials->isTokenExpired()) {
-            return response()->json(['message' => 'Token inválido o expirado para el cliente.'], 401);
-        }
-
-        // Llama a la API de MercadoLibre
-        $response = Http::withToken($credentials->access_token)
-            ->get("https://api.mercadolibre.com/items/{$id_mlc}");
-
-        if ($response->failed()) {
-            return response()->json([
-                'message' => 'No se pudo obtener el producto desde MercadoLibre.',
-                'status' => $response->status(),
-                'error' => $response->json()
-            ], $response->status());
-        }
-
-        $productData = $response->json();
-        $thumbnail = $productData['thumbnail'] ?? 'no asignado';
-        $title = $productData['title'] ?? 'no asignado';
-        $price_clp = $productData['price'] ?? 0;
-
-        // Crear el stock
-        $stockRecord = StockWarehouse::create([
-            'id_mlc' => $id_mlc,
-            'title' => $title,
-            'thumbnail' => $thumbnail,
-            'price_clp' => $price_clp,
-            'warehouse_stock' => $stock,
-            'warehouse_id' => $warehouse_id,
+        // Validar los datos recibidos en el Body
+        $validated = $request->validate([
+            'id_mlc' => 'nullable|string|max:255',
+            'warehouse_id' => 'required|integer',
+            'title' => 'required|string|max:255',
+            'price' => 'required|numeric',
+            'available_quantity' => 'required|integer',
+            'condicion' => 'required|string|max:255',
+            'currency_id' => 'required|string|max:255',
+            'listing_type_id' => 'required|string|max:255',
+            'category_id' => 'nullable|string|max:255',
+            'attribute' => 'nullable|array',
+            'pictures' => 'nullable|array',
+            'sale_terms' => 'nullable|array',
+            'shipping' => 'nullable|array',
+            'description' => 'nullable|string'
         ]);
 
-        return response()->json(['message' => 'Producto agregado con éxito.', 'data' => $stockRecord], 201);
+        // Crear producto en base de datos
+        $stock = \App\Models\StockWarehouse::create([
+            'id_mlc' => $validated['id_mlc'] ?? null,
+            'warehouse_id' => $validated['warehouse_id'],
+            'title' => $validated['title'],
+            'price' => $validated['price'],
+            'condicion' => $validated['condicion'],
+            'currency_id' => $validated['currency_id'],
+            'listing_type_id' => $validated['listing_type_id'],
+            'available_quantity' => $validated['available_quantity'],
+            'category_id' => $validated['category_id'] ?? null,
+            'attribute' => isset($validated['attribute']) ? json_encode($validated['attribute']) : json_encode([]),
+            'pictures' => isset($validated['pictures']) ? json_encode($validated['pictures']) : json_encode([]),
+            'sale_terms' => isset($validated['sale_terms']) ? json_encode($validated['sale_terms']) : json_encode([]),
+            'shipping' => isset($validated['shipping']) ? json_encode($validated['shipping']) : json_encode([]),
+            'description' => $validated['description'] ?? '',
+        ]);
 
+        return response()->json([
+            'message' => 'Producto creado manualmente con éxito en la base de datos.',
+            'data' => $stock,
+        ], 201);
+
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        return response()->json([
+            'message' => 'Datos inválidos.',
+            'errors' => $e->errors()
+        ], 422);
     } catch (\Exception $e) {
-        return response()->json(['message' => 'Error al agregar el producto.', 'error' => $e->getMessage()], 500);
+        return response()->json([
+            'message' => 'Error inesperado al guardar el producto.',
+            'error' => $e->getMessage()
+        ], 500);
     }
 }
 
