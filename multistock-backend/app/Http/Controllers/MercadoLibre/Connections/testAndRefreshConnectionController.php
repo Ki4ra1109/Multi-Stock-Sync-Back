@@ -5,6 +5,7 @@ namespace App\Http\Controllers\MercadoLibre\Connections;
 use App\Models\MercadoLibreCredential;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
+use Carbon\Carbon;
 
 class testAndRefreshConnectionController
 {
@@ -22,12 +23,11 @@ class testAndRefreshConnectionController
             ], 404);
         }
 
-        // Intentar conexión inmediata
-        $response = Http::withToken($credentials->access_token)
-            ->get('https://api.mercadolibre.com/users/me');
+        // Verificar si el token está vencido
+        $tokenExpired = !$credentials->expires_at || Carbon::now()->gte(Carbon::parse($credentials->expires_at));
 
-        if ($response->failed()) {
-            // Si falla, intentamos refrescar
+        if ($tokenExpired) {
+            // Intentar refrescar
             $refreshResponse = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
                 'grant_type' => 'refresh_token',
                 'client_id' => $credentials->client_id,
@@ -51,21 +51,21 @@ class testAndRefreshConnectionController
                 'expires_at' => now()->addSeconds($data['expires_in']),
                 'updated_at' => now(),
             ]);
-
-            // Reintentar la conexión con el nuevo token
-            $response = Http::withToken($data['access_token'])
-                ->get('https://api.mercadolibre.com/users/me');
-
-            if ($response->failed()) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'Error al conectar después de refrescar. Token posiblemente inválido.',
-                ], 500);
-            }
-        } else {
-            // Si todo está bien desde el principio, solo actualizamos el updated_at
-            $credentials->touch();
         }
+
+        // Intentar conexión con el token actual (nuevo o anterior si aún es válido)
+        $response = Http::withToken($credentials->access_token)
+            ->get('https://api.mercadolibre.com/users/me');
+
+        if ($response->failed()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al conectar con el token. Token posiblemente inválido.',
+            ], 500);
+        }
+
+        // Actualiza la marca de tiempo aunque no refresquemos token
+        $credentials->touch();
 
         return response()->json([
             'status' => 'success',
