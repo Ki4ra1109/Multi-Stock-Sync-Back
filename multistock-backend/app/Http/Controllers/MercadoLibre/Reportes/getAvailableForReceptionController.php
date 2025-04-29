@@ -11,7 +11,7 @@ class getAvailableForReceptionController
 {
     public function getAvailableForReception($clientId)
     {
-        set_time_limit(180);
+        set_time_limit(300);
         $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
 
         if (!$credentials) {
@@ -42,7 +42,7 @@ class getAvailableForReceptionController
 
         $userId = $userResponse->json()['id'];
         $to = Carbon::now()->toIso8601String();
-        $from = Carbon::now()->subDays(6)->toIso8601String();
+        $from = Carbon::now()->subDays(5)->toIso8601String();
         $offset = 0;
         $limit = 50;
         $processedShipments = [];
