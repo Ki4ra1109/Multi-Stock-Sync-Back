@@ -43,6 +43,7 @@ use App\Http\Controllers\MercadoLibre\Reportes\getProductsToDispatchController;
 use App\Http\Controllers\MercadoLibre\Reportes\getStockSalesHistoryController;
 use App\Http\Controllers\MercadoLibre\Reportes\getHistoryDispatchController;
 use App\Http\Controllers\MercadoLibre\Reportes\getStockCriticController;
+use App\Http\Controllers\MercadoLibre\Reportes\getDispatchEstimedLimitController;
 
 
 // LOGIN //
@@ -241,4 +242,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Get stock critic
     Route::get('/mercadolibre/stock-critic/{client_id}', [getStockCriticController::class, 'getStockCritic']);
+
+    // Get dispatch estimated limit
+    Route::get('/mercadolibre/dispatch-estimated-limit/{client_id}', [getDispatchEstimedLimitController::class, 'getDispatchEstimedLimit']);
 });
