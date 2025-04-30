@@ -40,7 +40,6 @@ class getUpcomingShipmentsController
 
         $userId = $userResponse->json()['id'];
 
-        // Rango de fechas inicial (hasta 2 días para eficiencia, no excluyente)
         $dateFrom = Carbon::now()->format('Y-m-d\T00:00:00.000-00:00');
         $dateTo = Carbon::now()->addDays(2)->format('Y-m-d\T23:59:59.999-00:00');
 
@@ -69,27 +68,23 @@ class getUpcomingShipmentsController
 
             if ($shippingId) {
                 $shipmentResponse = Http::withToken($credentials->access_token)
-                    ->get("https://api.mercadolibre.com/shipments/{$shippingId}");
+                    ->get("https://api.mercadolibre.com/shipments/{$shippingId}/lead_time");
 
                 if ($shipmentResponse->successful()) {
                     $shipmentData = $shipmentResponse->json();
 
-                    $dateReadyToShip = $shipmentData['date_ready_to_ship'] ?? null;
+                    $dateReadyToShip = $shipmentData['estimated_handling_limit']['date'] ?? null;
 
                     if ($dateReadyToShip) {
                         $fechaEnvio = Carbon::parse($dateReadyToShip);
                         $diasRestantes = Carbon::now()->diffInDays($fechaEnvio, false);
-
-                        // ✅ Solo entre 1 y 2 días a futuro
-                        if ($diasRestantes >= 1 && $diasRestantes <= 2) {
-                            $upcomingOrders[] = [
-                                'order_id' => $order['id'],
-                                'shipping_id' => $shippingId,
-                                'fecha_envio_programada' => $fechaEnvio->toDateTimeString(),
-                                'dias_restantes' => $diasRestantes,
-                                'shipment_status' => $shipmentData['status'] ?? null,
-                            ];
-                        }
+                    
+                        $upcomingOrders[] = [
+                            'order_id' => $order['id'],
+                            'shipping_id' => $shippingId,
+                            'fecha_envio_programada' => $fechaEnvio->toDateTimeString(),
+                            'shipment_status' => $shipmentData['status'] ?? null,
+                        ];
                     }
                 }
             }
@@ -97,7 +92,7 @@ class getUpcomingShipmentsController
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Órdenes con envío programado entre 1 y 2 días a futuro obtenidas con éxito.',
+            'message' => 'Órdenes con fecha de envío obtenidas con éxito.',
             'data' => $upcomingOrders,
         ]);
     }
