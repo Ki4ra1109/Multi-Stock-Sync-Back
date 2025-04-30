@@ -250,6 +250,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Products to Dispatch
     Route::get('/mercadolibre/products-to-dispatch/{client_id}', [getProductsToDispatchController::class, 'getProductsToDispatch']);
+    
     Route::get('/mercadolibre/upcoming-shipments/{client_id}', [getUpcomingShipmentsController::class, 'getUpcomingShipments']);
     
     // Get stock of products
