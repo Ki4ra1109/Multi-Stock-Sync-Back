@@ -62,6 +62,7 @@ use App\Http\Controllers\Warehouses\warehouseUpdateStockForWarehouseController;
 use App\Http\Controllers\Warehouses\warehouseDeleteStockController;
 use App\Http\Controllers\Warehouses\warehouseCompanyShowController;
 use App\Http\Controllers\Warehouses\getCompareStockByProductiDController;
+use App\Http\Controllers\Warehouses\getPriceNetoStockController;
 
 // LOGIN //
 
@@ -137,6 +138,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     //Stock Compare
     Route::get('/compare-stock/{id_mlc}/{idCompany}', [getCompareStockByProductiDController::class, 'getCompareStockByProductiD']); // Obtener stock por bodega
+    Route::get('/price-neto-stock/{idCompany}', [getPriceNetoStockController::class, 'getPriceNetoStock']); // Obtener stock por bodega
 
     // Company-specific routes
     Route::post('/companies/{name}/{client_id}', [warehouseNewCompanyController::class, 'company_store_by_url']);
