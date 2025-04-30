@@ -67,23 +67,59 @@ class getUpcomingShipmentsController
             $shippingId = $order['shipping']['id'] ?? null;
 
             if ($shippingId) {
-                $shipmentResponse = Http::withToken($credentials->access_token)
+                // 1. Obtener lead_time (fecha estimada)
+                $leadTimeResponse = Http::withToken($credentials->access_token)
                     ->get("https://api.mercadolibre.com/shipments/{$shippingId}/lead_time");
 
-                if ($shipmentResponse->successful()) {
-                    $shipmentData = $shipmentResponse->json();
+                // 2. Obtener información completa del envío (incluye dirección)
+                $shipmentInfoResponse = Http::withToken($credentials->access_token)
+                    ->get("https://api.mercadolibre.com/shipments/{$shippingId}");
 
-                    $dateReadyToShip = $shipmentData['estimated_handling_limit']['date'] ?? null;
+                $leadTimeData = $leadTimeResponse->successful() ? $leadTimeResponse->json() : [];
+                $shipmentInfo = $shipmentInfoResponse->successful() ? $shipmentInfoResponse->json() : [];
 
-                    if ($dateReadyToShip) {
-                        $fechaEnvio = Carbon::parse($dateReadyToShip);
-                        $diasRestantes = Carbon::now()->diffInDays($fechaEnvio, false);
-                    
+                $dateReadyToShip = $leadTimeData['estimated_handling_limit']['date'] ?? null;
+                $receiver = $shipmentInfo['receiver_address'] ?? [];
+
+                if ($dateReadyToShip) {
+                    $fechaEnvio = Carbon::parse($dateReadyToShip);
+
+                    foreach ($order['order_items'] as $item) {
+                        // Unir todos los atributos de variación
+                        $tamanio = collect($item['item']['variation_attributes'] ?? [])
+                            ->pluck('value_name')
+                            ->implode(' / ');
+
+                        // Construir dirección completa combinando campos
+                        $direccionCompleta = implode(', ', array_filter([
+                            $receiver['address_line'] ?? null,
+                            $receiver['comment'] ?? null,
+                            $receiver['city']['name'] ?? null,
+                            $receiver['state']['name'] ?? null,
+                            $receiver['zip_code'] ?? null
+                        ]));
+
                         $upcomingOrders[] = [
                             'order_id' => $order['id'],
                             'shipping_id' => $shippingId,
                             'fecha_envio_programada' => $fechaEnvio->toDateTimeString(),
-                            'shipment_status' => $shipmentData['status'] ?? null,
+                            'shipment_status' => null,
+
+                            // Datos adicionales
+                            'id_producto' => $item['item']['id'] ?? null,
+                            'nombre_producto' => $item['item']['title'] ?? null,
+                            'tamaño' => $tamanio,
+                            'cantidad' => $item['quantity'] ?? null,
+                            'sku' => $item['item']['seller_sku'] ?? null,
+
+                            'receptor' => [
+                                'id_receiver' => $order['buyer']['id'] ?? null,
+                                'name_receiver' => $order['buyer']['nickname'] ?? null,
+                                'direction' => $direccionCompleta ?: null,
+                            ],
+
+                            'date_created' => $order['date_created'] ?? null,
+                            'substatus' => $order['substatus'] ?? null,
                         ];
                     }
                 }
