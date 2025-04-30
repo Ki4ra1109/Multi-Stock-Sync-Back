@@ -45,6 +45,7 @@ use App\Http\Controllers\MercadoLibre\Reportes\getHistoryDispatchController;
 use App\Http\Controllers\MercadoLibre\Reportes\getStockCriticController;
 use App\Http\Controllers\MercadoLibre\Reportes\getUpcomingShipmentsController;
 use App\Http\Controllers\MercadoLibre\Reportes\getDispatchEstimedLimitController;
+use App\Http\Controllers\MercadoLibre\Reportes\getInformationDispatchDeliveredController;
 
 // WAREHOUSES //
 use App\Http\Controllers\Warehouses\warehouseListAllController;
@@ -59,6 +60,8 @@ use App\Http\Controllers\Warehouses\warehouseGetStockByWarehouseController;
 use App\Http\Controllers\Warehouses\warehouseCreateProductStockWarehouseController;
 use App\Http\Controllers\Warehouses\warehouseUpdateStockForWarehouseController;
 use App\Http\Controllers\Warehouses\warehouseDeleteStockController;
+use App\Http\Controllers\Warehouses\warehouseCompanyShowController;
+use App\Http\Controllers\Warehouses\getCompareStockByProductiDController;
 
 // LOGIN //
 
@@ -86,6 +89,7 @@ use App\Http\Controllers\MercadoLibre\Products\saveProductsController;
 use App\Http\Controllers\MercadoLibre\Products\itemController;
 use App\Http\Controllers\MercadoLibre\Products\getStockController;
 use App\Http\Controllers\MercadoLibre\Products\putProductoByUpdateController;
+use App\Http\Controllers\MercadoLibre\Products\CreateProductController;
 
 // SyncStatus //
 use App\Http\Controllers\SyncStatusController;
@@ -131,6 +135,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/warehouse-stock/{id}', [warehouseDeleteStockController::class, 'stock_delete']); // Eliminar por ID
     Route::get('/warehouse/{warehouse_id}/stock', [warehouseGetStockByWarehouseController::class, 'getStockByWarehouse']); // Obtener stock por bodega
 
+    //Stock Compare
+    Route::get('/compare-stock/{id_mlc}', [getCompareStockByProductiDController::class, 'getCompareStockByProductiD']); // Obtener stock por bodega
 
     // Company-specific routes
     Route::post('/companies/{name}/{client_id}', [warehouseNewCompanyController::class, 'company_store_by_url']);
@@ -259,6 +265,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // Get stock critic
     Route::get('/mercadolibre/stock-critic/{client_id}', [getStockCriticController::class, 'getStockCritic']);
 
+    //Create product ML
+    Route::post('/mercadolibre/Products/{client_id}/crear-producto', [CreateProductController::class, 'create']);
+
     // Get dispatch estimated limit
     Route::get('/mercadolibre/dispatch-estimated-limit/{client_id}', [getDispatchEstimedLimitController::class, 'getDispatchEstimedLimit']);
+
+    //Get Information Dispatch Delivered
+    Route::get('/mercadolibre/information-dispatch-delivered/{client_id}/{deliveredId}', [getInformationDispatchDeliveredController::class, 'getInformationDispatchDelivered']);
 });
