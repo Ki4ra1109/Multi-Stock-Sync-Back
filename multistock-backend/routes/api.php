@@ -46,6 +46,7 @@ use App\Http\Controllers\MercadoLibre\Reportes\getStockCriticController;
 use App\Http\Controllers\MercadoLibre\Reportes\getUpcomingShipmentsController;
 use App\Http\Controllers\MercadoLibre\Reportes\getDispatchEstimedLimitController;
 use App\Http\Controllers\MercadoLibre\Reportes\getInformationDispatchDeliveredController;
+use App\Http\Controllers\MercadoLibre\Reportes\getCancelledOrdersController;
 
 // WAREHOUSES //
 use App\Http\Controllers\Warehouses\warehouseListAllController;
@@ -62,6 +63,7 @@ use App\Http\Controllers\Warehouses\warehouseUpdateStockForWarehouseController;
 use App\Http\Controllers\Warehouses\warehouseDeleteStockController;
 use App\Http\Controllers\Warehouses\warehouseCompanyShowController;
 use App\Http\Controllers\Warehouses\getCompareStockByProductiDController;
+
 
 // LOGIN //
 
@@ -273,4 +275,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     //Get Information Dispatch Delivered
     Route::get('/mercadolibre/information-dispatch-delivered/{client_id}/{deliveredId}', [getInformationDispatchDeliveredController::class, 'getInformationDispatchDelivered']);
+
+    Route::get('/mercadolibre/ordenes-canceladas/{clientId}', [getCancelledOrdersController::class, 'getCancelledOrders']);
+
 });
