@@ -112,22 +112,6 @@ class getRefundsByCategoryController
                     'comments' => $shippingDetails['receiver_address']['comment'] ?? '',
                 ] : null;
 
-                // Prepare buyer information
-                $buyerInfo = $buyerDetails ? [
-                    'id' => $buyerDetails['id'],
-                    'name' => $buyerDetails['nickname'],
-                ] : null;
-
-                // Prepare billing information
-                $billingInfoFormatted = $billingInfo ? [
-                    'first_name' => $billingInfo['buyer']['billing_info']['name'] ?? '',
-                    'last_name' => $billingInfo['buyer']['billing_info']['last_name'] ?? '',
-                    'identification' => [
-                        'type' => $billingInfo['buyer']['billing_info']['identification']['type'] ?? '',
-                        'number' => $billingInfo['buyer']['billing_info']['identification']['number'] ?? '',
-                    ],
-                ] : null;
-
                 $refundsByCategory[$categoryId]['orders'][] = [
                     'id' => $order['id'],
                     'created_date' => $order['date_created'],
@@ -137,14 +121,6 @@ class getRefundsByCategoryController
                         'title' => $item['item']['title'],
                         'quantity' => $item['quantity'],
                         'price' => $item['unit_price'],
-                    ],
-                    'buyer' => $buyerInfo,
-                    'billing' => $billingInfoFormatted,
-                    'shipping' => [
-                        'shipping_id' => $order['shipping']['id'] ?? null,
-                        'tracking_number' => $shippingDetails['tracking_number'] ?? null,
-                        'shipping_status' => $shippingDetails['status'] ?? null,
-                        'shipping_address' => $shippingAddress,
                     ]
                 ];
             }
