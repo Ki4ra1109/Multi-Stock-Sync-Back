@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers\MercadoLibre\Products;
 
 use App\Http\Controllers\Controller;
@@ -10,14 +11,16 @@ class CreateProductController extends Controller
 {
     public function create(Request $request, $client_id)
     {
+        // Obtener credenciales
         $credentials = MercadoLibreCredential::where('client_id', $client_id)->first();
 
         if (!$credentials || $credentials->isTokenExpired()) {
             return response()->json(['status' => 'error', 'message' => 'Token no válido o expirado.'], 401);
         }
 
+        // Validar los datos recibidos
         $data = $request->validate([
-            'title' => 'required|string',
+            'title' => 'nullable|string', // Ahora es opcional, depende del catálogo
             'category_id' => 'required|string',
             'price' => 'required|numeric',
             'currency_id' => 'required|string',
@@ -29,13 +32,55 @@ class CreateProductController extends Controller
             'pictures.*.source' => 'required|url',
             'sale_terms' => 'nullable|array',
             'shipping' => 'required|array',
-            'family_name' => 'required|string', 
+            'attributes' => 'nullable|array',
+            'family_name' => 'nullable|string',
         ]);
 
-        unset($data['family_name']);
+        // Consultar si la categoría tiene catálogo obligatorio
+        $catalogRequired = false;
+        $categoryId = $data['category_id'];
 
+        $attributeResponse = Http::get("https://api.mercadolibre.com/categories/{$categoryId}/attributes");
+
+        if ($attributeResponse->successful()) {
+            foreach ($attributeResponse->json() as $attr) {
+                if (!empty($attr['tags']['catalog_required'])) {
+                    $catalogRequired = true;
+                    break;
+                }
+            }
+        }
+
+        // Construir el payload para enviar a MercadoLibre
+        $payload = [
+            'category_id' => $data['category_id'],
+            'condition' => $data['condition'],
+            'price' => $data['price'],
+            'currency_id' => $data['currency_id'],
+            'available_quantity' => $data['available_quantity'],
+            'description' => [
+                'plain_text' => $data['description']
+            ],
+            'listing_type_id' => $data['listing_type_id'],
+            'pictures' => $data['pictures'],
+            'shipping' => $data['shipping'],
+        ];
+
+        if (!$catalogRequired && !empty($data['title'])) {
+            $payload['title'] = $data['title'];
+        }
+
+        if (!empty($data['attributes'])) {
+            $payload['attributes'] = $data['attributes'];
+        }
+
+        if (!empty($data['sale_terms'])) {
+            $payload['sale_terms'] = $data['sale_terms'];
+        }
+
+        // Enviar producto a MercadoLibre
         $response = Http::withToken($credentials->access_token)
-            ->post('https://api.mercadolibre.com/items', $data);
+            ->post('https://api.mercadolibre.com/items', $payload);
 
         if ($response->failed()) {
             return response()->json([
