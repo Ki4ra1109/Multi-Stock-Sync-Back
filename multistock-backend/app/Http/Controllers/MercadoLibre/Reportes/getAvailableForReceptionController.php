@@ -86,7 +86,24 @@ class getAvailableForReceptionController
         
                         // Filtrar solo los envíos entregados
                         if ($shipmentData['status'] === 'shipped' || $shipmentData['status'] === 'delivered' && $shipmentData['substatus'] !== null) { 
-                            $shippingDetails[] = $shipmentData;
+                            $shippingDetails[] = [
+                                "shipping_id" => $shipmentData['id'],
+                                "productId" => $order['order_items'][0]['item']['id'],
+                                "title" => $shipmentData['shipping_items'][0]['description'] ?? null,
+                                "quantity" => $shipmentData['shipping_items'][0]['quantity'] ?? null,
+                                "size" => $shipmentData['shipping_items'][0]['dimensions'] ?? null,
+                                "substatus_history" => $shipmentData['substatus_history'] ?? null,
+                                "tracking_number" => $shipmentData['tracking_number'] ?? null,
+                                "receptor" => [
+                                    "receiver_id" => $shipmentData['receiver_id'],
+                                    "receiver_name" => $shipmentData['receiver_address']['receiver_name'],
+                                    "dirrection" => 
+                                        ($shipmentData['receiver_address']['state']['name'] ?? '') . ' - ' .
+                                        ($shipmentData['receiver_address']['city']['name'] ?? '') . ' - ' .
+                                        ($shipmentData['receiver_address']['address_line'] ?? ''),
+                                ],
+                                "substatus" => $shipmentData['substatus'],
+                            ];
                         }
                     }
                 }
