@@ -177,6 +177,7 @@ class getProductsToDispatchController
 
                     $productsToDispatch[] = [
                         'id' => $productId,
+                        'order_id' => $order['shipping']['id'],
                         'variation_id' => $variationId,
                         'title' => $item['item']['title'],
                         'quantity' => $item['quantity'],
