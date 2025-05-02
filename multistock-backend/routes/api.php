@@ -65,6 +65,7 @@ use App\Http\Controllers\Warehouses\warehouseCompanyShowController;
 use App\Http\Controllers\Warehouses\getCompareStockByProductiDController;
 use App\Http\Controllers\Warehouses\getPriceNetoStockController;
 use App\Http\Controllers\Warehouses\getWarehouseByCompanyIdController;
+use App\Http\Controllers\Warehouses\warehouseCreateMasiveProductStockController;
 
 // SalePoint //
 use App\Http\Controllers\SalePoint\createNewClientController;
@@ -144,6 +145,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/warehouse-stock/{id_mlc}', [warehouseUpdateStockForWarehouseController::class, 'stock_update']); // Actualizar por id_mlc
     Route::delete('/warehouse-stock/{id}', [warehouseDeleteStockController::class, 'stock_delete']); // Eliminar por ID
     Route::get('/warehouse/{warehouse_id}/stock', [warehouseGetStockByWarehouseController::class, 'getStockByWarehouse']); // Obtener stock por bodega
+    Route::post('/warehouse-stock-masive', [warehouseCreateMasiveProductStockController::class, 'warehouseCreateMasiveProductStock']); // Crear stock masivo
 
     //Stock Compare
     Route::get('/compare-stock/{id_mlc}/{idCompany}', [getCompareStockByProductiDController::class, 'getCompareStockByProductiD']); // Obtener stock por bodega
