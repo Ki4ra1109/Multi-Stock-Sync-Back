@@ -37,8 +37,6 @@ class getCancelledOrdersController
         }
 
         $userId = $userResponse->json()['id'];
-        $dateFrom = request()->query('date_from', date('Y-m-01'));
-        $dateTo = request()->query('date_to', date('Y-m-t'));
 
         $ordersData = [];
         $offset = 0;
@@ -48,8 +46,6 @@ class getCancelledOrdersController
             $params = [
                 'seller' => $userId,
                 'order.status' => 'cancelled',
-                'order.date_created.from' => "{$dateFrom}T00:00:00.000-00:00",
-                'order.date_created.to' => "{$dateTo}T23:59:59.999-00:00",
                 'limit' => $limit,
                 'offset' => $offset
             ];
@@ -87,7 +83,7 @@ class getCancelledOrdersController
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Órdenes canceladas simplificadas obtenidas con éxito.',
+            'message' => 'Órdenes canceladas obtenidas con éxito.',
             'orders' => $ordersData,
         ]);
     }
