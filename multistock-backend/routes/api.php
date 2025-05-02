@@ -64,6 +64,7 @@ use App\Http\Controllers\Warehouses\warehouseDeleteStockController;
 use App\Http\Controllers\Warehouses\warehouseCompanyShowController;
 use App\Http\Controllers\Warehouses\getCompareStockByProductiDController;
 use App\Http\Controllers\Warehouses\getPriceNetoStockController;
+use App\Http\Controllers\Warehouses\getWarehouseByCompanyIdController;
 
 // SalePoint //
 use App\Http\Controllers\SalePoint\createNewClientController;
@@ -136,6 +137,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/warehouses', [warehouseNewWarehouseStoreController::class, 'warehouse_store']);           // Crear bodega
     Route::patch('/warehouses/{id}', [warehouseUpdateDetailsController::class, 'warehouse_update']);    // Actualizar bodega
     Route::delete('/warehouses/{id}', [warehouseDeleteWarehouseByIdController::class, 'warehouse_delete']);   // Eliminar bodega
+    Route::get('/warehouses-by-company/{idCompany}', [getWarehouseByCompanyIdController::class, 'getWarehouseByCompany']); // Obtener bodegas por empresa
 
     // Stock-specific routes
     Route::post('/warehouse-stock-create', [warehouseCreateProductStockWarehouseController::class, 'stock_store_by_url']);
