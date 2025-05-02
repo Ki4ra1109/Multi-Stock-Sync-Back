@@ -65,6 +65,10 @@ use App\Http\Controllers\Warehouses\warehouseCompanyShowController;
 use App\Http\Controllers\Warehouses\getCompareStockByProductiDController;
 use App\Http\Controllers\Warehouses\getPriceNetoStockController;
 
+// SalePoint //
+use App\Http\Controllers\SalePoint\createNewClientController;
+use App\Http\Controllers\SalePoint\clientAllListController;
+use App\Http\Controllers\SalePoint\getProductByCompanyIdController;
 
 // LOGIN //
 
@@ -93,6 +97,7 @@ use App\Http\Controllers\MercadoLibre\Products\itemController;
 use App\Http\Controllers\MercadoLibre\Products\getStockController;
 use App\Http\Controllers\MercadoLibre\Products\putProductoByUpdateController;
 use App\Http\Controllers\MercadoLibre\Products\CreateProductController;
+use App\Http\Controllers\MercadoLibre\Products\getCatalogProductController;
 
 // SyncStatus //
 use App\Http\Controllers\SyncStatusController;
@@ -225,8 +230,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // Get stock sales history
     Route::get('/mercadolibre/stock-sales-history/{clientId}/{productId}', [getStockSalesHistoryController::class, 'getStockSalesHistory']);
 
-    // Get dispach history
-
     // Save MercadoLibre products to database
     Route::get('/mercadolibre/save-products/{client_id}', [MercadoLibreProductController::class, 'saveProducts']);
 
@@ -279,5 +282,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/mercadolibre/information-dispatch-delivered/{client_id}/{deliveredId}', [getInformationDispatchDeliveredController::class, 'getInformationDispatchDelivered']);
 
     Route::get('/mercadolibre/ordenes-canceladas/{clientId}', [getCancelledOrdersController::class, 'getCancelledOrders']);
+
+    //Create a new client
+    Route::post('/create-new-client', [createNewClientController::class, 'createNewClient']);
+
+    // Get catalog products
+    Route::get('/mercadolibre/products/{client_id}/catalogo', [getCatalogProductController::class, 'getCatalogProducts']);
+
+    // Get all clients
+    Route::get('/clients-all', [clientAllListController::class, 'clientAllList']);
+
+    // Get product by company ID
+    Route::get('/products-by-company/{idCompany}', [getProductByCompanyIdController::class, 'getProductByCompanyId']);
 
 });
