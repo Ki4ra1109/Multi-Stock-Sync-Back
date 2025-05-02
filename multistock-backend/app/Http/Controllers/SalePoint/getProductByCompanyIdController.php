@@ -14,17 +14,13 @@ class getProductByCompanyIdController{
     public function getProductByCompanyId($idCompany){
         try {
             $stock = DB::table('stock_warehouses')
-            ->join('warehouses', 'stock_warehouses.warehouse_id', '=', 'warehouses.id')
-            ->join('companies', 'warehouses.assigned_company_id', '=', 'companies.id')
-            ->where('warehouses.assigned_company_id', $idCompany)
-            ->where('stock_warehouses.available_quantity', '>', 0)
+            ->where('warehouse_id', $idCompany)
+            ->where('available_quantity', '>', 0)
             ->select(
                 'stock_warehouses.id_mlc',
                 'stock_warehouses.title',
                 'stock_warehouses.price',
                 'stock_warehouses.available_quantity',
-                'warehouses.name as warehouse_name',
-                'companies.name as company_name',
             )
             ->get();
             return response()->json(['message' => 'Stock encontrado con éxito.', 'data' => $stock], 200);
