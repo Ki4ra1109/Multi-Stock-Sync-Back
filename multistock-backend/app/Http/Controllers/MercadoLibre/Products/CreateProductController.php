@@ -33,7 +33,8 @@ class CreateProductController extends Controller
             'sale_terms' => 'nullable|array',
             'shipping' => 'required|array',
             'attributes' => 'nullable|array',
-            'family_name' => 'nullable|string',
+            'family_name' => 'required|string', // Ahora obligatorio si MercadoLibre lo exige
+            'catalog_product_id' => 'nullable|string'
         ]);
 
         // Consultar si la categoría tiene catálogo obligatorio
@@ -64,6 +65,7 @@ class CreateProductController extends Controller
             'listing_type_id' => $data['listing_type_id'],
             'pictures' => $data['pictures'],
             'shipping' => $data['shipping'],
+            'family_name' => $data['family_name'] // ✅ Se incluye en el payload
         ];
 
         if (!$catalogRequired && !empty($data['title'])) {
@@ -76,6 +78,10 @@ class CreateProductController extends Controller
 
         if (!empty($data['sale_terms'])) {
             $payload['sale_terms'] = $data['sale_terms'];
+        }
+
+        if (!empty($data['catalog_product_id'])) {
+            $payload['catalog_product_id'] = $data['catalog_product_id'];
         }
 
         // Enviar producto a MercadoLibre
