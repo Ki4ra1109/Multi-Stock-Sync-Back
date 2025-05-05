@@ -23,7 +23,7 @@ class getCatalogProductController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Falta el parámetro title'], 422);
         }
 
-        // 1. Predecir categoría y familia
+        // 1. Predicción de categoría
         $prediction = Http::get('https://api.mercadolibre.com/sites/MLC/domain_discovery/search', [
             'q' => $title,
             'limit' => 1
@@ -45,8 +45,24 @@ class getCatalogProductController extends Controller
         $domainName = $data['domain_name'] ?? null;
         $familyId = $data['family_id'] ?? null;
         $familyName = null;
+        $familyAvailable = false;
 
-        // 2. Si hay family_id, buscar nombre de familia
+        // Atributos detectados como catálogo (opcional)
+        $catalogAttributesDetected = !empty($data['attributes']);
+        $suggestedAttributes = [];
+
+        if ($catalogAttributesDetected) {
+            foreach ($data['attributes'] as $attr) {
+                $suggestedAttributes[] = [
+                    'id' => $attr['id'],
+                    'name' => $attr['name'],
+                    'value_id' => $attr['value_id'] ?? null,
+                    'value_name' => $attr['value_name'] ?? null
+                ];
+            }
+        }
+
+        // 2. Si hay family_id, buscar family_name real desde un producto
         if ($familyId) {
             $familyResponse = Http::get('https://api.mercadolibre.com/products/search', [
                 'category_id' => $categoryId,
@@ -60,8 +76,14 @@ class getCatalogProductController extends Controller
 
                 if ($productDetail->ok()) {
                     $familyName = $productDetail->json()['name'] ?? null;
+                    $familyAvailable = true;
                 }
             }
+        }
+
+        // ✅ Si family_name sigue siendo null, usamos el domain_name como alternativa
+        if (!$familyName && $domainName) {
+            $familyName = $domainName;
         }
 
         return response()->json([
@@ -72,7 +94,10 @@ class getCatalogProductController extends Controller
             'domain_id' => $domainId,
             'domain_name' => $domainName,
             'family_id' => $familyId,
-            'family_name' => $familyName
+            'family_name' => $familyName,
+            'family_available' => $familyAvailable,
+            'catalog_attributes_detected' => $catalogAttributesDetected,
+            'suggested_attributes' => $suggestedAttributes
         ]);
     }
 }
