@@ -68,7 +68,7 @@ class CreateProductController extends Controller
             'family_name' => $data['family_name'] // ✅ Se incluye en el payload
         ];
 
-        if (!$catalogRequired && !empty($data['title'])) {
+        if (empty($data['catalog_product_id']) && !empty($data['title'])) {
             $payload['title'] = $data['title'];
         }
 
@@ -80,10 +80,10 @@ class CreateProductController extends Controller
             $payload['sale_terms'] = $data['sale_terms'];
         }
 
-        if (!empty($data['catalog_product_id'])) {
+        if (!empty($data['catalog_product_id']) && $data['catalog_product_id'] !== "undefined") {
             $payload['catalog_product_id'] = $data['catalog_product_id'];
         }
-
+        
         // Enviar producto a MercadoLibre
         $response = Http::withToken($credentials->access_token)
             ->post('https://api.mercadolibre.com/items', $payload);
