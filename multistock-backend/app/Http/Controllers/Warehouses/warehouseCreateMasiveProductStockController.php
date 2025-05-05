@@ -11,7 +11,7 @@ use Knackline\ExcelTo\ExcelTo;
 
 class warehouseCreateMasiveProductStockController{
 
-    public function warehouseCreateMasiveProductStock(Request $request){
+    public function warehouseCreateMasiveProductStock(Request $request, $warehouseId){
     try {
         $request->validate([
             'excel_file' => 'required|file|mimes:xlsx,xls,csv',
@@ -32,20 +32,18 @@ class warehouseCreateMasiveProductStockController{
             // Guardar cada fila como un nuevo producto
             foreach($jsonData as $json){
                 $validator = Validator::make($row, [
-                    'id_mlc' => 'nullable|string|max:255',
-                    'warehouse_id' => 'required|integer',
                     'title' => 'required|string|max:255',
-                    'price' => 'required|numeric',
-                    'available_quantity' => 'required|integer',
+                    'precio' => 'required|numeric',
+                    'cantidad' => 'required|integer',
                     'condicion' => 'required|string|max:255',
-                    'currency_id' => 'required|string|max:255',
-                    'listing_type_id' => 'required|string|max:255',
-                    'category_id' => 'nullable|string|max:255',
-                    'attribute' => 'nullable|array',
-                    'pictures' => 'nullable|array',
+                    'tipo_moneda' => 'required|string|max:255',
+                    'tipo_publicidad' => 'required|string|max:255',
+                    'categoria_id' => 'nullable|string|max:255',
+                    'atributos' => 'nullable|array',
+                    'imagenes' => 'nullable|array',
                     'sale_terms' => 'nullable|array',
-                    'shipping' => 'nullable|array',
-                    'description' => 'nullable|string',
+                    'envio' => 'nullable|array',
+                    'descripcion' => 'nullable|string',
                 ]);
 
                 if ($validator->fails()) {
@@ -59,20 +57,19 @@ class warehouseCreateMasiveProductStockController{
                 $validated = $validator->validated();
 
                 StockWarehouse::create([
-                    'id_mlc' => $validated['id_mlc'] ?? null,
-                    'warehouse_id' => $validated['warehouse_id'],
+                    'warehouse_id' => $warehouseId, // pedir el campo cuando se envie
                     'title' => $validated['title'],
-                    'price' => $validated['price'],
+                    'price' => $validated['precio'],
                     'condicion' => $validated['condicion'],
-                    'currency_id' => $validated['currency_id'],
-                    'listing_type_id' => $validated['listing_type_id'],
-                    'available_quantity' => $validated['available_quantity'],
-                    'category_id' => $validated['category_id'] ?? null,
-                    'attribute' => isset($validated['attribute']) ? json_encode($validated['attribute']) : json_encode([]),
-                    'pictures' => isset($validated['pictures']) ? json_encode($validated['pictures']) : json_encode([]),
+                    'currency_id' => $validated['tipo_moneda'],
+                    'listing_type_id' => $validated['tipo_publicidad'],
+                    'available_quantity' => $validated['cantidad'],
+                    'category_id' => $validated['categoria_id'] ?? null,
+                    'attribute' => isset($validated['atributos']) ? json_encode($validated['atributos']) : json_encode([]),
+                    'pictures' => isset($validated['imagenes']) ? json_encode($validated['imagenes']) : json_encode([]),
                     'sale_terms' => isset($validated['sale_terms']) ? json_encode($validated['sale_terms']) : json_encode([]),
-                    'shipping' => isset($validated['shipping']) ? json_encode($validated['shipping']) : json_encode([]),
-                    'description' => $validated['description'] ?? '',
+                    'shipping' => isset($validated['envio']) ? json_encode($validated['envio']) : json_encode([]),
+                    'description' => $validated['descripcion'] ?? '',
                 ]);
             }
 

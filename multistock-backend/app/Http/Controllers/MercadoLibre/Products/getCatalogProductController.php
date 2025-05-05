@@ -45,23 +45,34 @@ class getCatalogProductController extends Controller
         $domainName = $data['domain_name'] ?? null;
         $familyId = $data['family_id'] ?? null;
         $familyName = null;
+        $catalogProducts = [];
 
-        // 2. Si hay family_id, buscar nombre de familia
+        // 2. Si hay family_id, buscar productos y nombre de familia
         if ($familyId) {
-            $familyResponse = Http::get('https://api.mercadolibre.com/products/search', [
+            // Obtener productos del catálogo
+            $productsResponse = Http::get('https://api.mercadolibre.com/products/search', [
                 'category_id' => $categoryId,
-                'family_id' => $familyId,
-                'limit' => 1
+                'family_id' => $familyId
             ]);
 
-            if ($familyResponse->ok() && !empty($familyResponse->json()['results'])) {
-                $firstProductId = $familyResponse->json()['results'][0];
-                $productDetail = Http::get("https://api.mercadolibre.com/products/{$firstProductId}");
+            if ($productsResponse->ok()) {
+                $catalogProducts = $productsResponse->json()['results'] ?? [];
 
-                if ($productDetail->ok()) {
-                    $familyName = $productDetail->json()['name'] ?? null;
+                // Obtener nombre de la familia desde el primer producto
+                if (!empty($catalogProducts)) {
+                    $firstProductId = $catalogProducts[0];
+                    $productDetail = Http::get("https://api.mercadolibre.com/products/{$firstProductId}");
+
+                    if ($productDetail->ok()) {
+                        $familyName = $productDetail->json()['name'] ?? null;
+                    }
                 }
             }
+        }
+
+        // Fallback: si no se pudo obtener family_name, usar domain_name
+        if (!$familyName && $domainName) {
+            $familyName = $domainName;
         }
 
         return response()->json([
@@ -72,7 +83,8 @@ class getCatalogProductController extends Controller
             'domain_id' => $domainId,
             'domain_name' => $domainName,
             'family_id' => $familyId,
-            'family_name' => $familyName
+            'family_name' => $familyName,
+            'products' => $catalogProducts
         ]);
     }
 }
