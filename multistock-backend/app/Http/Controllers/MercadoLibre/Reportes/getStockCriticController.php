@@ -93,7 +93,7 @@ class getStockCriticController{
                 $sku = $itemData['seller_custom_field'] ?? null;
                 $skuSource = 'not_found';
                 
-                // 2. Si no está, buscar en seller_sku del producto
+                // 2. Si no está, buscar en seller_sku del prod
                 if (empty($sku)) {
                     if (isset($itemData['seller_sku'])) {
                         $sku = $itemData['seller_sku'];
