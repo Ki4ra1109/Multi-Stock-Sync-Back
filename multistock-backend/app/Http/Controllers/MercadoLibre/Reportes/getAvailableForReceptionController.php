@@ -112,14 +112,14 @@ class getAvailableForReceptionController
 
         if (empty($shippingDetails)) {
             return response()->json([
-                'status' => 'error',
-                'message' => 'No se encontraron envíos entregados disponibles para recepción.',
-            ], 404);
+                'status' => 'No hay envios en transito',
+                'message' => $shippingDetails,
+            ]);
         }
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Envíos entregados obtenidos con éxito.',
+            'message' => 'Envíos en transito obtenidos con éxito.',
             "total envios" => count($shippingDetails),
             'data' => $shippingDetails,
         ]);
