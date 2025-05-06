@@ -309,7 +309,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/generated-sale-note/{status}', [generatedSaleNoteController::class, 'generatedSaleNote']);
 
     //Get history sale
-    Route::get('/history-sale/{client_id}', [getHistorySaleController::class, 'getHistorySale']);
+    Route::get('/history-sale/{companyId}', [getHistorySaleController::class, 'getHistorySale']);
 
     //Get history sale Pendient
     Route::get('/history-sale-pendient/{client_id}', [getHistoryPendientController::class, 'getHistoryPendient']);
