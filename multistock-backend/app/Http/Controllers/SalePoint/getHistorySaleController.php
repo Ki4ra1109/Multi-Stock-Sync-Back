@@ -9,27 +9,34 @@ use Illuminate\Support\Facades\DB;
 
 class getHistorySaleController{
 
-    public function getHistorySale(Request $request){
+    public function getHistorySale(Request $request, $companyId){
         try{
             // Validar los datos de entrada
-            $clientId = (int) $request->input('client_id', null);
-            $dateStart = $request->input('date_start', null);
-            $allSale = $request->input('allSale', null);
-            $state = $request->input('state', null);
-
-            $historySale = Sale::query()
+            $clientId = $request->input('client_id');
+            $dateStart = $request->input('date_start');
+            $allSale = $request->input('all_sale');
+            $status_sale = $request->input('status_sale');
+            
+            $historySale = DB::Table("sale")
+                ->join('warehouses', 'sale.warehouse_id', '=', 'warehouses.id')
+                ->join('companies', 'companies.id', '=', 'warehouses.assigned_company_id')
+                ->select(
+                    'sale.*',
+                    'warehouses.name as warehouse_name'
+                )
                 ->when(!is_null($clientId), function ($query) use ($clientId) {
-                    return $query->where('client_id', $clientId);
+                    return $query->where('companies.client_id', $clientId);
                 })
                 ->when(!is_null($dateStart), function ($query) use ($dateStart) {
-                    return $query->whereDate('created_at', '>=', $dateStart);
+                    return $query->whereDate('sale.created_at', '>=', $dateStart);
                 })
                 ->when(!is_null($allSale), function ($query) use ($allSale) {
-                    return $query->where('amount_total_products', $allSale);
+                    return $query->where('sale.amount_total_products', $allSale);
                 })
-                ->when(!is_null($state), function ($query) use ($state) {
-                    return $query->where('state_sale', $state);
+                ->when(!is_null($status_sale), function ($query) use ($status_sale) {
+                    return $query->where('sale.status_sale', $status_sale);
                 })
+                ->where('companies.client_id', $companyId)
                 ->get();
 
             return response()->json([
