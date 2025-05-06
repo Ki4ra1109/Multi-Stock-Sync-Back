@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Http;
 
 class ProductWarehouseMLMasiveController extends Controller
 {
-    public function DescargarPlantillaML($clientId, $categoryId)
+    public function DescargarPlantillaML($clientId)
     {
         $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
 
@@ -27,11 +27,9 @@ class ProductWarehouseMLMasiveController extends Controller
             ], 401);
         }
 
-        // Obtener plantilla de Excel desde Mercado Libre
+        // Consulta sin categoría
         $response = Http::withToken($credentials->access_token)
-            ->get('https://api.mercadolibre.com/catalog_templates', [
-                'category_id' => $categoryId
-            ]);
+            ->get('https://api.mercadolibre.com/catalog_templates');
 
         if ($response->failed()) {
             return response()->json([
@@ -46,13 +44,12 @@ class ProductWarehouseMLMasiveController extends Controller
         if (empty($data['templates'][0]['file_url'])) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'No hay plantilla disponible para la categoría indicada.',
+                'message' => 'No hay plantilla disponible.',
             ], 404);
         }
 
         $fileUrl = $data['templates'][0]['file_url'];
 
-        // Descargar archivo .xlsx
         $fileResponse = Http::get($fileUrl);
 
         if ($fileResponse->failed()) {
@@ -64,7 +61,7 @@ class ProductWarehouseMLMasiveController extends Controller
 
         return response($fileResponse->body(), 200, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Content-Disposition' => 'attachment; filename="plantilla_' . $categoryId . '.xlsx"',
+            'Content-Disposition' => 'attachment; filename="plantilla_generica.xlsx"',
         ]);
     }
 }
