@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 
 class getHistorySaleController{
 
-    public function getHistorySale(Request $request){
+    public function getHistorySale(Request $request, $companyId){
         try{
             // Validar los datos de entrada
             $clientId = $request->input('client_id');
@@ -36,6 +36,7 @@ class getHistorySaleController{
                 ->when(!is_null($status_sale), function ($query) use ($status_sale) {
                     return $query->where('sale.status_sale', $status_sale);
                 })
+                ->where('companies.client_id', $companyId)
                 ->get();
 
             return response()->json([
