@@ -28,6 +28,7 @@ class generatedSaleNoteController{
                     'observation' => 'nullable|string|max:255',
                 ]);
 
+                $validateData["products"] = json_encode($validateData["products"]);
                 $validateData["status_sale"] = $status;
 
                 $venta = Sale::create($validateData);   
@@ -46,6 +47,7 @@ class generatedSaleNoteController{
                     'name_companies' => 'required|string|max:255',
                 ]);
 
+                $validateData["products"] = json_encode($validateData["products"]);
                 $validateData["status_sale"] = $status;
 
                 $venta = Sale::create($validateData);
