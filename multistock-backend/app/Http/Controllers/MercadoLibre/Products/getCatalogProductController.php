@@ -23,7 +23,7 @@ class getCatalogProductController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Falta el parámetro title'], 422);
         }
 
-        // 1. Predecir categoría y familia
+        // 1. Predicción de categoría
         $prediction = Http::get('https://api.mercadolibre.com/sites/MLC/domain_discovery/search', [
             'q' => $title,
             'limit' => 1
@@ -47,7 +47,7 @@ class getCatalogProductController extends Controller
         $familyName = null;
         $catalogProducts = [];
 
-        // 2. Si hay family_id, buscar productos y nombre de familia
+        // 2. Si hay family_id, buscar nombre de familia
         if ($familyId) {
             // Obtener productos del catálogo
             $productsResponse = Http::get('https://api.mercadolibre.com/products/search', [
@@ -63,14 +63,14 @@ class getCatalogProductController extends Controller
                     $firstProductId = $catalogProducts[0];
                     $productDetail = Http::get("https://api.mercadolibre.com/products/{$firstProductId}");
 
-                    if ($productDetail->ok()) {
-                        $familyName = $productDetail->json()['name'] ?? null;
+                if ($productDetail->ok()) {
+                    $familyName = $productDetail->json()['name'] ?? null;
                     }
                 }
             }
         }
 
-        // Fallback: si no se pudo obtener family_name, usar domain_name
+        // ✅ Si family_name sigue siendo null, usamos el domain_name como alternativa
         if (!$familyName && $domainName) {
             $familyName = $domainName;
         }
@@ -83,8 +83,7 @@ class getCatalogProductController extends Controller
             'domain_id' => $domainId,
             'domain_name' => $domainName,
             'family_id' => $familyId,
-            'family_name' => $familyName,
-            'products' => $catalogProducts
+            'family_name' => $familyName
         ]);
     }
 }
