@@ -73,6 +73,7 @@ use App\Http\Controllers\SalePoint\clientAllListController;
 use App\Http\Controllers\SalePoint\getProductByCompanyIdController;
 use App\Http\Controllers\SalePoint\generatedSaleNoteController;
 use App\Http\Controllers\SalePoint\getHistorySaleController;
+use App\Http\Controllers\SalePoint\getHistoryPendientController;
 
 // LOGIN //
 
@@ -308,6 +309,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/generated-sale-note/{status}', [generatedSaleNoteController::class, 'generatedSaleNote']);
 
     //Get history sale
-    Route::get('/history-sale', [getHistorySaleController::class, 'getHistorySale']);
+    Route::get('/history-sale/{client_id}', [getHistorySaleController::class, 'getHistorySale']);
+
+    //Get history sale Pendient
+    Route::get('/history-sale-pendient/{client_id}', [getHistoryPendientController::class, 'getHistoryPendient']);
 
 });
