@@ -137,15 +137,8 @@ class getStockCriticController{
                     'id' => $itemData['id'],
                     'title' => $itemData['title'],
                     'available_quantity' => $itemData['available_quantity'],
-                    'stock_reload_date' => $itemData['date_created'],
-                    'purchase_sale_date' => $itemData['last_updated'],
-                    "price" => $itemData['price'],
-                    'sku' => $sku,
-                    'details' => $itemData['attributes'],
-                    'sku_source' => $skuSource,
-                    'sku_missing_reason' => $skuSource === 'not_found' ? 
-                        'No se encontraron campos seller_custom_field, seller_sku ni atributos SKU en el producto' : null,
                 ];
+                
             }
         }
 
