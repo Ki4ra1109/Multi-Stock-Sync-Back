@@ -14,5 +14,5 @@ class Sale extends Model
     protected $table = 'sale';
 
     // Campos que se pueden asignar en masa
-    protected $fillable = ['warehouse_id', 'cliente_id', 'products', 'amount', 'price_subtotal', 'price_total', 'type_emission', 'observation', 'name_companies'];
+    protected $fillable = ['warehouse_id', 'client_id', 'products', 'amount_total_products', 'price_subtotal', 'price_final', 'type_emission', 'observation', 'name_companies', 'status'];
 }
