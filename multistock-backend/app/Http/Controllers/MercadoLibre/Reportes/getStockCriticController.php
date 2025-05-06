@@ -9,11 +9,11 @@ use Illuminate\Http\Request;
 class getStockCriticController{
 
     public function getStockCritic($clienteId, $year = null, $month = null, $day = null){
-        set_time_limit(0); // Desactivar el límite de tiempo de ejecución
+        set_time_limit(0); // Desactivar el límite de tiempo de la ejecución
         // Obtener las credenciales de Mercado Libre por client_id
         $credentials = MercadoLibreCredential::where('client_id', $clienteId)->first();
 
-        // Verificar si las credenciales existen
+        // Verificar si las credenciales existen 
         if (!$credentials) {
             return response()->json([
                 'status' => 'error',
