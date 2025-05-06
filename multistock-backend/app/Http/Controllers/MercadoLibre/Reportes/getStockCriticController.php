@@ -78,43 +78,31 @@ class getStockCriticController{
             ], $response->status());
         }
 
-        $minStock = 5; // Stock mínimo general
-
         $items = $response->json()['results'];
         $productsStock = [];
 
         foreach ($items as $itemId) {
-         $totalItems++;
-         $itemResponse = Http::withToken($credentials->access_token)
-        ->get("https://api.mercadolibre.com/items/{$itemId}");
+            $totalItems++;
+            $itemResponse = Http::withToken($credentials->access_token)
+                ->get("https://api.mercadolibre.com/items/{$itemId}");
 
-        if ($itemResponse->successful()) {
-            $itemData = $itemResponse->json();
-        
-            // Buscar el producto en la base de datos por meli_id
-            $productLocal = \App\Models\Product::where('meli_id', $itemData['id'])->first();
-            
-            // Si se encontró en la base de datos, obtener su stock_minimo (si es nulo quedara en 5 por defecto)
-            $stockMinimo = $productLocal ? $productLocal->stock_minimo : 5;
-        
-            // Comparar con el stock mínimo de la base
-            if ($itemData['available_quantity'] <= $stockMinimo) {
-        
-        $itemData = $itemResponse->json();
-        
-        // 1. Primero buscar en seller_custom_field del ítem
-        $sku = $itemData['seller_custom_field'] ?? null;
-        $skuSource = 'not_found';
-        
-        // 2. Si no está, buscar en seller_sku del producto
-        if (empty($sku)) {
-            if (isset($itemData['seller_sku'])) {
-                $sku = $itemData['seller_sku'];
-                $skuSource = 'seller_sku';
-            }
-        } else {
-            $skuSource = 'seller_custom_field';
-        }
+            if ($itemResponse->successful() && $itemResponse['available_quantity'] <= 5) {
+                $itemData = $itemResponse->json();
+                
+                // 1. Primero buscar en seller_custom_field del ítem
+                $sku = $itemData['seller_custom_field'] ?? null;
+                $skuSource = 'not_found';
+                
+                // 2. Si no está, buscar en seller_sku del producto
+                if (empty($sku)) {
+                    if (isset($itemData['seller_sku'])) {
+                        $sku = $itemData['seller_sku'];
+                        $skuSource = 'seller_sku';
+                    }
+                } else {
+                    $skuSource = 'seller_custom_field';
+                }
+
                 // 3. Si aún no se encontró, buscar en los atributos del producto
                 if (empty($sku) && isset($itemData['attributes'])) {
                     foreach ($itemData['attributes'] as $attribute) {
@@ -145,13 +133,6 @@ class getStockCriticController{
                     $sku = 'No se encuentra disponible en mercado libre';
                 }
 
-                // Mensaje de alerta de ser necesario
-                $stockAlert = null;
-                if ($itemData['available_quantity'] <= $minStock) {
-                    $stockAlert = "El stock del producto '{$itemData['title']}' está por debajo del mínimo definido (stock actual: {$itemData['available_quantity']}, mínimo definido: {$minStock})";
-                }
-                
-
                 $productsStock[] = [
                     'id' => $itemData['id'],
                     'title' => $itemData['title'],
@@ -163,28 +144,16 @@ class getStockCriticController{
                     'details' => $itemData['attributes'],
                     'sku_source' => $skuSource,
                     'sku_missing_reason' => $skuSource === 'not_found' ? 
-                    'No se encontraron campos seller_custom_field, seller_sku ni atributos SKU en el producto' : null,
-                    'stock_alert' => $stockAlert,
-        ];
+                        'No se encontraron campos seller_custom_field, seller_sku ni atributos SKU en el producto' : null,
+                ];
+            }
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Stock de productos obtenidos con éxito.',
+            "products_count" => $totalItems,
+            'data' => $productsStock,
+        ]);
     }
-}
-
-
-$alerts = [];
-
-foreach ($productsStock as $product) {
-    if ($product['stock_alert']) {
-        $alerts[] = $product['stock_alert'];
-    }
-}
-
-return response()->json([
-    'status' => 'success',
-    'message' => 'Stock de productos obtenidos con éxito.',
-    'products_count' => $totalItems,
-    'alerts' => $alerts,
-    'data' => $productsStock,
-]);
-}
-}
 }

@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers\MercadoLibre\Products;
 
 use App\Http\Controllers\Controller;
@@ -11,16 +10,14 @@ class CreateProductController extends Controller
 {
     public function create(Request $request, $client_id)
     {
-        // Obtener credenciales
         $credentials = MercadoLibreCredential::where('client_id', $client_id)->first();
 
         if (!$credentials || $credentials->isTokenExpired()) {
             return response()->json(['status' => 'error', 'message' => 'Token no válido o expirado.'], 401);
         }
 
-        // Validar los datos recibidos
         $data = $request->validate([
-            'title' => 'nullable|string', // Ahora es opcional, depende del catálogo
+            'title' => 'required|string',
             'category_id' => 'required|string',
             'price' => 'required|numeric',
             'currency_id' => 'required|string',
@@ -86,7 +83,7 @@ class CreateProductController extends Controller
         
         // Enviar producto a MercadoLibre
         $response = Http::withToken($credentials->access_token)
-            ->post('https://api.mercadolibre.com/items', $payload);
+            ->post('https://api.mercadolibre.com/items', $data);
 
         if ($response->failed()) {
             return response()->json([

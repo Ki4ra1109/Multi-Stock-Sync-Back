@@ -9,48 +9,45 @@ use Illuminate\Support\Facades\DB;
 
 class generatedSaleNoteController{
 
-    public function generatedSaleNote(Request $request){
+    public function generatedSaleNote(Request $request, $status){
 
         try{
-
-            $warehouseId = (int) $request->input('warehouse_id');
-            $clientId = (int) $request->input('cliente_id');
-            $products = $request->input('products');
-            $amount_total_product = (int) $request->input('amount');
-            $price_subtotal = (int) $request->input('price_subtotal');
-            $price_total = (int) $request->input('price_total');
-            $name_companies = $request->input('name_companies', null);
             $type_emission = $request->input('type_emission');
-            $observation = $request->input('observation');
 
             // Validar el tipo de emisión
             if ($type_emission === 'boleta') {
                 //Validar los datos de entrada para boleta
                 $validateData = $request->validate([
                     'warehouse_id' => 'required|integer|exists:warehouses,id',
-                    'cliente_id' => 'required|integer|exists:clients,id',
+                    'client_id' => 'required|integer|exists:clientes,id',
                     'products' => 'required|array',
-                    'amount' => 'required|integer',
+                    'amount_total_products' => 'required|integer',
                     'price_subtotal' => 'required|integer',
-                    'price_total' => 'required|integer',
+                    'price_final' => 'required|integer',
                     'type_emission' => 'required|string|max:255',
                     'observation' => 'nullable|string|max:255',
                 ]);
+
+                $validateData["status_sale"] = $status;
+
                 $venta = Sale::create($validateData);   
 
             } else if ($type_emission === 'factura') {
                 //Validar los datos de entrada para factura
                 $validateData = $request->validate([
                     'warehouse_id' => 'required|integer|exists:warehouses,id',
-                    'cliente_id' => 'required|integer|exists:clients,id',
+                    'client_id' => 'required|integer|exists:clientes,id',
                     'products' => 'required|array',
-                    'amount' => 'required|integer',
+                    'amount_total_products' => 'required|integer',
                     'price_subtotal' => 'required|integer',
-                    'price_total' => 'required|integer',
+                    'price_final' => 'required|integer',
                     'type_emission' => 'required|string|max:255',
                     'observation' => 'nullable|string|max:255',
                     'name_companies' => 'required|string|max:255',
                 ]);
+
+                $validateData["status_sale"] = $status;
+
                 $venta = Sale::create($validateData);
 
             } else {
