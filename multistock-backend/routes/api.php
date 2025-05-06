@@ -100,6 +100,7 @@ use App\Http\Controllers\MercadoLibre\Products\getStockController;
 use App\Http\Controllers\MercadoLibre\Products\putProductoByUpdateController;
 use App\Http\Controllers\MercadoLibre\Products\CreateProductController;
 use App\Http\Controllers\MercadoLibre\Products\getCatalogProductController;
+use \App\Http\Controllers\MercadoLibre\Products\ProductWarehouseMLMasiveController;
 
 // SyncStatus //
 use App\Http\Controllers\SyncStatusController;
@@ -298,5 +299,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Get product by company ID
     Route::get('/products-by-company/{idCompany}', [getProductByCompanyIdController::class, 'getProductByCompanyId']);
+
+    Route::get('/mercadolibre/plantilla/{clientId}/{categoryId}', [ProductWarehouseMLMasiveController::class, 'DescargarPlantillaML']);
 
 });
