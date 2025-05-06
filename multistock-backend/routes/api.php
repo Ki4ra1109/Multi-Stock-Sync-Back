@@ -302,6 +302,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Get product by company ID
     Route::get('/products-by-company/{idCompany}', [getProductByCompanyIdController::class, 'getProductByCompanyId']);
 
+    oute::get('/mercadolibre/plantilla/{clientId}/{categoryId}', [ProductWarehouseMLMasiveController::class, 'DescargarPlantillaML']);
+
     //SalePoint
     Route::post('/generated-sale-note/{status}', [generatedSaleNoteController::class, 'generatedSaleNote']);
 

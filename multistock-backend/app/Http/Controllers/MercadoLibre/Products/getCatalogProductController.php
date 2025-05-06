@@ -65,6 +65,7 @@ class getCatalogProductController extends Controller
 
                 if ($productDetail->ok()) {
                     $familyName = $productDetail->json()['name'] ?? null;
+                    }
                 }
             }
         }
