@@ -45,38 +45,26 @@ class getCatalogProductController extends Controller
         $domainName = $data['domain_name'] ?? null;
         $familyId = $data['family_id'] ?? null;
         $familyName = null;
-        $familyAvailable = false;
+        $catalogProducts = [];
 
-        // Atributos detectados como catálogo (opcional)
-        $catalogAttributesDetected = !empty($data['attributes']);
-        $suggestedAttributes = [];
-
-        if ($catalogAttributesDetected) {
-            foreach ($data['attributes'] as $attr) {
-                $suggestedAttributes[] = [
-                    'id' => $attr['id'],
-                    'name' => $attr['name'],
-                    'value_id' => $attr['value_id'] ?? null,
-                    'value_name' => $attr['value_name'] ?? null
-                ];
-            }
-        }
-
-        // 2. Si hay family_id, buscar family_name real desde un producto
+        // 2. Si hay family_id, buscar nombre de familia
         if ($familyId) {
-            $familyResponse = Http::get('https://api.mercadolibre.com/products/search', [
+            // Obtener productos del catálogo
+            $productsResponse = Http::get('https://api.mercadolibre.com/products/search', [
                 'category_id' => $categoryId,
-                'family_id' => $familyId,
-                'limit' => 1
+                'family_id' => $familyId
             ]);
 
-            if ($familyResponse->ok() && !empty($familyResponse->json()['results'])) {
-                $firstProductId = $familyResponse->json()['results'][0];
-                $productDetail = Http::get("https://api.mercadolibre.com/products/{$firstProductId}");
+            if ($productsResponse->ok()) {
+                $catalogProducts = $productsResponse->json()['results'] ?? [];
+
+                // Obtener nombre de la familia desde el primer producto
+                if (!empty($catalogProducts)) {
+                    $firstProductId = $catalogProducts[0];
+                    $productDetail = Http::get("https://api.mercadolibre.com/products/{$firstProductId}");
 
                 if ($productDetail->ok()) {
                     $familyName = $productDetail->json()['name'] ?? null;
-                    $familyAvailable = true;
                 }
             }
         }
@@ -94,10 +82,7 @@ class getCatalogProductController extends Controller
             'domain_id' => $domainId,
             'domain_name' => $domainName,
             'family_id' => $familyId,
-            'family_name' => $familyName,
-            'family_available' => $familyAvailable,
-            'catalog_attributes_detected' => $catalogAttributesDetected,
-            'suggested_attributes' => $suggestedAttributes
+            'family_name' => $familyName
         ]);
     }
 }

@@ -71,6 +71,8 @@ use App\Http\Controllers\Warehouses\warehouseCreateMasiveProductStockController;
 use App\Http\Controllers\SalePoint\createNewClientController;
 use App\Http\Controllers\SalePoint\clientAllListController;
 use App\Http\Controllers\SalePoint\getProductByCompanyIdController;
+use App\Http\Controllers\SalePoint\generatedSaleNoteController;
+use App\Http\Controllers\SalePoint\getHistorySaleController;
 
 // LOGIN //
 
@@ -139,14 +141,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/warehouses', [warehouseNewWarehouseStoreController::class, 'warehouse_store']);           // Crear bodega
     Route::patch('/warehouses/{id}', [warehouseUpdateDetailsController::class, 'warehouse_update']);    // Actualizar bodega
     Route::delete('/warehouses/{id}', [warehouseDeleteWarehouseByIdController::class, 'warehouse_delete']);   // Eliminar bodega
-    Route::get('/warehouses-by-company/{idCompany}', [getWarehouseByCompanyIdController::class, 'getWarehouseByCompany']); // Obtener bodegas por empresa
+    Route::get('/warehouses-by-company/{client_id}', [getWarehouseByCompanyIdController::class, 'getWarehouseByCompany']); // Obtener bodegas por empresa
 
     // Stock-specific routes
     Route::post('/warehouse-stock-create', [warehouseCreateProductStockWarehouseController::class, 'stock_store_by_url']);
     Route::put('/warehouse-stock/{id_mlc}', [warehouseUpdateStockForWarehouseController::class, 'stock_update']); // Actualizar por id_mlc
     Route::delete('/warehouse-stock/{id}', [warehouseDeleteStockController::class, 'stock_delete']); // Eliminar por ID
     Route::get('/warehouse/{warehouse_id}/stock', [warehouseGetStockByWarehouseController::class, 'getStockByWarehouse']); // Obtener stock por bodega
-    Route::post('/warehouse-stock-masive', [warehouseCreateMasiveProductStockController::class, 'warehouseCreateMasiveProductStock']); // Crear stock masivo
+    Route::post('/warehouse-stock-masive/{warehouseId}', [warehouseCreateMasiveProductStockController::class, 'warehouseCreateMasiveProductStock']); // Crear stock masivo
 
     //Stock Compare
     Route::get('/compare-stock/{id_mlc}/{idCompany}', [getCompareStockByProductiDController::class, 'getCompareStockByProductiD']); // Obtener stock por bodega
@@ -300,6 +302,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // Get product by company ID
     Route::get('/products-by-company/{idCompany}', [getProductByCompanyIdController::class, 'getProductByCompanyId']);
 
-    Route::get('/mercadolibre/plantilla/{clientId}/{categoryId}', [ProductWarehouseMLMasiveController::class, 'DescargarPlantillaML']);
+    //SalePoint
+    Route::post('/generated-sale-note/{status}', [generatedSaleNoteController::class, 'generatedSaleNote']);
+
+    //Get history sale
+    Route::get('/history-sale', [getHistorySaleController::class, 'getHistorySale']);
 
 });

@@ -11,12 +11,12 @@ use Illuminate\Support\Facades\DB;
 
 class getWarehouseByCompanyIdController{
 
-     public function getWarehouseByCompany($idCompany)
+     public function getWarehouseByCompany($clientId)
      {
          try {
             $stock = DB::table('warehouses')
             ->join('companies', 'warehouses.assigned_company_id', '=', 'companies.id')
-            ->where('warehouses.assigned_company_id', $idCompany)
+            ->where('companies.client_id', $clientId)
             ->select(
                 'warehouses.*',
                 'companies.name as company_name',

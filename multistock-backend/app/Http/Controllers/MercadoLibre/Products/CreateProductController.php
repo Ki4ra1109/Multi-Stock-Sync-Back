@@ -29,11 +29,59 @@ class CreateProductController extends Controller
             'pictures.*.source' => 'required|url',
             'sale_terms' => 'nullable|array',
             'shipping' => 'required|array',
-            'family_name' => 'required|string',
+            'attributes' => 'nullable|array',
+            'family_name' => 'required|string', // Ahora obligatorio si MercadoLibre lo exige
+            'catalog_product_id' => 'nullable|string'
         ]);
+
+        // Consultar si la categoría tiene catálogo obligatorio
+        $catalogRequired = false;
+        $categoryId = $data['category_id'];
+
+        $attributeResponse = Http::get("https://api.mercadolibre.com/categories/{$categoryId}/attributes");
+
+        if ($attributeResponse->successful()) {
+            foreach ($attributeResponse->json() as $attr) {
+                if (!empty($attr['tags']['catalog_required'])) {
+                    $catalogRequired = true;
+                    break;
+                }
+            }
+        }
+
+        // Construir el payload para enviar a MercadoLibre
+        $payload = [
+            'category_id' => $data['category_id'],
+            'condition' => $data['condition'],
+            'price' => $data['price'],
+            'currency_id' => $data['currency_id'],
+            'available_quantity' => $data['available_quantity'],
+            'description' => [
+                'plain_text' => $data['description']
+            ],
+            'listing_type_id' => $data['listing_type_id'],
+            'pictures' => $data['pictures'],
+            'shipping' => $data['shipping'],
+            'family_name' => $data['family_name'] // ✅ Se incluye en el payload
+        ];
+
+        if (empty($data['catalog_product_id']) && !empty($data['title'])) {
+            $payload['title'] = $data['title'];
+        }
+
+        if (!empty($data['attributes'])) {
+            $payload['attributes'] = $data['attributes'];
+        }
+
+        if (!empty($data['sale_terms'])) {
+            $payload['sale_terms'] = $data['sale_terms'];
+        }
+
+        if (!empty($data['catalog_product_id']) && $data['catalog_product_id'] !== "undefined") {
+            $payload['catalog_product_id'] = $data['catalog_product_id'];
+        }
         
-        \Log::info('Body enviado a ML:', $data);
- 
+        // Enviar producto a MercadoLibre
         $response = Http::withToken($credentials->access_token)
             ->post('https://api.mercadolibre.com/items', $data);
 
