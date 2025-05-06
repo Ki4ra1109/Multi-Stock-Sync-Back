@@ -71,6 +71,7 @@ use App\Http\Controllers\Warehouses\warehouseCreateMasiveProductStockController;
 use App\Http\Controllers\SalePoint\createNewClientController;
 use App\Http\Controllers\SalePoint\clientAllListController;
 use App\Http\Controllers\SalePoint\getProductByCompanyIdController;
+use App\Http\Controllers\SalePoint\generatedSaleNoteController;
 
 // LOGIN //
 
@@ -298,5 +299,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Get product by company ID
     Route::get('/products-by-company/{idCompany}', [getProductByCompanyIdController::class, 'getProductByCompanyId']);
+
+    //SalePoint
+    Route::post('/generated-sale-note', [generatedSaleNoteController::class, 'generatedSaleNote']);
 
 });
