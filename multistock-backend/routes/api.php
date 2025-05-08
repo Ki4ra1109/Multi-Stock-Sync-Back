@@ -321,8 +321,8 @@ Route::middleware('auth:sanctum')->group(function () {
     //Get Delete history by id sale
     Route::delete('/delete-history-sale/{companyId}/{saleId}', [getDeleteHistoryByIdSaleController::class, 'getDeleteHistoryByIdSale']);
 
-    Route::get('/mercadolibre/categorias/{id}/attributes', [CategoriaController::class, 'getCategoria']);
+    Route::get('/mercadolibre/categorias/{id}/attributes', [getCategoryMLController::class, 'getCategoria']);
 
-    Route::get('/mercadolibre/dominios/{id}/specs', [CategoriaController::class, 'getSpecs']);
+    Route::get('/mercadolibre/dominios/{id}/specs', [getCategoryMLController::class, 'getSpecs']);
 
 });
