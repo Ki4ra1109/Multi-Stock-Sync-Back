@@ -9,8 +9,13 @@ use Illuminate\Support\Facades\Http;
 
 class ProductWarehouseMLMasiveController extends Controller
 {
-    public function DescargarPlantillaML($clientId)
+    public function SubirPlantillaML(Request $request, $clientId)
     {
+        $request->validate([
+            'file' => 'required|file|mimes:xls,xlsx,csv',
+            'template_id' => 'required|string'
+        ]);
+
         $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
 
         if (!$credentials) {
@@ -27,41 +32,30 @@ class ProductWarehouseMLMasiveController extends Controller
             ], 401);
         }
 
-        // Consulta sin categoría
+        $file = $request->file('file');
+        $path = $file->getPathname();
+        $filename = $file->getClientOriginalName();
+
+        $templateId = $request->input('template_id');
+
         $response = Http::withToken($credentials->access_token)
-            ->get('https://api.mercadolibre.com/catalog_templates');
+            ->attach('file', file_get_contents($path), $filename)
+            ->post('https://api.mercadolibre.com/catalog/listings/bulk_upload', [
+                'template_id' => $templateId,
+            ]);
 
         if ($response->failed()) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'No se pudo obtener la plantilla desde Mercado Libre.',
+                'message' => 'Error al subir el archivo a Mercado Libre.',
                 'ml_error' => $response->json(),
             ], $response->status());
         }
 
-        $data = $response->json();
-
-        if (empty($data['templates'][0]['file_url'])) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'No hay plantilla disponible.',
-            ], 404);
-        }
-
-        $fileUrl = $data['templates'][0]['file_url'];
-
-        $fileResponse = Http::get($fileUrl);
-
-        if ($fileResponse->failed()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'No se pudo descargar el archivo de plantilla.',
-            ], 500);
-        }
-
-        return response($fileResponse->body(), 200, [
-            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Content-Disposition' => 'attachment; filename="plantilla_generica.xlsx"',
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Archivo subido exitosamente a Mercado Libre.',
+            'data' => $response->json(),
         ]);
     }
 }

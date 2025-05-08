@@ -106,6 +106,7 @@ use App\Http\Controllers\MercadoLibre\Products\putProductoByUpdateController;
 use App\Http\Controllers\MercadoLibre\Products\CreateProductController;
 use App\Http\Controllers\MercadoLibre\Products\getCatalogProductController;
 use \App\Http\Controllers\MercadoLibre\Products\ProductWarehouseMLMasiveController;
+use \App\Http\Controllers\MercadoLibre\Products\getCategoryMLController;
 
 // SyncStatus //
 use App\Http\Controllers\SyncStatusController;
@@ -305,7 +306,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Get product by company ID
     Route::get('/products-by-company/{idCompany}', [getProductByCompanyIdController::class, 'getProductByCompanyId']);
 
-    Route::get('/mercadolibre/plantilla/{clientId}', [ProductWarehouseMLMasiveController::class, 'DescargarPlantillaML']);
+    Route::get('/mercadolibre/plantilla/{clientId}', [ProductWarehouseMLMasiveController::class, 'SubirPlantillaML']);
 
     //SalePoint
     Route::post('/generated-sale-note/{status}', [generatedSaleNoteController::class, 'generatedSaleNote']);
@@ -319,5 +320,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/generated-sale-note/{saleId}/{status}', [getHistorySalePatchStatusController::class, 'getHistorySalePatchStatus']);
     //Get Delete history by id sale
     Route::delete('/delete-history-sale/{companyId}/{saleId}', [getDeleteHistoryByIdSaleController::class, 'getDeleteHistoryByIdSale']);
+
+    Route::get('/mercadolibre/categorias/{id}/attributes', [CategoriaController::class, 'getCategoria']);
+
+    Route::get('/mercadolibre/dominios/{id}/specs', [CategoriaController::class, 'getSpecs']);
 
 });
