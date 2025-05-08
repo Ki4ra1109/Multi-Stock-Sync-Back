@@ -76,6 +76,8 @@ use App\Http\Controllers\SalePoint\getHistorySaleController;
 use App\Http\Controllers\SalePoint\getHistoryPendientController;
 use App\Http\Controllers\SalePoint\getHistorySalePatchStatusController;
 use App\Http\Controllers\SalePoint\getDeleteHistoryByIdSaleController;
+use App\Http\Controllers\SalePoint\getSearchSaleByFolioController;
+use App\Http\Controllers\SalePoint\putSaleNoteByFolioController;
 
 // LOGIN //
 
@@ -319,5 +321,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/generated-sale-note/{saleId}/{status}', [getHistorySalePatchStatusController::class, 'getHistorySalePatchStatus']);
     //Get Delete history by id sale
     Route::delete('/delete-history-sale/{companyId}/{saleId}', [getDeleteHistoryByIdSaleController::class, 'getDeleteHistoryByIdSale']);
+
+    //Get search sale by folio
+    Route::get('/search-sale-by-folio/{companyId}', [getSearchSaleByFolioController::class, 'getSearchSaleByFolio']);
+
+    Route::put('/sale-note/{companyId}/{folio}', [putSaleNoteByFolioController::class, 'putSaleNoteByFolio']);
 
 });

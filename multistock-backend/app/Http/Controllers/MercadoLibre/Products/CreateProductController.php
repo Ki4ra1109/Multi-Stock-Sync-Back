@@ -1,10 +1,12 @@
 <?php
+
 namespace App\Http\Controllers\MercadoLibre\Products;
 
 use App\Http\Controllers\Controller;
 use App\Models\MercadoLibreCredential;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class CreateProductController extends Controller
 {
@@ -30,11 +32,11 @@ class CreateProductController extends Controller
             'sale_terms' => 'nullable|array',
             'shipping' => 'required|array',
             'attributes' => 'nullable|array',
-            'family_name' => 'required|string', // Ahora obligatorio si MercadoLibre lo exige
+            'family_name' => 'required|string',
             'catalog_product_id' => 'nullable|string'
         ]);
 
-        // Consultar si la categoría tiene catálogo obligatorio
+        // Verificar si la categoría requiere publicar en catálogo
         $catalogRequired = false;
         $categoryId = $data['category_id'];
 
@@ -49,7 +51,30 @@ class CreateProductController extends Controller
             }
         }
 
-        // Construir el payload para enviar a MercadoLibre
+        // Validar que se incluya catalog_product_id si el catálogo es obligatorio
+        if ($catalogRequired && empty($data['catalog_product_id'])) {
+            // Intentar obtener un catalog_product_id de un producto similar
+            $searchResponse = Http::get("https://api.mercadolibre.com/sites/MLC/search?q=" . urlencode($data['title']) . "&category=" . $categoryId);
+            
+            if ($searchResponse->successful()) {
+                $products = $searchResponse->json()['results'];
+                foreach ($products as $product) {
+                    if (isset($product['catalog_product_id'])) {
+                        $data['catalog_product_id'] = $product['catalog_product_id'];
+                        break;
+                    }
+                }
+            }
+
+            if (empty($data['catalog_product_id'])) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Esta categoría requiere publicar en el catálogo. Debe incluir catalog_product_id.'
+                ], 422);
+            }
+        }
+
+        // Construir el payload para la publicación
         $payload = [
             'category_id' => $data['category_id'],
             'condition' => $data['condition'],
@@ -62,7 +87,7 @@ class CreateProductController extends Controller
             'listing_type_id' => $data['listing_type_id'],
             'pictures' => $data['pictures'],
             'shipping' => $data['shipping'],
-            'family_name' => $data['family_name'] // ✅ Se incluye en el payload
+            'family_name' => $data['family_name']
         ];
 
         if (empty($data['catalog_product_id']) && !empty($data['title'])) {
@@ -79,13 +104,22 @@ class CreateProductController extends Controller
 
         if (!empty($data['catalog_product_id']) && $data['catalog_product_id'] !== "undefined") {
             $payload['catalog_product_id'] = $data['catalog_product_id'];
+            $payload['catalog_listing'] = true;
         }
-        
-        // Enviar producto a MercadoLibre
+
+        // Registrar el payload en logs para debug
+        Log::info('Payload enviado a Mercado Libre:', $payload);
+
+        // Enviar la publicación
         $response = Http::withToken($credentials->access_token)
-            ->post('https://api.mercadolibre.com/items', $data);
+            ->post('https://api.mercadolibre.com/items', $payload);
 
         if ($response->failed()) {
+            Log::error('Error al crear el producto en Mercado Libre:', [
+                'payload' => $payload,
+                'ml_response' => $response->json()
+            ]);
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Error al crear el producto',
