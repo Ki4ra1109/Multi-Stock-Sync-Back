@@ -76,6 +76,8 @@ use App\Http\Controllers\SalePoint\getHistorySaleController;
 use App\Http\Controllers\SalePoint\getHistoryPendientController;
 use App\Http\Controllers\SalePoint\getHistorySalePatchStatusController;
 use App\Http\Controllers\SalePoint\getDeleteHistoryByIdSaleController;
+use App\Http\Controllers\SalePoint\getSearchSaleByFolioController;
+use App\Http\Controllers\SalePoint\putSaleNoteByFolioController;
 
 // LOGIN //
 
@@ -321,8 +323,13 @@ Route::middleware('auth:sanctum')->group(function () {
     //Get Delete history by id sale
     Route::delete('/delete-history-sale/{companyId}/{saleId}', [getDeleteHistoryByIdSaleController::class, 'getDeleteHistoryByIdSale']);
 
-    Route::get('/mercadolibre/categorias/{id}/attributes', [getCategoryMLController::class, 'getCategoria']);
+    //Get search sale by folio
+    Route::get('/search-sale-by-folio/{companyId}', [getSearchSaleByFolioController::class, 'getSearchSaleByFolio']);
 
+    Route::put('/sale-note/{companyId}/{folio}', [putSaleNoteByFolioController::class, 'putSaleNoteByFolio']);
+
+    // MercadoLibre: obtener atributos de categoría y especificaciones de dominio
+    Route::get('/mercadolibre/categorias/{id}/attributes', [getCategoryMLController::class, 'getCategoria']);
     Route::get('/mercadolibre/dominios/{id}/specs', [getCategoryMLController::class, 'getSpecs']);
 
 });

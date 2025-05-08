@@ -25,7 +25,7 @@ class getHistorySaleController{
                     'warehouses.name as warehouse_name'
                 )
                 ->when(!is_null($clientId), function ($query) use ($clientId) {
-                    return $query->where('companies.client_id', $clientId);
+                    return $query->where('sale.client_id', $clientId);
                 })
                 ->when(!is_null($dateStart), function ($query) use ($dateStart) {
                     return $query->whereDate('sale.created_at', '>=', $dateStart);

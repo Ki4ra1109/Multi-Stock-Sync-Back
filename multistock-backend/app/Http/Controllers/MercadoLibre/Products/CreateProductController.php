@@ -18,9 +18,7 @@ class CreateProductController extends Controller
             return response()->json(['status' => 'error', 'message' => 'Token no válido o expirado.'], 401);
         }
 
-        // Validar datos flexiblemente según si se incluye catalog_product_id
         $data = $request->all();
-
         $hasCatalog = !empty($data['catalog_product_id']);
 
         $rules = [
@@ -33,10 +31,9 @@ class CreateProductController extends Controller
             'pictures' => 'required|array',
             'pictures.*.source' => 'required|url',
             'shipping' => 'required|array',
-            'sale_terms' => 'nullable|array'
+            'sale_terms' => 'nullable|array',
         ];
 
-        // Solo se requieren si no se publica por catálogo
         if (!$hasCatalog) {
             $rules['title'] = 'required|string';
             $rules['category_id'] = 'required|string';
@@ -47,7 +44,7 @@ class CreateProductController extends Controller
 
         $validated = validator($data, $rules)->validate();
 
-        // Si no viene catalog_product_id, intentar buscarlo si la categoría lo requiere
+        // Verificación si la categoría requiere publicación por catálogo
         $catalogRequired = false;
         if (!$hasCatalog && isset($validated['category_id'])) {
             $attributeResponse = Http::get("https://api.mercadolibre.com/categories/{$validated['category_id']}/attributes");
@@ -61,7 +58,6 @@ class CreateProductController extends Controller
                 }
             }
 
-            // Intentar buscar el catalog_product_id si es requerido
             if ($catalogRequired) {
                 $searchCatalog = Http::get("https://api.mercadolibre.com/products/search", [
                     'category' => $validated['category_id'],
@@ -82,7 +78,6 @@ class CreateProductController extends Controller
             }
         }
 
-        // Construcción del payload
         $payload = [
             'price' => $validated['price'],
             'currency_id' => $validated['currency_id'],
@@ -90,15 +85,13 @@ class CreateProductController extends Controller
             'listing_type_id' => $validated['listing_type_id'],
             'condition' => $validated['condition'],
             'pictures' => $validated['pictures'],
-            'shipping' => $validated['shipping']
+            'shipping' => $validated['shipping'],
         ];
 
-        // Publicación con catálogo
         if ($hasCatalog && !empty($validated['catalog_product_id']) && $validated['catalog_product_id'] !== 'undefined') {
             $payload['catalog_product_id'] = $validated['catalog_product_id'];
             $payload['catalog_listing'] = true;
         } else {
-            // Publicación manual
             $payload['title'] = $validated['title'];
             $payload['category_id'] = $validated['category_id'];
 
@@ -113,12 +106,11 @@ class CreateProductController extends Controller
             }
         }
 
-        // Agregar sale_terms si aplica
         if (!empty($validated['sale_terms'])) {
             $payload['sale_terms'] = $validated['sale_terms'];
         }
 
-        // ✅ Agregar category_id si viene, incluso con catálogo
+        // Asegurar que category_id esté presente
         if (!empty($validated['category_id'])) {
             $payload['category_id'] = $validated['category_id'];
         }
