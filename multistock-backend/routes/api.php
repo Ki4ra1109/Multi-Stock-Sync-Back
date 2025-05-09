@@ -107,8 +107,9 @@ use App\Http\Controllers\MercadoLibre\Products\getStockController;
 use App\Http\Controllers\MercadoLibre\Products\putProductoByUpdateController;
 use App\Http\Controllers\MercadoLibre\Products\CreateProductController;
 use App\Http\Controllers\MercadoLibre\Products\getCatalogProductController;
-use \App\Http\Controllers\MercadoLibre\Products\ProductWarehouseMLMasiveController;
-use \App\Http\Controllers\MercadoLibre\Products\getCategoryMLController;
+use App\Http\Controllers\MercadoLibre\Products\getCategoriaController;
+use App\Http\Controllers\MercadoLibre\Products\getAtributosCategoriaController;
+use App\Http\Controllers\MercadoLibre\Products\getSpecsDomainController;
 
 // SyncStatus //
 use App\Http\Controllers\SyncStatusController;
@@ -147,7 +148,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/warehouses', [warehouseNewWarehouseStoreController::class, 'warehouse_store']);           // Crear bodega
     Route::patch('/warehouses/{id}', [warehouseUpdateDetailsController::class, 'warehouse_update']);    // Actualizar bodega
     Route::delete('/warehouses/{id}', [warehouseDeleteWarehouseByIdController::class, 'warehouse_delete']);   // Eliminar bodega
-    Route::get('/warehouses-by-company/{client_id}', [getWarehouseByCompanyIdController::class, 'getWarehouseByCompany']); // Obtener bodegas por empresa
+    Route::get('/warehouses-by-company/{clientId}', [getWarehouseByCompanyIdController::class, 'getWarehouseByCompany']); // Obtener bodegas por empresa
 
     // Stock-specific routes
     Route::post('/warehouse-stock-create', [warehouseCreateProductStockWarehouseController::class, 'stock_store_by_url']);
@@ -307,29 +308,28 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Get product by company ID
     Route::get('/products-by-company/{idCompany}', [getProductByCompanyIdController::class, 'getProductByCompanyId']);
-
-    Route::get('/mercadolibre/plantilla/{clientId}', [ProductWarehouseMLMasiveController::class, 'SubirPlantillaML']);
-
+    
     //SalePoint
     Route::post('/generated-sale-note/{status}', [generatedSaleNoteController::class, 'generatedSaleNote']);
-
+    
     //Get history sale
-    Route::get('/history-sale/{companyId}', [getHistorySaleController::class, 'getHistorySale']);
-
+    Route::get('/history-sale/{client_id}', [getHistorySaleController::class, 'getHistorySale']);
+    
     //Get history sale Pendient
     Route::get('/history-sale-pendient/{client_id}', [getHistoryPendientController::class, 'getHistoryPendient']);
     //Get history sale Patch Status
     Route::patch('/generated-sale-note/{saleId}/{status}', [getHistorySalePatchStatusController::class, 'getHistorySalePatchStatus']);
     //Get Delete history by id sale
     Route::delete('/delete-history-sale/{companyId}/{saleId}', [getDeleteHistoryByIdSaleController::class, 'getDeleteHistoryByIdSale']);
-
     //Get search sale by folio
     Route::get('/search-sale-by-folio/{companyId}', [getSearchSaleByFolioController::class, 'getSearchSaleByFolio']);
-
+    
     Route::put('/sale-note/{companyId}/{folio}', [putSaleNoteByFolioController::class, 'putSaleNoteByFolio']);
+    
+    Route::get('mercadolibre/categoria/{id}', [getCategoriaController::class, 'getCategoria']);
 
-    // MercadoLibre: obtener atributos de categoría y especificaciones de dominio
-    Route::get('/mercadolibre/categorias/{id}/attributes', [getCategoryMLController::class, 'getCategoria']);
-    Route::get('/mercadolibre/dominios/{id}/specs', [getCategoryMLController::class, 'getSpecs']);
+    Route::get('mercadolibre/categoria/{id}/atributos', [getAtributosCategoriaController::class, 'getAtributos']);
 
+    Route::get('mercadolibre/specs/{id}', [getSpecsDomainController::class, 'getSpecs']);
+    
 });
