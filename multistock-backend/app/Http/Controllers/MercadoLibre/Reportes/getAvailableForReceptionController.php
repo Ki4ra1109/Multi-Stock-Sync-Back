@@ -42,7 +42,7 @@ class getAvailableForReceptionController
 
         $userId = $userResponse->json()['id'];
         $to = Carbon::now()->toIso8601String();
-        $from = Carbon::now()->subDays(5)->toIso8601String();
+        $from = Carbon::now()->subDays(2)->toIso8601String();
         $offset = 0;
         $limit = 50;
         $processedShipments = [];
