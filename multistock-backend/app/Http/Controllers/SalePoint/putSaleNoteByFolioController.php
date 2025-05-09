@@ -13,11 +13,11 @@ class putSaleNoteByFolioController
     public function putSaleNoteByFolio(Request $request, $companyId, $folio)
     {
         try {
-            // Actualizar la venta
-            $sale = Sale::join('warehouses', 'sales.warehouse_id', '=', 'warehouses.id')
+            // Buscar la venta con joins y validaciones de compañía
+            $sale = Sale::join('warehouses', 'sale.warehouse_id', '=', 'warehouses.id')
                 ->join('companies', 'companies.id', '=', 'warehouses.assigned_company_id')
-                ->select('sales.*', 'warehouses.name as warehouse_name')
-                ->where('sales.id', $folio)
+                ->select('sale.*', 'warehouses.name as warehouse_name')
+                ->where('sale.id', $folio)
                 ->where('companies.client_id', $companyId)
                 ->first();
 
@@ -25,58 +25,59 @@ class putSaleNoteByFolioController
                 return response()->json(['message' => 'No se encontró la venta.'], 404);
             }
 
-            if ($sale[0]->status_sale === 'Emitido') {
+            // Verificar estado actual de la venta
+            if ($sale->status_sale === 'emitido') {
                 return response()->json(['message' => 'La venta ya fue emitida.'], 400);
             }
 
-            if ($sale[0]->status_sale !== 'Finalizada') {
-                return response()->json(['message' => 'Solo se pueden emitir ventas con estado "Finalizado".'], 400);
-            }
-
-            $validate = $request->validate([
+            // Validar los datos del request
+            $validated = $request->validate([
                 'type_emission' => 'required|string|max:255',
                 'observation' => 'nullable|string|max:255',
                 'name_companies' => 'nullable|string|max:255',
             ]);
 
-            if ($validate["type_emission"] === "Boleta") {
-                $sale->status_sale = "Emitido";
-                $sale->type_emission = $validate["type_emission"];
-                $sale->observation = $validate["observation"];
-                $sale->save();
-                $uploadSale = Sale::where('id', $folio)->first();
-                return response()->json([
-                    'message' => 'Documento emitido con éxito.',
-                    'data' => $updatedSale // Retornar los datos actualizados de la venta
-                ], 200); // Status 200 OK
-            } 
-            else if($validate["type_emission"] === "Factura"){
-                $sale->status_sale = "Emitido";
-                $sale->type_emission = $validate["type_emission"];
-                $sale->observation = $validate["observation"];
-                $sale->name_companies = $validate["name_companies"];
-                $sale->save();
-                $uploadSale = Sale::where('id', $folio)->first();
+            // Actualizar venta según el tipo de emisión
+            $sale->status_sale = 'emitido';
+            $sale->type_emission = $validated['type_emission'];
+            $sale->observation = $validated['observation'] ?? null;
 
-                $client = Client::where('id', $sale->client_id)->first();
+            if ($validated['type_emission'] === 'factura') {
+                $sale->name_companies = $validated['name_companies'] ?? null;
+            }
 
+            $sale->save();
+
+            // Recargar la venta actualizada
+            $updatedSale = Sale::find($folio);
+
+            // Si es factura, obtener datos del cliente
+            if ($validated['type_emission'] === 'factura') {
+                $client = Client::find($sale->client_id);
                 $clientData = [
-                    'name' => $client->nombres,
-                    'rut' => $client->rut,
-                    'razon_social' => $client->razon_social,
-                    'giro' => $client->giro,
+                    'name' => $client->nombres ?? null,
+                    'rut' => $client->rut ?? null,
+                    'razon_social' => $client->razon_social ?? null,
+                    'giro' => $client->giro ?? null,
                 ];
-
                 return response()->json([
                     'message' => 'Documento emitido con éxito.',
-                    'data' => $updatedSale, // Retornar los datos actualizados de la venta
+                    'data' => $updatedSale,
                     'client' => $clientData,
-                ], 200); // Status 200 OK
+                ], 200);
+            }
 
-            } 
+            // Si es boleta, solo retornar venta
+            return response()->json([
+                'message' => 'Documento emitido con éxito.',
+                'data' => $updatedSale,
+            ], 200);
 
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Error al crear la venta.', 'error' => $e->getMessage()], 500);
+            return response()->json([
+                'message' => 'Error al crear la venta.',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 }
