@@ -13,8 +13,30 @@ class getCatalogProductController extends Controller
     {
         $credentials = MercadoLibreCredential::where('client_id', $client_id)->first();
 
-        if (!$credentials || $credentials->isTokenExpired()) {
-            return response()->json(['status' => 'error', 'message' => 'Token no válido o expirado.'], 401);
+        if (!$credentials) {
+            return response()->json(['status' => 'error', 'message' => 'Credenciales no encontradas.'], 404);
+        }
+
+        // Refrescar token si está expirado
+        if ($credentials->isTokenExpired()) {
+            $refreshResponse = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
+                'grant_type' => 'refresh_token',
+                'client_id' => $credentials->client_id,
+                'client_secret' => $credentials->client_secret,
+                'refresh_token' => $credentials->refresh_token,
+            ]);
+
+            if ($refreshResponse->failed()) {
+                return response()->json(['status' => 'error', 'message' => 'No se pudo refrescar el token.'], 401);
+            }
+
+            $data = $refreshResponse->json();
+
+            $credentials->update([
+                'access_token' => $data['access_token'],
+                'refresh_token' => $data['refresh_token'],
+                'expires_at' => now()->addSeconds($data['expires_in']),
+            ]);
         }
 
         $title = $request->query('title');
@@ -24,7 +46,8 @@ class getCatalogProductController extends Controller
         }
 
         // 1. Predicción de categoría
-        $prediction = Http::get('https://api.mercadolibre.com/sites/MLC/domain_discovery/search', [
+        $prediction = Http::withToken($credentials->access_token)
+            ->get('https://api.mercadolibre.com/sites/MLC/domain_discovery/search', [
             'q' => $title,
             'limit' => 1
         ]);
@@ -47,10 +70,10 @@ class getCatalogProductController extends Controller
         $familyName = null;
         $catalogProducts = [];
 
-        // 2. Si hay family_id, buscar nombre de familia
+        // 2. Si hay family_id, buscar productos de catálogo
         if ($familyId) {
-            // Obtener productos del catálogo
-            $productsResponse = Http::get('https://api.mercadolibre.com/products/search', [
+            $productsResponse = Http::withToken($credentials->access_token)
+                ->get('https://api.mercadolibre.com/products/search', [
                 'category_id' => $categoryId,
                 'family_id' => $familyId
             ]);
@@ -58,19 +81,20 @@ class getCatalogProductController extends Controller
             if ($productsResponse->ok()) {
                 $catalogProducts = $productsResponse->json()['results'] ?? [];
 
-                // Obtener nombre de la familia desde el primer producto
+                // 3. Obtener nombre de la familia desde el primer producto (si hay)
                 if (!empty($catalogProducts)) {
                     $firstProductId = $catalogProducts[0];
-                    $productDetail = Http::get("https://api.mercadolibre.com/products/{$firstProductId}");
+                    $productDetail = Http::withToken($credentials->access_token)
+                        ->get("https://api.mercadolibre.com/products/{$firstProductId}");
 
-                if ($productDetail->ok()) {
-                    $familyName = $productDetail->json()['name'] ?? null;
+                    if ($productDetail->ok()) {
+                        $familyName = $productDetail->json()['name'] ?? null;
                     }
                 }
             }
         }
 
-        // ✅ Si family_name sigue siendo null, usamos el domain_name como alternativa
+        // 4. Si no hay family_name, usar domain_name como alternativa
         if (!$familyName && $domainName) {
             $familyName = $domainName;
         }
@@ -83,7 +107,8 @@ class getCatalogProductController extends Controller
             'domain_id' => $domainId,
             'domain_name' => $domainName,
             'family_id' => $familyId,
-            'family_name' => $familyName
+            'family_name' => $familyName,
+            'products' => $catalogProducts,
         ]);
     }
 }

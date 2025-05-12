@@ -167,169 +167,89 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/companies/{id}', [warehouseUpdateCompanyNameController::class, 'company_update']);
     Route::delete('/companies/{id}', [warehouseDeleteCompanyByIdController::class, 'company_delete']);
 
-
-    // Generate MerccadoLibre login Auth 2.0 URL
-    Route::post('/mercadolibre/login', [loginController::class, 'login']);
-
-    // Handle MercadoLibre callback
-    Route::get('/mercadolibre/callback', [handleCallbackController::class, 'handleCallback']);
+    //Login
+    Route::get('/mercadolibre/callback', [handleCallbackController::class, 'handleCallback']); // Handle MercadoLibre callback
+    Route::post('/mercadolibre/login', [loginController::class, 'login']);// Generate MerccadoLibre login Auth 2.0 URL
 
     // Check MercadoLibre connection status
     Route::get('/mercadolibre/test-connection/{client_id}', [testAndRefreshConnectionController::class, 'testAndRefreshConnection']);
     Route::get('/mercadolibre/conexionToken', [ConexionTokenController::class, 'index']);
 
-    // Get MercadoLibre credentials if are saved in db
-    Route::get('/mercadolibre/credentials', [getAllCredentialsDataController::class, 'getAllCredentialsData']);
+    // Mercadolibre Credentials CRUD
+    Route::get('/mercadolibre/credentials', [getAllCredentialsDataController::class, 'getAllCredentialsData']); // Get MercadoLibre credentials if are saved in db
+    Route::get('/mercadolibre/credentials/{client_id}', [getCredentialsByClientIdController::class, 'getCredentialsByClientId']); // Get MercadoLibre credentials by client_id
+    Route::delete('/mercadolibre/credentials/{client_id}', [deleteCredentialsController::class, 'deleteCredentials']); // Delete credentials using client_id
 
-    // Get MercadoLibre credentials by client_id
-    Route::get('/mercadolibre/credentials/{client_id}', [getCredentialsByClientIdController::class, 'getCredentialsByClientId']);
+    //Mercadolibre Products
+    Route::get('/mercadolibre/products/{client_id}', [listProductByClientIdController::class, 'listProductsByClientId']);// Get MercadoLibre products list by client_id
+    Route::get('mercadolibre/categoria/{id}/atributos', [getAtributosCategoriaController::class, 'getAtributos']); // Get attributes by category ID
+    Route::get('/mercadolibre/products/{client_id}/catalogo', [getCatalogProductController::class, 'getCatalogProducts']); // Get catalog products
+    Route::get('mercadolibre/categoria/{id}', [getCategoriaController::class, 'getCategoria']); // Get category by ID
+    Route::get('mercadolibre/specs/{id}', [getSpecsDomainController::class, 'getSpecs']); // Get technical specifications by domain ID
+    Route::get('/mercadolibre/stock/{client_id}', [getStockController::class, 'getStock']); // Get stock of products
+    Route::get('/mercadolibre/save-products/{client_id}', [saveProductsController::class, 'saveProducts']); // Get saves products
+    Route::get('/mercadolibre/products/search/{client_id}', [searchProductsController::class, 'searchProducts']); // Search MercadoLibre products by client_id and search term
 
-    // Delete credentials using client_id
-    Route::delete('/mercadolibre/credentials/{client_id}', [deleteCredentialsController::class, 'deleteCredentials']);
+    // Mercadolibre Products post, put 
+    Route::post('/mercadolibre/Products/{client_id}/crear-producto', [CreateProductController::class, 'create']); //Create product ML
+    Route::post('/mercadolibre/items', [itemController::class, 'store']); // MercadoLibre items routes.
+    Route::put('/mercadolibre/items/{item_id}', [itemController::class, 'update']); // Create and update items.
+    Route::put('/mercadolibre/update-stock/{client_id}/{productId}', [putProductoByUpdateController::class, 'putProductoByUpdate']);//Update stock
 
-    // Get MercadoLibre products list by client_id
-    Route::get('/mercadolibre/products/{client_id}', [listProductByClientIdController::class, 'listProductsByClientId']);
+    // Mercadolibre Reports
+    Route::get('/mercadolibre/annual-sales/{client_id}', [getAnnualSalesController::class, 'getAnnualSales']);// Get MercadoLibre annual sales by client_id
+    Route::get('/mercadolibre/available-for-reception/{client_id}', [getAvailableForReceptionController::class, 'getAvailableForReception']); // Available for Reception 
+    Route::get('/mercadolibre/compare-annual-sales-data/{client_id}', [compareAnnualSalesDataController::class, 'compareAnnualSalesData']);// Compare sales data between two years
+    Route::get('/mercadolibre/compare-sales-data/{client_id}', [compareSalesDataController::class, 'compareSalesData']); // Compare sales data between two months
+    Route::get('/mercadolibre/client-item-list/{client_id}', [productReportController::class, 'listProductsByClientIdWithPaymentStatus']); // PRODUCT REPORT
+
+    Route::get('/mercadolibre/daily-sales/{client_id}', [getDailySalesController::class, 'getDailySales']); // Get daily sales by client_id
+    Route::get('/mercadolibre/dispatch-estimated-limit/{client_id}', [getDispatchEstimedLimitController::class, 'getDispatchEstimedLimit']); // Get dispatch estimated limit
+    Route::get('/mercadolibre/history-dispatch/{client_id}/{skuSearch}', [getHistoryDispatchController::class, 'getHistoryDispatch']);// Get Dispatch History
+    Route::get('/mercadolibre/information-dispatch-delivered/{client_id}/{deliveredId}', [getInformationDispatchDeliveredController::class, 'getInformationDispatchDelivered']);//Get Information Dispatch Delivered
+    Route::get('/mercadolibre/invoices/{client_id}', [getInvoiceReportController::class, 'getInvoiceReport']); // Get MercadoLibre invoice report by client_id
     
-    // Search MercadoLibre products by client_id and search term
-    Route::get('/mercadolibre/products/search/{client_id}', [searchProductsController::class, 'searchProducts']);
+    Route::get('/mercadolibre/order-statuses/{client_id}', [getOrderStatusesController::class, 'getOrderStatuses']); // Get order statuses
+    Route::get('/mercadolibre/ordenes-canceladas/{clientId}', [getCancelledOrdersController::class, 'getCancelledOrders']); // Get cancelled orders by client_id
+    Route::get('/mercadolibre/products-to-dispatch/{client_id}', [getProductsToDispatchController::class, 'getProductsToDispatch']); // Products to Dispatch
+    Route::get('/mercadolibre/refunds-by-category/{client_id}', [getRefundsByCategoryController::class, 'getRefundsByCategory']); // Get refunds or returns by category
+    
+    Route::get('/mercadolibre/sales-by-date-range/{client_id}', [getSalesByDateRangeController::class, 'getSalesByDateRange']); // Get sales by date range
+    Route::get('/mercadolibre/sales-by-month/{client_id}', [getSalesByMonthController::class, 'getSalesByMonth']); // Get MercadoLibre sales by month by client_id
+    Route::get('/mercadolibre/sales-by-week/{client_id}', [getSalesByWeekController::class, 'getSalesByWeek']); // Get total sales for a specific week
+    Route::get('/mercadolibre/stock-critic/{client_id}', [getStockCriticController::class, 'getStockCritic']);// Get stock critic
+    Route::get('/mercadolibre/stock-reception/{client_id}', [getStockReceptionController::class, 'getStockReception']); // Stock Reception
+    Route::get('/mercadolibre/stock-rotation/{client_id}', [getStockRotationController::class, 'getStockRotation']); // Stock Rotation
+    Route::get('/mercadolibre/stock-sales-history/{clientId}/{productId}', [getStockSalesHistoryController::class, 'getStockSalesHistory']);// Get stock sales history
+    Route::get('/mercadolibre/summary/{client_id}', [summaryController::class, 'summary']);// Get summary
+    
+    Route::get('/mercadolibre/top-payment-methods/{client_id}', [getTopPaymentMethodsController::class, 'getTopPaymentMethods']); // Get top payment methods
+    Route::get('/mercadolibre/top-selling-products/{client_id}', [getTopSellingProductsController::class, 'getTopSellingProducts']); // Get top selling products
+    Route::get('/mercadolibre/upcoming-shipments/{client_id}', [getUpcomingShipmentsController::class, 'getUpcomingShipments']); // Get upcoming shipments
+    Route::get('/mercadolibre/weeks-of-month', [getWeeksOfMonthController::class, 'getWeeksOfMonth']); // Get weeks of the month
+    Route::get('/reviews/{clientId}', [reviewController::class, 'getReviewsByClientId']); // MercadoLibre reviews by client_id
 
     // Get product reviews by product_id
     Route::get('/mercadolibre/products/reviews/{product_id}', [getProductReviewsController::class, 'getProductReviews']);
 
-    // Get saves products
-    Route::get('/mercadolibre/save-products/{client_id}', [saveProductsController::class, 'saveProducts']);
+    // Mercadolibre Credentials
+    Route::get('/mercadolibre/save-products/{client_id}', [MercadoLibreProductController::class, 'saveProducts']);// Save MercadoLibre products to database
+    Route::post('/mercadolibre/refresh-token', [refreshAccessTokenController::class, 'refreshToken']);// Refresh MercadoLibre access token
 
-    // Get MercadoLibre invoice report by client_id
-    Route::get('/mercadolibre/invoices/{client_id}', [getInvoiceReportController::class, 'getInvoiceReport']);
+    //SalePoint get
+    Route::get('/clients-all', [clientAllListController::class, 'clientAllList']);// Get all clients
+    Route::get('/history-sale/{client_id}', [getHistorySaleController::class, 'getHistorySale']); //Get history sale
+    Route::get('/history-sale-pendient/{client_id}', [getHistoryPendientController::class, 'getHistoryPendient']); //Get history sale Pendient
+    Route::get('/products-by-company/{idCompany}', [getProductByCompanyIdController::class, 'getProductByCompanyId']);// Get product by company ID
+    Route::get('/search-sale-by-folio/{companyId}', [getSearchSaleByFolioController::class, 'getSearchSaleByFolio']); //Get search sale by folio
 
-    // Get refunds or returns by category
-    Route::get('/mercadolibre/refunds-by-category/{client_id}', [getRefundsByCategoryController::class, 'getRefundsByCategory']);
+    //SalePoint Post
+    Route::post('/create-new-client', [createNewClientController::class, 'createNewClient']);//Create a new client
+    Route::post('/generated-sale-note/{status}', [generatedSaleNoteController::class, 'generatedSaleNote']); // Generate sale note
 
-    // Get MercadoLibre sales by month by client_id
-    Route::get('/mercadolibre/sales-by-month/{client_id}', [getSalesByMonthController::class, 'getSalesByMonth']);
+    //Sale Point patch,delete,put
+    Route::delete('/delete-history-sale/{companyId}/{saleId}', [getDeleteHistoryByIdSaleController::class, 'getDeleteHistoryByIdSale']); //Get Delete history by id sale
+    Route::patch('/generated-sale-note/{saleId}/{status}', [getHistorySalePatchStatusController::class, 'getHistorySalePatchStatus']); //Get history sale Patch Status
+    Route::put('/sale-note/{companyId}/{folio}', [putSaleNoteByFolioController::class, 'putSaleNoteByFolio']); //put sale note by folio
 
-    // Get MercadoLibre annual sales by client_id
-    Route::get('/mercadolibre/annual-sales/{client_id}', [getAnnualSalesController::class, 'getAnnualSales']);
-
-    // Get weeks of the month
-    Route::get('/mercadolibre/weeks-of-month', [getWeeksOfMonthController::class, 'getWeeksOfMonth']);
-
-    // Get total sales for a specific week
-    Route::get('/mercadolibre/sales-by-week/{client_id}', [getSalesByWeekController::class, 'getSalesByWeek']);
-
-    // Get daily sales
-    Route::get('/mercadolibre/daily-sales/{client_id}', [getDailySalesController::class, 'getDailySales']);
-
-    // Get top selling products
-    Route::get('/mercadolibre/top-selling-products/{client_id}', [getTopSellingProductsController::class, 'getTopSellingProducts']);
-
-    // Get order statuses
-    Route::get('/mercadolibre/order-statuses/{client_id}', [getOrderStatusesController::class, 'getOrderStatuses']);
-
-    // Get top payment methods
-    Route::get('/mercadolibre/top-payment-methods/{client_id}', [getTopPaymentMethodsController::class, 'getTopPaymentMethods']);
-
-    // Get summary
-    Route::get('/mercadolibre/summary/{client_id}', [summaryController::class, 'summary']);
-
-    // Compare sales data between two months
-    Route::get('/mercadolibre/compare-sales-data/{client_id}', [compareSalesDataController::class, 'compareSalesData']);
-
-    // Compare sales data between two years
-    Route::get('/mercadolibre/compare-annual-sales-data/{client_id}', [compareAnnualSalesDataController::class, 'compareAnnualSalesData']);
-
-    // Get sales by date range
-    Route::get('/mercadolibre/sales-by-date-range/{client_id}', [getSalesByDateRangeController::class, 'getSalesByDateRange']);
-
-    // Get stock sales history
-    Route::get('/mercadolibre/stock-sales-history/{clientId}/{productId}', [getStockSalesHistoryController::class, 'getStockSalesHistory']);
-
-    // Save MercadoLibre products to database
-    Route::get('/mercadolibre/save-products/{client_id}', [MercadoLibreProductController::class, 'saveProducts']);
-
-    // Refresh MercadoLibre access token
-    Route::post('/mercadolibre/refresh-token', [refreshAccessTokenController::class, 'refreshToken']);
-
-    // REVIEWS
-    Route::get('/reviews/{clientId}', [reviewController::class, 'getReviewsByClientId']);
-    
-    // ITEMS
-    Route::post('/mercadolibre/items', [itemController::class, 'store']); // MercadoLibre items routes.
-    Route::put('/mercadolibre/items/{item_id}', [itemController::class, 'update']); // Create and update items.
-
-    // PRODUCT REPORT
-    Route::get('/mercadolibre/client-item-list/{client_id}', [productReportController::class, 'listProductsByClientIdWithPaymentStatus']);
-
-    // Stock Rotation
-    Route::get('/mercadolibre/stock-rotation/{client_id}', [getStockRotationController::class, 'getStockRotation']);
-
-    // Stock Reception
-    Route::get('/mercadolibre/stock-reception/{client_id}', [getStockReceptionController::class, 'getStockReception']);
-
-    // Available for Reception 
-    Route::get('/mercadolibre/available-for-reception/{client_id}', [getAvailableForReceptionController::class, 'getAvailableForReception']); // PAUSADO
-
-    // Products to Dispatch
-    Route::get('/mercadolibre/products-to-dispatch/{client_id}', [getProductsToDispatchController::class, 'getProductsToDispatch']);
-    
-    Route::get('/mercadolibre/upcoming-shipments/{client_id}', [getUpcomingShipmentsController::class, 'getUpcomingShipments']);
-    
-    // Get stock of products
-    Route::get('/mercadolibre/stock/{client_id}', [getStockController::class, 'getStock']);
-
-    // Get Dispatch History
-    Route::get('/mercadolibre/history-dispatch/{client_id}/{skuSearch}', [getHistoryDispatchController::class, 'getHistoryDispatch']);
-    
-    //Update stock
-    Route::put('/mercadolibre/update-stock/{client_id}/{productId}', [putProductoByUpdateController::class, 'putProductoByUpdate']);
-
-    // Get stock critic
-    Route::get('/mercadolibre/stock-critic/{client_id}', [getStockCriticController::class, 'getStockCritic']);
-
-    //Create product ML
-    Route::post('/mercadolibre/Products/{client_id}/crear-producto', [CreateProductController::class, 'create']);
-
-    // Get dispatch estimated limit
-    Route::get('/mercadolibre/dispatch-estimated-limit/{client_id}', [getDispatchEstimedLimitController::class, 'getDispatchEstimedLimit']);
-
-    //Get Information Dispatch Delivered
-    Route::get('/mercadolibre/information-dispatch-delivered/{client_id}/{deliveredId}', [getInformationDispatchDeliveredController::class, 'getInformationDispatchDelivered']);
-
-    Route::get('/mercadolibre/ordenes-canceladas/{clientId}', [getCancelledOrdersController::class, 'getCancelledOrders']);
-
-    //Create a new client
-    Route::post('/create-new-client', [createNewClientController::class, 'createNewClient']);
-
-    // Get catalog products
-    Route::get('/mercadolibre/products/{client_id}/catalogo', [getCatalogProductController::class, 'getCatalogProducts']);
-
-    // Get all clients
-    Route::get('/clients-all', [clientAllListController::class, 'clientAllList']);
-
-    // Get product by company ID
-    Route::get('/products-by-company/{idCompany}', [getProductByCompanyIdController::class, 'getProductByCompanyId']);
-    
-    //SalePoint
-    Route::post('/generated-sale-note/{status}', [generatedSaleNoteController::class, 'generatedSaleNote']);
-    
-    //Get history sale
-    Route::get('/history-sale/{client_id}', [getHistorySaleController::class, 'getHistorySale']);
-    
-    //Get history sale Pendient
-    Route::get('/history-sale-pendient/{client_id}', [getHistoryPendientController::class, 'getHistoryPendient']);
-    //Get history sale Patch Status
-    Route::patch('/generated-sale-note/{saleId}/{status}', [getHistorySalePatchStatusController::class, 'getHistorySalePatchStatus']);
-    //Get Delete history by id sale
-    Route::delete('/delete-history-sale/{companyId}/{saleId}', [getDeleteHistoryByIdSaleController::class, 'getDeleteHistoryByIdSale']);
-    //Get search sale by folio
-    Route::get('/search-sale-by-folio/{companyId}', [getSearchSaleByFolioController::class, 'getSearchSaleByFolio']);
-    
-    Route::put('/sale-note/{companyId}/{folio}', [putSaleNoteByFolioController::class, 'putSaleNoteByFolio']);
-    
-    Route::get('mercadolibre/categoria/{id}', [getCategoriaController::class, 'getCategoria']);
-
-    Route::get('mercadolibre/categoria/{id}/atributos', [getAtributosCategoriaController::class, 'getAtributos']);
-
-    Route::get('mercadolibre/specs/{id}', [getSpecsDomainController::class, 'getSpecs']);
-    
 });
