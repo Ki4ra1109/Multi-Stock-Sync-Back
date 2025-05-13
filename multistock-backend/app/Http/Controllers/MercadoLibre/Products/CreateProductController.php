@@ -99,7 +99,9 @@ class CreateProductController extends Controller
                 $payload['description'] = ['plain_text' => $validated['description']];
             }
 
-            $payload['family_name'] = $validated['family_name'];
+            if ($catalogRequired) {
+                $payload['family_name'] = $validated['title'];
+            }
 
             if (!empty($validated['attributes'])) {
                 $payload['attributes'] = $validated['attributes'];
