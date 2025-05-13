@@ -69,7 +69,7 @@ class putProductoByUpdateController{
         }
 
         $response = Http::withToken($credentials->access_token)
-            ->put("https://api.mercadolibre.com/items/$productId", $validatedData);
+            ->put("https://api.mercadolibre.com/items/{$productId}", $validatedData);
 
         if ($response->failed()) {  
             return response()->json([
