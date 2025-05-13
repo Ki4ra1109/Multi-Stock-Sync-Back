@@ -94,9 +94,8 @@ class getCatalogProductController extends Controller
             }
         }
 
-        // 4. Si no hay family_name, usar domain_name como alternativa
-        if (!$familyName && $domainName) {
-            $familyName = $domainName;
+        if(empty($familyName)){
+            $familyName = $title;
         }
 
         return response()->json([

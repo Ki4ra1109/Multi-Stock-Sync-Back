@@ -20,10 +20,23 @@ class getProductsToDispatchController
         }
 
         if ($credentials->isTokenExpired()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'El token ha expirado. Por favor, renueve su token.',
-            ], 401);
+        $refreshResponse = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
+            'grant_type' => 'refresh_token',
+            'client_id' => $credentials->client_id,
+            'client_secret' => $credentials->client_secret,
+            'refresh_token' => $credentials->refresh_token,
+        ]);
+
+        if ($refreshResponse->failed()) {
+            return response()->json(['error' => 'No se pudo refrescar el token'], 401);
+        }
+
+        $data = $refreshResponse->json();
+        $credentials->update([
+            'access_token' => $data['access_token'],
+            'refresh_token' => $data['refresh_token'],
+            'expires_at' => now()->addSeconds($data['expires_in']),
+        ]);
         }
 
         $response = Http::withToken($credentials->access_token)

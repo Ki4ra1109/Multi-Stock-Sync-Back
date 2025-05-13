@@ -44,6 +44,7 @@ use App\Http\Controllers\MercadoLibre\Reportes\getUpcomingShipmentsController;
 use App\Http\Controllers\MercadoLibre\Reportes\getDispatchEstimedLimitController;
 use App\Http\Controllers\MercadoLibre\Reportes\getInformationDispatchDeliveredController;
 use App\Http\Controllers\MercadoLibre\Reportes\getCancelledOrdersController;
+use App\Http\Controllers\MercadoLibre\Reportes\getProductSellerController;
 
 // Bodegas //
 use App\Http\Controllers\Warehouses\warehouseListAllController;
@@ -188,7 +189,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/mercadolibre/Products/{client_id}/crear-producto', [CreateProductController::class, 'create']); // Crear producto
     Route::post('/mercadolibre/items', [itemController::class, 'store']); // Crear ítem
     Route::put('/mercadolibre/items/{item_id}', [itemController::class, 'update']); // Actualizar ítem
-    Route::put('/mercadolibre/update-stock/{client_id}/{productId}', [putProductoByUpdateController::class, 'putProductoByUpdate']); // Actualizar stock
+    Route::put('/mercadolibre/update/{client_id}/{productId}', [putProductoByUpdateController::class, 'putProductoByUpdate']); // Actualizar stock
 
     // REPORTES MERCADO LIBRE
     Route::get('/mercadolibre/annual-sales/{client_id}', [getAnnualSalesController::class, 'getAnnualSales']); // Ventas anuales
@@ -219,6 +220,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/mercadolibre/weeks-of-month', [getWeeksOfMonthController::class, 'getWeeksOfMonth']); // Semanas del mes
     Route::get('/reviews/{clientId}', [reviewController::class, 'getReviewsByClientId']); // Reseñas por cliente
     Route::get('/mercadolibre/products/reviews/{product_id}', [getProductReviewsController::class, 'getProductReviews']); // Reseñas por producto
+    Route::get('/mercadolibre/all-products/{client_id}', [getProductSellerController::class, 'getProductSeller']); // Obtener todos los productos por client_id
 
     // Refrescar token de MercadoLibre
     Route::post('/mercadolibre/refresh-token', [refreshAccessTokenController::class, 'refreshToken']);
