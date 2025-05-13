@@ -192,6 +192,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/mercadolibre/items', [itemController::class, 'store']); // Crear ítem
     Route::put('/mercadolibre/items/{item_id}', [itemController::class, 'update']); // Actualizar ítem
     Route::put('/mercadolibre/update-stock/{client_id}/{productId}', [putProductoByUpdateController::class, 'putProductoByUpdate']); // Actualizar stock
+    Route::get('/mercadolibre/carga-masiva', [getExcelCargaMasivaMLController::class, 'redirigir']); // Redirigir a carga masiva
+    Route::post('/mercadolibre/carga-masiva/leer-excel', [getProductosExcelController::class, 'leerExcel']); // Leer carga masiva
+    Route::put('/mercadolibre/update/{client_id}/{productId}', [putProductoByUpdateController::class, 'putProductoByUpdate']); // Actualizar stock
+
 
     // REPORTES MERCADO LIBRE
     Route::get('/mercadolibre/annual-sales/{client_id}', [getAnnualSalesController::class, 'getAnnualSales']); // Ventas anuales
