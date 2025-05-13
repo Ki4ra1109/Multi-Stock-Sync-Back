@@ -76,6 +76,8 @@ use App\Http\Controllers\SalePoint\getHistorySalePatchStatusController;
 use App\Http\Controllers\SalePoint\getDeleteHistoryByIdSaleController;
 use App\Http\Controllers\SalePoint\getSearchSaleByFolioController;
 use App\Http\Controllers\SalePoint\putSaleNoteByFolioController;
+use App\Http\Controllers\SalePoint\postDocumentSaleController;
+use App\Http\Controllers\SalePoint\getDocumentByDownloadController;
 
 // LOGIN //
 
@@ -231,9 +233,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/history-sale-pendient/{client_id}', [getHistoryPendientController::class, 'getHistoryPendient']); // Obtener historial pendiente
     Route::get('/products-by-company/{idCompany}', [getProductByCompanyIdController::class, 'getProductByCompanyId']); // Productos por empresa
     Route::get('/search-sale-by-folio/{companyId}', [getSearchSaleByFolioController::class, 'getSearchSaleByFolio']); // Buscar venta por folio
+    Route::get('/document-sale/{client_id}/{id_folio}', [getDocumentByDownloadController::class, 'getDocumentByDownload']); // Descargar documento de venta
 
     Route::post('/create-new-client', [createNewClientController::class, 'createNewClient']); // Crear cliente
     Route::post('/generated-sale-note/{status}', [generatedSaleNoteController::class, 'generatedSaleNote']); // Generar nota de venta
+    Route::post('/document-sale', [postDocumentSaleController::class, 'postDocumentSale']); // Subir documento de venta
 
     Route::delete('/delete-history-sale/{companyId}/{saleId}', [getDeleteHistoryByIdSaleController::class, 'getDeleteHistoryByIdSale']); // Eliminar historial por ID
     Route::patch('/generated-sale-note/{saleId}/{status}', [getHistorySalePatchStatusController::class, 'getHistorySalePatchStatus']); // Actualizar estado de venta
