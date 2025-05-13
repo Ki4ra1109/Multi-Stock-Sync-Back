@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 
 class putProductoByUpdateController{
     
-    public function putProductoByUpdate($clientId, $productId){
+    public function putProductoByUpdate(Request $request ,$clientId, $productId){
 
         $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
 
@@ -27,38 +27,62 @@ class putProductoByUpdateController{
         }
 
         $response = Http::withToken($credentials->access_token)
-            ->get("https://api.mercadolibre.com/items/$productId");
-        
+            ->get("https://api.mercadolibre.com/users/me");
+
         if ($response->failed()) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'No se pudo obtener el producto. Por favor, valide su token.',
-                'error' => $response->json(),
+                'message' => 'Error al obtener información del usuario.',
             ], 500);
         }
 
-        $product = $response->json();
-        $oldQuantity = $product['available_quantity'];
-        $quantity = request()->input('quantity', 0);
-        $updateQuantity = $quantity + $oldQuantity;
+        $userId = $response->json()['id'];
 
-        $updateResponse = Http::withToken($credentials->access_token)
-            ->put("https://api.mercadolibre.com/items/$productId", [
-                'available_quantity' => $updateQuantity,
-            ]);
-        
-        if ($updateResponse->failed()) {
+        $validatedData = [];
+
+        if ($request->has('available_quantity')) {
+            $validatedData['available_quantity'] = $request->input('available_quantity');
+        }
+        if ($request->has('price')) {
+            $validatedData['price'] = $request->input('price');
+        }
+        if ($request->has('pictures')) {
+            $validatedData['pictures'] = $request->input('pictures');
+        }
+        if ($request->has('description')) {
+            $validatedData['description'] = $request->input('description');
+        }
+        if ($request->has('shipping')) {
+            $validatedData['shipping'] = $request->input('shipping');
+        }
+        if ($request->has('title')) {
+            $validatedData['title'] = $request->input('title');
+        }
+        if ($request->has('listing_type_id')) {
+            $validatedData['listing_type_id'] = $request->input('listing_type_id');
+        }
+        if ($request->has('status')) {
+            $validatedData['status'] = $request->input('status');
+        }
+        if ($request->has('sale_terms')) {
+            $validatedData['sale_terms'] = $request->input('sale_terms');
+        }
+
+        $response = Http::withToken($credentials->access_token)
+            ->put("https://api.mercadolibre.com/items/$productId", $validatedData);
+
+        if ($response->failed()) {  
             return response()->json([
                 'status' => 'error',
-                'message' => 'No se pudo actualizar el producto. Por favor, valide su token.',
-                'error' => $updateResponse->json(),
-            ], 500);
+                'message' => 'Error al actualizar el producto en Mercado Libre.',
+                'ml_error' => $response->json(),
+            ], $response->status());
         }
 
         return response()->json([
             'status' => 'success',
             'message' => 'Producto actualizado correctamente.',
-            'data' => $updateResponse->json(),
+            'data' => $response->json(),
         ], 200);
     }
 }
