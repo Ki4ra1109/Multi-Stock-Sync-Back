@@ -4,11 +4,12 @@ namespace App\Http\Controllers\MercadoLibre\Products;
 
 use App\Models\MercadoLibreCredential;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 
-class putProductoByUpdateController{
-    
-    public function putProductoByUpdate(Request $request ,$clientId, $productId){
+class putProductoByUpdateController {
+
+    public function putProductoByUpdate(Request $request, $clientId, $productId) {
 
         $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
 
@@ -26,17 +27,17 @@ class putProductoByUpdateController{
             ], 401);
         }
 
-        $response = Http::withToken($credentials->access_token)
+        $userResponse = Http::withToken($credentials->access_token)
             ->get("https://api.mercadolibre.com/users/me");
 
-        if ($response->failed()) {
+        if ($userResponse->failed()) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Error al obtener información del usuario.',
             ], 500);
         }
 
-        $userId = $response->json()['id'];
+        $userId = $userResponse->json()['id'];
 
         $validatedData = [];
 
@@ -69,9 +70,17 @@ class putProductoByUpdateController{
         }
 
         $response = Http::withToken($credentials->access_token)
-            ->put("https://api.mercadolibre.com/items/$productId", $validatedData);
+            ->put("https://api.mercadolibre.com/items/{$productId}", $validatedData);
 
-        if ($response->failed()) {  
+        if ($response->failed()) {
+            Log::error("Error al actualizar producto en MercadoLibre", [
+                'product_id' => $productId,
+                'client_id' => $clientId,
+                'payload_enviado' => $validatedData,
+                'respuesta_ml' => $response->body(),
+                'status_code' => $response->status(),
+            ]);
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Error al actualizar el producto en Mercado Libre.',
