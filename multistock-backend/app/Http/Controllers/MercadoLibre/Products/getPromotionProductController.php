@@ -8,9 +8,9 @@ use App\Models\MercadoLibreCredential;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 
-class newSearch extends Controller
+class getPromotionProductController extends Controller
 {
-    public function newSearch(Request $request, $client_id)
+    public function getPromotionProduct(Request $request, $client_id)
     {
         $credentials = MercadoLibreCredential::where('client_id', $client_id)->first();
 
@@ -36,7 +36,7 @@ class newSearch extends Controller
         $searchTerm = $request->query('q', '');
 
         $response = Http::withToken($credentials->access_token)
-            ->get("https://api.mercadolibre.com/items/{$searchTerm}?include_attributes=all");
+            ->get("https://api.mercadolibre.com/seller-promotions/items/{$searchTerm}?app_version=v2");
 
         if ($response->failed()) {
             return response()->json([
