@@ -78,6 +78,7 @@ use App\Http\Controllers\SalePoint\getSearchSaleByFolioController;
 use App\Http\Controllers\SalePoint\putSaleNoteByFolioController;
 use App\Http\Controllers\SalePoint\postDocumentSaleController;
 use App\Http\Controllers\SalePoint\getDocumentByDownloadController;
+use App\Http\Controllers\SalePoint\getAllHistorySaleIssueController;
 
 // LOGIN //
 
@@ -240,6 +241,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/products-by-company/{idCompany}', [getProductByCompanyIdController::class, 'getProductByCompanyId']); // Productos por empresa
     Route::get('/search-sale-by-folio/{companyId}', [getSearchSaleByFolioController::class, 'getSearchSaleByFolio']); // Buscar venta por folio
     Route::get('/document-sale/{client_id}/{id_folio}', [getDocumentByDownloadController::class, 'getDocumentByDownload']); // Descargar documento de venta
+    Route::get('/history-sale-issue/{client_id}', [getAllHistorySaleIssueController::class, 'getAllHistorySaleIssue']); // Obtener historial de ventas emitidas
 
     Route::post('/create-new-client', [createNewClientController::class, 'createNewClient']); // Crear cliente
     Route::post('/generated-sale-note/{status}', [generatedSaleNoteController::class, 'generatedSaleNote']); // Generar nota de venta
