@@ -14,13 +14,13 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Cache;
-// use Spatie\Async\Pool;
-// use GuzzleHttp\Client;
-// use GuzzleHttp\Promise;
+
+use GuzzleHttp\Client;
+use GuzzleHttp\Promise;
 
 class getStockCriticController
 {
@@ -28,60 +28,16 @@ class getStockCriticController
 
     public function getStockCritic(Request $request, $clientId)
     {
-        /*$datosDePrueba = [
-            'productos' => [
-                [
-                    'id' => 'MLC12345678',
-                    'title' => 'Smartphone XYZ Pro 128GB',
-                    'available_quantity' => 2,
-                    'price' => 899.99,
-                    'permalink' => 'https://www.mercadolibre.com.mx/mlc-12345678'
-                ],
-                [
-                    'id' => 'MLC87654321',
-                    'title' => 'Laptop Ultradelgada 14" Core i7',
-                    'available_quantity' => 1,
-                    'price' => 1299.50,
-                    'permalink' => 'https://www.mercadolibre.com.mx/mlc-87654321'
-                ],
-                [
-                    'id' => 'MLC13579246',
-                    'title' => 'Auriculares Inalámbricos NoiseCancel Pro',
-                    'available_quantity' => 5,
-                    'price' => 199.00,
-                    'permalink' => 'https://www.mercadolibre.com.mx/mlc-13579246'
-                ],
-                [
-                    'id' => 'MLC24680135',
-                    'title' => 'Smartwatch Fitness Pro Edición Especial',
-                    'available_quantity' => 0,
-                    'price' => 249.99,
-                    'permalink' => null
-                ],
-                [
-                    'id' => 'MLC98765432',
-                    'title' => 'Cámara DSLR 24MP con Lente 18-55mm',
-                    'available_quantity' => 3,
-                    'price' => 599.00,
-                    'permalink' => 'https://www.mercadolibre.com.mx/mlc-98765432'
-                ],
-                [
-                    'id' => 'MLC55555555',
-                    'title' => 'Teclado Mecánico RGB Gaming',
-                    'available_quantity' => 4,
-                    'price' => 89.90,
-                    'permalink' => 'https://www.mercadolibre.com.mx/mlc-55555555'
-                ]
-            ],
-            'total_items_processed' => 150,
-            'products_count' => 6
-        ];*/
+
+
         set_time_limit(180);
         try {
             $validatedData = $request->validate([
                 'excel' => 'sometimes|max:4',
                 'mail' => 'sometimes|email|max:255',
             ]);
+            $excel = false;
+            $mail=null;
             if (isset($validatedData['excel'])) {
                 $excel = $request->boolean('excel');
                 error_log("excel " . json_encode($excel));
@@ -192,16 +148,17 @@ class getStockCriticController
 
             $maxProductos = 1000; // Ajustar según necesidades (1000 es el maximo)
             $productosProcessed = 0; //contador de productos para terminar la ejecucion el caso de alcanzar $maxProductos
-            // $client = new Client([
-            //     'timeout' => 30,
-            //     'headers' => [
-            //         'Authorization' => 'Bearer ' . $credentials->access_token
-            //     ]
-            // ]);
+            //se setea los headres y el tiempo de espera de la conexion asyncrona
+            $client = new Client([
+                'timeout' => 30,
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $credentials->access_token
+                ]
+            ]);
             do {
                 // se arma la url para obtener lotes de IDs de productos para consultar a travez de ids
                 $searchUrl = $baseUrl . (strpos($baseUrl, '?') !== false ? '&' : '?') .
-                    http_build_query(['limit' => $limit, 'offset' => $offset]);
+                    http_build_query(['limit' => $limit, 'offset'=> $offset]);
                 error_log("URL: {$searchUrl}");
                 $response = Http::timeout(30)->withToken($credentials->access_token)->get($searchUrl);
                 if ($response->failed()) {
@@ -225,95 +182,68 @@ class getStockCriticController
                 $itemBatches = array_chunk($items, 20);
                 $totalItems += count($items);
                 $productosProcessed += count($items);
-                error_log("batches: " . json_encode($itemBatches));
-                error_log("batches: " . json_encode($itemBatches));
+
+                // Solucion azyncrona mmultiples peticiones paralelas
                 foreach ($itemBatches as $batch) {
-                    //se hace una diferencia de los grupos de 20 con los ids ya procesadospara evitar duplicados
-
+                    // Filtrar IDs ya procesados
                     $uniqueBatch = array_diff($batch, $processedIds);
-                    //se agergan los nuevos arrays
                     $processedIds = array_merge($processedIds, $uniqueBatch);
-                    //en caso de que no haya nada que agregar se compienza denuevo el ciclo con el proximo lote de 20
+
                     if (empty($uniqueBatch)) continue;
-                    //se formatea la id para la url asi consultar los ids de los productos
-                    $batchIds = implode(',', $uniqueBatch);
 
-                    //se hace la peticion a la api para obtener los datos de todos los productos del lote
-                    //con este formato es mas rapido
-                    $batchResponse = Http::withToken($credentials->access_token)
-                        ->get("https://api.mercadolibre.com/items", [
-                            'ids' => $batchIds,
-                            'attributes' => 'id,title,available_quantity,price,permalink'
+                    // Crear promesas para peticiones paralelas
+                    $promises = [];
+                    foreach (array_chunk($uniqueBatch, 20) as $subBatch) {
+                        $batchIds = implode(',', $subBatch);
+                        $promises[] = $client->getAsync('https://api.mercadolibre.com/items', [
+                            'query' => [
+                                'ids' => $batchIds,
+                                'attributes' => 'id,title,available_quantity,price,permalink'
+                            ]
                         ]);
-                    //se valida la respuesta de la peticion
-                    if ($batchResponse->successful()) {
-                        $batchResults = $batchResponse->json();
+                    }
 
-                        //se recorre el array de resultados se confirman la existencia de los datos y se agregan los productos con bajo stock
-                        foreach ($batchResults as $itemResult) {
-                            if (
-                                $itemResult['code'] == 200 &&
-                                isset($itemResult['body']['available_quantity']) &&
-                                $itemResult['body']['available_quantity'] <= 5
-                            ) {
+                    // Ejecutar todas las promesas en paralelo
+                    try {
+                        $responses = Promise\Utils::unwrap($promises);
 
-                                $productsStock[] = [
-                                    'id' => $itemResult['body']['id'],
-                                    'title' => $itemResult['body']['title'],
-                                    'available_quantity' => $itemResult['body']['available_quantity'],
-                                    'price' => $itemResult['body']['price'] ?? null,
-                                    'permalink' => $itemResult['body']['permalink'] ?? null
-                                ];
+                        // Procesar cada respuesta de las promesas
+                        foreach ($responses as $response) {
+                            if ($response->getStatusCode() == 200) {
+                                $batchResults = json_decode($response->getBody()->getContents(), true);
+
+                                // Validar que batchResults sea un array antes de procesarlo
+                                if (!is_array($batchResults)) {
+                                    error_log("Error: La respuesta no es un array válido: " . $response->getBody());
+                                    continue;
+                                }
+
+                                // Procesar los resultados
+                                foreach ($batchResults as $itemResult) {
+                                    if (
+                                        isset($itemResult['code']) &&
+                                        $itemResult['code'] == 200 &&
+                                        isset($itemResult['body']['available_quantity']) &&
+                                        $itemResult['body']['available_quantity'] <= 5
+                                    ) {
+                                        $productsStock[] = [
+                                            'id' => $itemResult['body']['id'],
+                                            'title' => $itemResult['body']['title'],
+                                            'available_quantity' => $itemResult['body']['available_quantity'],
+                                            'price' => $itemResult['body']['price'] ?? null,
+                                            'permalink' => $itemResult['body']['permalink'] ?? null
+                                        ];
+                                    }
+                                }
+                            } else {
+                                error_log("Respuesta de API con estado no exitoso: " . $response->getStatusCode());
                             }
                         }
+                    } catch (\Exception $e) {
+                        error_log("Error en peticiones asincrónicas: " . $e->getMessage());
+                        error_log("Traza del error: " . $e->getTraceAsString());
                     }
                 }
-                //Solucion con asyncrona con peticiones
-                 //paralelas aun no hago las pruebas por eso lo dejo comentado
-                // foreach ($itemBatches as $batch) {
-                //     // Filtrar IDs ya procesados
-                //     $uniqueBatch = array_diff($batch, $processedIds);
-                //     $processedIds = array_merge($processedIds, $uniqueBatch);
-
-                //     if (empty($uniqueBatch)) continue;
-
-                //     // Crear promesas para peticiones paralelas, esto permite enviar las siguientes peticiones
-                //     // de forma paralela y obtener los resultados de forma sincrona.
-                //     $promises = [];
-                //     foreach (array_chunk($uniqueBatch, 20) as $subBatch) {
-                //         $batchIds = implode(',', $subBatch);
-                //         $promises[] = $client->getAsync('https://api.mercadolibre.com/items', [
-                //             'query' => [
-                //                 'ids' => $batchIds,
-                //                 'attributes' => 'id,title,available_quantity,price,permalink'
-                //             ]
-                //         ]);
-                //     }
-
-                //     // Ejecutar todas las promesas en paralelo
-                //     $results = Promise\Utils::settle(Promise\Utils::all($promises))->wait();
-
-                //     foreach ($results as $result) {
-                //         if ($result['state'] === 'fulfilled') {
-                //             $batchResults = json_decode($result['value']->getBody(), true);
-                //             foreach ($batchResults as $itemResult) {
-                //                 if (
-                //                     $itemResult['code'] == 200 &&
-                //                     isset($itemResult['body']['available_quantity']) &&
-                //                     $itemResult['body']['available_quantity'] <= 5
-                //                 ) {
-                //                     $productsStock[] = [
-                //                         'id' => $itemResult['body']['id'],
-                //                         'title' => $itemResult['body']['title'],
-                //                         'available_quantity' => $itemResult['body']['available_quantity'],
-                //                         'price' => $itemResult['body']['price'] ?? null,
-                //                         'permalink' => $itemResult['body']['permalink'] ?? null
-                //                     ];
-                //                 }
-                //             }
-                //         }
-                //     }
-                // }
 
 
                 $offset += $limit;
@@ -330,7 +260,7 @@ class getStockCriticController
                 'productos' => $productsStock
 
             ];
-            error_log("datos" . json_encode($responseData));
+
 
             Cache::put($cacheKey, $responseData, now()->addMinutes(10));
             if (isset($validatedData['excel']) && $excel == true) {
@@ -429,7 +359,7 @@ class getStockCriticController
                 // Eliminar el archivo temporal
                 @unlink($tempFile);
 
-                // Crear la respuesta con el archivo como contenido
+                // Crear la respuesta con el archivo como contenido para descarga directa
                 return response($fileContent)
                     ->header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
                     ->header('Content-Disposition', 'attachment; filename="' . $fileName . '"')
@@ -513,7 +443,7 @@ class getStockCriticController
                 $sheet->setCellValue('E' . $row, '');
             }
 
-            // Aplicar estilo según cantidad de stock (rojo si es crítico)
+            // aplicar color rojo cuando stock es menor o igual a 2
             if ($producto['available_quantity'] <= 2) {
                 $sheet->getStyle('C' . $row)->getFont()->getColor()->setRGB('FF0000');
                 $sheet->getStyle('C' . $row)->getFont()->setBold(true);
