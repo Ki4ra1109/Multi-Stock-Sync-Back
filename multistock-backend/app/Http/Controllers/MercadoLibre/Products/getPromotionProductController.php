@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Http;
 
 class getPromotionProductController extends Controller
 {
+    //metodo para saber si un producto esta promocion
     public function getPromotionProduct(Request $request, $client_id)
     {
         $credentials = MercadoLibreCredential::where('client_id', $client_id)->first();
@@ -47,12 +48,12 @@ class getPromotionProductController extends Controller
         }
 
         $products = $response->json();
-        
+
         return response()->json([
             'status' => 'success',
             'products' => $products,
         ], 200);
 
     }
-    
-}    
+
+}
