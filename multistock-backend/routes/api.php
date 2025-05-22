@@ -106,7 +106,7 @@ use App\Http\Controllers\MercadoLibre\Products\getProductReviewsController;
 use App\Http\Controllers\MercadoLibre\Products\saveProductsController;
 use App\Http\Controllers\MercadoLibre\Products\itemController;
 use App\Http\Controllers\MercadoLibre\Products\getStockController;
-use App\Http\Controllers\MercadoLibre\Products\putProductoByUpdateController;
+use App\Http\Controllers\MercadoLibre\Products\putProductoController;
 use App\Http\Controllers\MercadoLibre\Products\CreateProductController;
 use App\Http\Controllers\MercadoLibre\Products\getCatalogProductController;
 use App\Http\Controllers\MercadoLibre\Products\getCategoriaController;
@@ -198,7 +198,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/mercadolibre/update-stock/{client_id}/{productId}', [putProductoByUpdateController::class, 'putProductoByUpdate']); // Actualizar stock
     Route::get('/mercadolibre/carga-masiva', [getExcelCargaMasivaMLController::class, 'redirigir']); // Redirigir a carga masiva
     Route::post('/mercadolibre/carga-masiva/leer-excel', [getProductosExcelController::class, 'leerExcel']); // Leer carga masiva
-    Route::put('/mercadolibre/update/{client_id}/{productId}', [putProductoByUpdateController::class, 'putProductoByUpdate']); // Actualizar stock
+    Route::put('/mercadolibre/update/{client_id}/{productId}', [putProductoController::class, 'putProductoByUpdate']); // Actualizar stock
 
 
     // REPORTES MERCADO LIBRE

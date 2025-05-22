@@ -78,6 +78,7 @@ class getProductSellerController extends Controller
                         'status' => $productData['status'],
                         'pictures' => $productData['pictures'],
                         'atributes' => $productData['attributes'],
+                        'permalink' => $productData['permalink'],
                     ]],
                     'cantidad_total' => 1,
                 ]);
@@ -130,6 +131,7 @@ class getProductSellerController extends Controller
                     'status' => $productData['status'],
                     'pictures' => $productData['pictures'],
                     'atributes' => $productData['attributes'],
+                    'permalink' => $productData['permalink'],
                 ];
             }
         }
