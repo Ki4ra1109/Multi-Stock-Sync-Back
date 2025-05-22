@@ -67,7 +67,6 @@ class getStockController
         $offset = 0;
         $totalItems = 0;
         $productsStock = [];
-        $processedIds = [];
 
         // Construir la URL base
         $baseUrl = "https://api.mercadolibre.com/users/{$userId}/items/search";
