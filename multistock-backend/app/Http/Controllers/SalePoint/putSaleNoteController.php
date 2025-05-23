@@ -9,15 +9,14 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
-class GetHistorySalePatchStatusController
+class putSaleNoteController
 {
-    public function getHistorySalePatchStatus(Request $request, $saleId, $status)
+    public function putSaleNote(Request $request, $saleId, $status)
     {
         DB::beginTransaction();
 
         try {
             // Validar que la venta exista
-            $saleId = (int) $saleId;
             $sale = Sale::findOrFail($saleId);
 
             // Validar datos de entrada
@@ -25,10 +24,10 @@ class GetHistorySalePatchStatusController
                 'warehouse_id' => 'required|integer|exists:warehouses,id',
                 'client_id' => 'required|integer|exists:clientes,id',
                 'products' => 'required|array',
-                'products.*.product_id' => 'required|integer|exists:stock_warehouses,id',
-                'products.*.quantity' => 'required|integer|min:1',
-                'products.*.price_unit' => 'required|numeric|min:0',
-                'products.*.subtotal' => 'required|numeric|min:0',
+                'products.*.product_id' => 'required|integer|exists:stockWarehouse,id',
+                'products.*.cantidad' => 'required|integer|min:1',
+                'products.*.precio_unidad' => 'required|numeric|min:0',
+                'products.*.precio_total' => 'required|numeric|min:0',
                 'amount_total_products' => 'required|integer',
                 'price_subtotal' => 'required|numeric',
                 'price_final' => 'required|numeric',
@@ -51,17 +50,17 @@ class GetHistorySalePatchStatusController
             ]);
 
             // Sincronizar productos de la venta
-            $this->syncProducts($sale, $validatedData['products']);
+            $this->syncProducts($sale->id, $validatedData['products'],$status);
 
             DB::commit();
 
             // Cargar relaciones para la respuesta
-            $sale->load(['productSales.stockWarehouse', 'warehouse']);
+            $sale->load(['productSales.product', 'warehouse']);
 
             return response()->json([
                 'message' => 'Venta actualizada exitosamente.',
-                'data' => $sale->id,
-                'status' => 'success'
+                'data' => $sale,
+                'products' => $sale->productSales
             ], 200);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -74,47 +73,32 @@ class GetHistorySalePatchStatusController
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             DB::rollBack();
             return response()->json([
-                'message' => 'Recurso no encontrado: ' . $e->getMessage()
+                'message' => 'Venta no encontrada'
             ], 404);
 
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
                 'message' => 'Error al actualizar la venta',
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString() // Only for development
+                'error' => $e->getMessage()
             ], 500);
         }
     }
 
-    protected function syncProducts(Sale $sale, array $products)
+    protected function syncProducts($saleId, array $products,$status)
     {
         // Eliminar productos antiguos
-        ProductSale::where('venta_id', $sale->id)->delete();
+        ProductSale::where('venta_id', $saleId)->delete();
 
-        foreach ($products as $productData) {
-            // Verificar stock disponible
-            $stock = StockWarehouse::where('id', $productData['product_id'])
-                ->where('warehouse_id', $sale->warehouse_id)
-                ->firstOrFail();
-
-            if ($stock->available_quantity < $productData['quantity']) {
-                throw new \Exception("Stock insuficiente para el producto ID {$productData['product_id']}. Disponible: {$stock->available_quantity}, Solicitado: {$productData['quantity']}");
-            }
-
-            // Crear registro de producto en la venta
+        // Crear nuevos registros de productos
+        foreach ($products as $product) {
             ProductSale::create([
-                'venta_id' => $sale->id,
-                'product_id' => $productData['product_id'],
-                'cantidad' => $productData['quantity'],
-                'precio_unidad' => $productData['price_unit'],
-                'precio_total' => $productData['subtotal'],
+                'venta_id' => $saleId,
+                'product_id' => $product['product_id'],
+                'cantidad' => $product['cantidad'],
+                'precio_unidad' => $product['precio_unidad'],
+                'precio_total' => $product['precio_total']
             ]);
-
-            // Restar stock si la venta no está pendiente
-            if ($sale->status_sale !== 'Pendiente') {
-                $stock->decrement('available_quantity', $productData['quantity']);
-            }
         }
     }
 }
