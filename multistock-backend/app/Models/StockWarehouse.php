@@ -19,11 +19,11 @@ class StockWarehouse extends Model
         'available_quantity',
         'warehouse_id',
         'category_id',
-        'attribute', 
-        'pictures',  
-        'sale_terms', 
-        'shipping',  
-        'description', 
+        'attribute',
+        'pictures',
+        'sale_terms',
+        'shipping',
+        'description',
     ];
 
     /**
@@ -33,4 +33,19 @@ class StockWarehouse extends Model
     {
         return $this->belongsTo(Warehouse::class, 'warehouse_id');
     }
+    public function productSales()
+    {
+        return $this->hasMany(ProductSale::class, 'product_id');
+    }
+    public function company()
+{
+    return $this->hasOneThrough(
+        Company::class,
+        Warehouse::class,
+        'id', // Foreign key en warehouses
+        'id', // Foreign key en companies
+        'warehouse_id', // Local key en stock_warehouses
+        'assigned_company_id' // Cambiado de 'company_id' a 'assigned_company_id'
+    );
+}
 }

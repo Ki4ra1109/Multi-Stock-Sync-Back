@@ -18,6 +18,7 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\File;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Promise;
@@ -44,6 +45,7 @@ class getStockCriticController
             }
             if (isset($validatedData['mail'])) {
                 $mail = $validatedData['mail'];
+                error_log("mail " . json_encode($mail));
             }
         } catch (\Exception $e) {
             // Log the error message
@@ -89,7 +91,7 @@ class getStockCriticController
         }
         //Validar y obtener credenciales
         $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
-
+        error_log("credentials " . json_encode($credentials));
         if (!$credentials) {
             return response()->json([
                 'status' => 'error',
@@ -135,6 +137,8 @@ class getStockCriticController
                 'error' => $userResponse->json(),
             ], 500);
         }
+        error_log("userResponse " . json_encode($userResponse));
+        // Obtener el ID del usuario
         $userId = $userResponse->json()['id'];
         $limit = 100;
         $offset = 0;
@@ -148,7 +152,7 @@ class getStockCriticController
 
             $maxProductos = 1000; // Ajustar según necesidades (1000 es el maximo)
             $productosProcessed = 0; //contador de productos para terminar la ejecucion el caso de alcanzar $maxProductos
-            //se setea los headres y el tiempo de espera de la conexion asyncrona
+            //se setea los headers y el tiempo de espera de la conexion asyncrona
             $client = new Client([
                 'timeout' => 30,
                 'headers' => [
@@ -286,32 +290,37 @@ class getStockCriticController
     {
         try {
             if (!empty($result)) {
-                $directory = 'public/reports';
-                Storage::makeDirectory($directory); // Asegura que el directorio existe
+                // Crear directorio para asegurar que existe (con permisos adecuados)
+                $directoryPath = storage_path('app/reports');
+                if (!File::isDirectory($directoryPath)) {
+                    File::makeDirectory($directoryPath, 0755, true, true);
+                }
 
                 $fileName = 'reports/stock_critico_' . date('Ymd_His') . '.xlsx';
-                $storagePath = $fileName;
+                $fullPath = storage_path('app/' . $fileName);
 
                 // Crear el archivo Excel con PhpSpreadsheet
                 $spreadsheet = $this->createStockCriticoSpreadsheet($result);
                 $writer = new Xlsx($spreadsheet);
 
                 // Guardar el archivo en el storage
-                $fullPath = storage_path('app/' . $storagePath);
                 $writer->save($fullPath);
 
                 // Verificar que el archivo existe
                 if (!file_exists($fullPath)) {
-                    throw new \Exception("No se pudo generar el archivo Excel");
+                    throw new \Exception("No se pudo generar el archivo Excel en la ruta: " . $fullPath);
                 }
 
                 // Enviar por correo electrónico con el archivo adjunto
-                Mail::to($email)->send(new StockCriticoReport($storagePath));
+                Mail::to($email)->send(new StockCriticoReport($fileName));
 
-                // Eliminar el archivo después de enviar el correo
+                // Registrar el envío correcto
+                Log::info('Reporte enviado exitosamente a: ' . $email . ', archivo: ' . $fullPath);
+
+                // Eliminar el archivo después de enviar el correo (opcional, puedes mantenerlo si necesitas)
                 if (file_exists($fullPath)) {
                     unlink($fullPath);
-                    error_log('Archivo Excel eliminado después de enviar el correo: ' . $storagePath);
+                    Log::info('Archivo Excel eliminado después de enviar el correo: ' . $fullPath);
                 }
 
                 return response()->json([
@@ -327,13 +336,18 @@ class getStockCriticController
                 ], 404);
             }
         } catch (\Exception $e) {
-            error_log('Error al generar o enviar mail: ' . $e->getMessage());
+            Log::error('Error al generar o enviar mail: ' . $e->getMessage());
+            Log::error('Traza del error: ' . $e->getTraceAsString());
             return response()->json([
                 'status' => 'error',
                 'message' => 'Error al procesar los datos y enviar mail: ' . $e->getMessage(),
+                'file_path' => storage_path('app/reports'),
+                'directory_exists' => File::isDirectory(storage_path('app/reports')),
+                'storage_writable' => is_writable(storage_path('app'))
             ], 500);
         }
     }
+
 
     private function reportStockCriticExcel($result)
     {
@@ -488,13 +502,15 @@ class StockCriticoReport extends Mailable
 
         if (!file_exists($filePath)) {
             Log::error("Archivo no encontrado: " . $filePath);
-            throw new \Exception("El archivo adjunto no existe");
+            throw new \Exception("El archivo adjunto no existe en la ruta: " . $filePath);
         }
+
+        Log::info("Adjuntando archivo desde: " . $filePath);
 
         return $this->subject('Reporte de Stock Crítico - ' . date('d/m/Y'))
             ->view('emails.stock_report')
             ->attach($filePath, [
-                'as' => 'stock_critico.xlsx',
+                'as' => 'stock_critico_' . date('Ymd') . '.xlsx',
                 'mime' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             ]);
     }

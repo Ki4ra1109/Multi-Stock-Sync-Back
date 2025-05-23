@@ -123,6 +123,7 @@ class getStockController
                         $promises[] = $client->getAsync('https://api.mercadolibre.com/items', [
                             'query' => [
                                 'ids' => $batchIds,
+                                'attributes' => 'id,title,available_quantity,date_created,last_updated,attributes,seller_custom_field,seller_sku'
                             ]
                         ]);
                     }
@@ -130,7 +131,6 @@ class getStockController
                     // Ejecutar todas las promesas en paralelo
                     try {
                         $responses = Promise\Utils::unwrap($promises);
-
                         // Procesar cada respuesta de las promesas
                         foreach ($responses as $response) {
                             if ($response->getStatusCode() == 200) {
@@ -148,52 +148,53 @@ class getStockController
                                         isset($itemResult['code']) &&
                                         $itemResult['code'] == 200
                                     ) {
-                                        $sku = $itemResult['body']['seller_custom_field'] ?? null;
-                                        $skuSource = 'not_found';
+                                        $sku = isset($itemResult['body']['seller_custom_field']) ?? null;
+                                        $skuSource = isset($itemResult['body']['seller_sku']) ?? null;
+                                        // $skuSource = 'not_found';
+                                        error_log("SKU1: $sku SKU2: $skuSource ");
+                                        // //   2. Si no está, buscar en seller_sku del producto
+                                        // if (empty($sku)) {
+                                        //     if (isset($itemResult['body']['seller_sku'])) {
+                                        //         $sku = $itemResult['body']['seller_sku'];
+                                        //         $skuSource = 'seller_sku';
+                                        //     }
+                                        // } else {
+                                        //     $skuSource = 'seller_custom_field';
+                                        // }
 
-                                        // 2. Si no está, buscar en seller_sku del producto
-                                        if (empty($sku)) {
-                                            if (isset($itemResult['body']['seller_sku'])) {
-                                                $sku = $itemResult['body']['seller_sku'];
-                                                $skuSource = 'seller_sku';
-                                            }
-                                        } else {
-                                            $skuSource = 'seller_custom_field';
-                                        }
+                                        // // 3. Si aún no se encontró, buscar en los atributos del producto
+                                        // if (empty($sku) && isset($itemResult['body']['attributes'])) {
+                                        //     foreach ($itemResult['body']['attributes'] as $attribute) {
+                                        //         // Buscar por ID o nombre de atributo común para SKUs
+                                        //         if (
+                                        //             in_array(strtolower($attribute['id']), ['seller_sku', 'sku', 'codigo', 'reference', 'product_code']) ||
+                                        //             in_array(strtolower($attribute['name']), ['sku', 'código', 'referencia', 'codigo', 'código de producto'])
+                                        //         ) {
+                                        //             $sku = $attribute['value_name'];
+                                        //             $skuSource = 'attributes';
+                                        //             break;
+                                        //         }
+                                        //     }
+                                        // }
 
-                                        // 3. Si aún no se encontró, buscar en los atributos del producto
-                                        if (empty($sku) && isset($itemResult['body']['attributes'])) {
-                                            foreach ($itemResult['body']['attributes'] as $attribute) {
-                                                // Buscar por ID o nombre de atributo común para SKUs
-                                                if (
-                                                    in_array(strtolower($attribute['id']), ['seller_sku', 'sku', 'codigo', 'reference', 'product_code']) ||
-                                                    in_array(strtolower($attribute['name']), ['sku', 'código', 'referencia', 'codigo', 'código de producto'])
-                                                ) {
-                                                    $sku = $attribute['value_name'];
-                                                    $skuSource = 'attributes';
-                                                    break;
-                                                }
-                                            }
-                                        }
+                                        // // 4. Si sigue sin encontrarse, intentar con el modelo como último recurso
+                                        // if (empty($sku) && isset($itemResult['body']['attributes'])) {
+                                        //     foreach ($itemResult['body']['attributes'] as $attribute) {
+                                        //         if (
+                                        //             strtolower($attribute['id']) === 'model' ||
+                                        //             strtolower($attribute['name']) === 'modelo'
+                                        //         ) {
+                                        //             $sku = 'MOD-' . $attribute['value_name'];
+                                        //             $skuSource = 'model_fallback';
+                                        //             break;
+                                        //         }
+                                        //     }
+                                        // }
 
-                                        // 4. Si sigue sin encontrarse, intentar con el modelo como último recurso
-                                        if (empty($sku) && isset($itemResult['body']['attributes'])) {
-                                            foreach ($itemResult['body']['attributes'] as $attribute) {
-                                                if (
-                                                    strtolower($attribute['id']) === 'model' ||
-                                                    strtolower($attribute['name']) === 'modelo'
-                                                ) {
-                                                    $sku = 'MOD-' . $attribute['value_name'];
-                                                    $skuSource = 'model_fallback';
-                                                    break;
-                                                }
-                                            }
-                                        }
-
-                                        // 5. Establecer mensaje predeterminado si no se encontró SKU
-                                        if (empty($sku)) {
-                                            $sku = 'No se encuentra disponible en mercado libre';
-                                        }
+                                        // // 5. Establecer mensaje predeterminado si no se encontró SKU
+                                        // if (empty($sku)) {
+                                        //     $sku = 'No se encuentra disponible en mercado libre';
+                                        // }
 
                                         $productsStock[] = [
                                             'id' => $itemResult['body']['id'],
@@ -201,11 +202,11 @@ class getStockController
                                             'available_quantity' => $itemResult['body']['available_quantity'],
                                             'stock_reload_date' => $itemResult['body']['date_created'],
                                             'purchase_sale_date' => $itemResult['body']['last_updated'],
-                                            'sku' => $sku,
+                                            //'sku' => $sku,
                                             'details' => $itemResult['body']['attributes'],
-                                            'sku_source' => $skuSource,
-                                            'sku_missing_reason' => $skuSource === 'not_found' ?
-                                                'No se encontraron campos seller_custom_field, seller_sku ni atributos SKU en el producto' : null,
+                                            //'sku_source' => $skuSource,
+                                            //'sku_missing_reason' => $skuSource === 'not_found' ?
+                                                //'No se encontraron campos seller_custom_field, seller_sku ni atributos SKU en el producto' : null,
                                         ];
                                     }
                                 }

@@ -22,4 +22,5 @@ class Product extends Model
     {
         return $this->belongsToMany(Attribute::class, 'product_attributes', 'producto_id', 'atributo_id')->withPivot('valor');
     }
+
 }
