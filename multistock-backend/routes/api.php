@@ -80,7 +80,7 @@ use App\Http\Controllers\SalePoint\postDocumentSaleController;
 use App\Http\Controllers\SalePoint\getDocumentByDownloadController;
 use App\Http\Controllers\SalePoint\getAllHistorySaleIssueController;
 use App\Http\Controllers\SalePoint\getAllHistorySaleFinishController;
-
+USE App\Http\Controllers\SalePoint\putSaleNoteController;
 // LOGIN //
 
 use App\Http\Controllers\MercadoLibre\Login\loginController;
@@ -88,7 +88,7 @@ use App\Http\Controllers\MercadoLibre\Login\handleCallbackController;
 
 // Conexiones //
 
-use App\Http\Controllers\MercadoLibre\Connections\testAndRefreshConnectionController;   
+use App\Http\Controllers\MercadoLibre\Connections\testAndRefreshConnectionController;
 use App\Http\Controllers\MercadoLibre\Connections\ConexionTokenController;
 
 // Credenciales //
@@ -117,6 +117,7 @@ use App\Http\Controllers\MercadoLibre\Products\getProductosExcelController;
 
 // SyncStatus //
 use App\Http\Controllers\SyncStatusController;
+use Dotenv\Repository\Adapter\PutenvAdapter;
 
 // Rutas públicas
 Route::post('/login', [AuthController::class, 'login']); // Iniciar sesión de usuario
@@ -250,6 +251,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/document-sale', [postDocumentSaleController::class, 'postDocumentSale']); // Subir documento de venta
 
     Route::delete('/delete-history-sale/{companyId}/{saleId}', [getDeleteHistoryByIdSaleController::class, 'getDeleteHistoryByIdSale']); // Eliminar historial por ID
-    Route::patch('/generated-sale-note/{saleId}/{status}', [getHistorySalePatchStatusController::class, 'getHistorySalePatchStatus']); // Actualizar estado de venta
+    Route::patch('/generated-sale-note/{saleId}/{status}', [PutSaleNoteController::class, 'putSaleNote']); // Actualizar estado de venta
+    Route::patch('/sale-note-patch/{saleId}/{status}', [getHistorySalePatchStatusController::class, 'getHistorySalePatchStatus']); // Actualizar estado de venta
     Route::put('/sale-note/{companyId}/{folio}', [putSaleNoteByFolioController::class, 'putSaleNoteByFolio']); // Actualizar nota de venta por folio
 });

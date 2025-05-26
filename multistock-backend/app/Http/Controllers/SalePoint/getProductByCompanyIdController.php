@@ -17,6 +17,7 @@ class getProductByCompanyIdController{
             ->where('warehouse_id', $idCompany)
             ->where('available_quantity', '>', 0)
             ->select(
+                'stock_warehouses.id',
                 'stock_warehouses.id_mlc',
                 'stock_warehouses.title',
                 'stock_warehouses.price',
