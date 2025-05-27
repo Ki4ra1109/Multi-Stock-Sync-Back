@@ -5,6 +5,8 @@ namespace App\Http\Controllers\MercadoLibre\Reportes;
 use App\Models\MercadoLibreCredential;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
+use GuzzleHttp\Client;
+use GuzzleHttp\Promise;
 
 class compareAnnualSalesDataController
 {
@@ -25,7 +27,47 @@ class compareAnnualSalesDataController
             ], 404);
         }
 
-        // Check if token is expired
+        set_time_limit(300);
+        $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
+
+        if (!$credentials) {
+            return response()->json([
+            'status' => 'error',
+            'message' => 'No se encontraron credenciales válidas para el client_id proporcionado.',
+            ], 404);
+        }
+
+        if ($credentials->isTokenExpired()) {
+            $refreshResponse = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
+            'grant_type' => 'refresh_token',
+            'client_id' => $credentials->client_id,
+            'client_secret' => $credentials->client_secret,
+            'refresh_token' => $credentials->refresh_token,
+            ]);
+
+            if ($refreshResponse->failed()) {
+            return response()->json(['error' => 'No se pudo refrescar el token'], 401);
+            }
+            // Check if token is expired
+            $data = $refreshResponse->json();
+            $credentials->update([
+            'access_token' => $data['access_token'],
+            'refresh_token' => $data['refresh_token'],
+            'expires_at' => now()->addSeconds($data['expires_in']),
+            ]);
+        }
+
+        // Obtener user ID
+        $userResponse = Http::withToken($credentials->access_token)
+            ->get('https://api.mercadolibre.com/users/me');
+
+        if ($userResponse->failed()) {
+            return response()->json([
+            'status' => 'error',
+            'message' => 'No se pudo obtener el ID del usuario. Valide su token.',
+            'error' => $userResponse->json(),
+            ], 500);
+        }
         if ($credentials->isTokenExpired()) {
             return response()->json([
                 'status' => 'error',
