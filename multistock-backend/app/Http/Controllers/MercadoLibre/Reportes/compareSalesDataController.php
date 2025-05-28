@@ -8,9 +8,7 @@ use Illuminate\Http\Request;
 
 class compareSalesDataController
 {
-    /**
-     * Compare sales data between two months
-     */
+
     public function compareSalesData($clientId)
     {
         // Get credentials by client_id
@@ -24,12 +22,21 @@ class compareSalesDataController
         }
 
         if ($credentials->isTokenExpired()) {
-            return response()->json([
+
+            $refreshResponse = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
+                'grant_type' => 'refresh_token',
+                'client_id' => $credentials->client_id,
+                'client_secret' => $credentials->client_secret,
+                'refresh_token' => $credentials->refresh_token,
+            ]);
+        }
+
+        if ($credentials->isTokenExpired()) {
+                 return response()->json([
                 'status' => 'error',
                 'message' => 'El token ha expirado. Por favor, renueve su token.',
             ], 401);
         }
-
         // Get user id from token
         $response = Http::withToken($credentials->access_token)
             ->get('https://api.mercadolibre.com/users/me');
@@ -50,6 +57,9 @@ class compareSalesDataController
         $month2 = request()->query('month2');
         $year2 = request()->query('year2');
 
+        
+
+        
         // Validate query parameters
         if (!$month1 || !$year1 || !$month2 || !$year2) {
             return response()->json([
@@ -136,6 +146,9 @@ class compareSalesDataController
                 ],
                 'difference' => $difference,
                 'percentage_change' => $percentageChange,
+
+
+
             ],
         ]);
     }
