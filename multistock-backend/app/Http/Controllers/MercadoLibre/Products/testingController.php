@@ -3,16 +3,16 @@
 namespace App\Http\Controllers\MercadoLibre\Products;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use App\Models\MercadoLibreCredential;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Http\Request;
+use GuzzleHttp\Client;
+use GuzzleHttp\Promise;
 
-class getCategoriaController extends Controller
+class testingController
 {
-    public function getCategoria(Request $request, $id)
-    {
-        $client_id = $request->query('client_id');
-        $credentials = MercadoLibreCredential::where('client_id', $client_id)->first();
+    public function testing(Request $request,$clientId){
+        $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
         error_log("credentials " . json_encode($credentials));
         if (!$credentials) {
             return response()->json([
@@ -46,10 +46,26 @@ class getCategoriaController extends Controller
                 'message' => 'Error al refrescar token: ' . $e->getMessage(),
             ], 500);
         }
+        // Comprobar si el token ha expirado y refrescarlo si es necesario
 
-        $response = Http::withToken($credentials->access_token)
-            ->get("https://api.mercadolibre.com/categories/{$id}");
 
+        $userResponse = Http::withToken($credentials->access_token)
+            ->get('https://api.mercadolibre.com/users/me');
+
+        if ($userResponse->failed()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No se pudo obtener el ID del usuario.',
+                'error' => $userResponse->json(),
+            ], 500);
+        }
+        error_log("userResponse " . json_encode($userResponse));
+        // Obtener el ID del usuario
+        $userId = $userResponse->json()['id'];
+        $validated =
+        $baseUrl='https://api.mercadolibre.com/categories/MLC6428/attributes/conditional';
+        $response =Http::timeout(30)->withToken($credentials->access_token)->get($baseUrl);
         return response()->json($response->json(), $response->status());
+
     }
 }
