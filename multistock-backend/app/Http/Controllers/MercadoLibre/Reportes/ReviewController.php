@@ -5,13 +5,48 @@ namespace App\Http\Controllers\MercadoLibre\Reportes;
 use App\Models\MercadoLibreCredential;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use GuzzleHttp\Client;
+use GuzzleHttp\Promise;
+use Carbon\Carbon;
+use Exception;
 
-class reviewController
+class ReviewController
 {
-    public function getReviewsByClientId($clientId)
+    public function getReviewsByClientId($clientId, Request $request)
     {
         set_time_limit(300);
 
+        try{
+            $validated = $request->validate([
+                'start_date' => 'sometimes|date_format:Y-m-d',
+                'end_date' => 'sometimes|date_format:Y-m-d|after_or_equal:start_date',
+                'limit_orders' => 'sometimes|integer|min:1|max:1000',
+                'concurrent_requests' => 'sometimes|integer|min:1|max:20',
+            ]);
+            $startDate=null;
+            $endDate=null;
+            if(isset($validated['start_date'])){
+                $startDate = Carbon::parse($validated['start_date'])->startOfDay();
+            }
+
+            if(isset($validated['end_date'])){
+                $endDate = Carbon::parse($validated['end_date'])->endOfDay();
+            }
+
+            $limitOrders = $validated['limit_orders'] ?? 1000;
+            $concurrentRequests = $validated['concurrent_requests'] ?? 10;
+        }catch(Exception $e){
+            return response()->json([
+                'status'=>'error',
+                'message'=>$e->getMessage()
+
+            ]);
+        }
+            // Validar parámetros opcionales
+
+
+        // Obtener credenciales
         $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
 
         if (!$credentials) {
@@ -21,109 +56,224 @@ class reviewController
             ], 404);
         }
 
+        // Refrescar token si es necesario
         if ($credentials->isTokenExpired()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'El token ha expirado. Por favor, renueve su token.',
-            ], 401);
+            $refreshResponse = $this->refreshToken($credentials);
+            if ($refreshResponse) {
+                return $refreshResponse;
+            }
         }
 
         // Obtener ID del usuario
-        $userResponse = Http::withToken($credentials->access_token)
-            ->get('https://api.mercadolibre.com/users/me');
-
-        if ($userResponse->failed()) {
+        $userId = $this->getUserId($credentials);
+        if (!$userId) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'No se pudo obtener el ID del usuario. Por favor, valide su token.',
-                'error' => $userResponse->json(),
             ], 500);
         }
 
-        $userId = $userResponse->json()['id'];
+        // Obtener órdenes pagadas dentro del rango de fechas
+        $allOrders = $this->getAllOrdersByDateRange($credentials, $userId, $limitOrders, $startDate, $endDate);
+        if (!is_array($allOrders)) {
+            return $allOrders; // Retorna el error si hubo alguno
+        }
 
-        // Paginación para traer todas las órdenes
-        $limit = 50;
-        $offset = 0;
+        // Procesar reviews en paralelo
+        $reviewsData = $this->processReviewsInParallel($credentials, $allOrders, $concurrentRequests);
+        if($endDate && $startDate){
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Reviews obtenidas con éxito.',
+                'date_range' => [
+                    'start_date' => $startDate->format('Y-m-d'),
+                    'end_date' => $endDate->format('Y-m-d'),
+                ],
+                'total_products' => count($reviewsData),
+                'total_orders' => count($allOrders),
+                'data' => array_values($reviewsData),
+            ]);
+        }
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Reviews obtenidas con éxito.',
+            'total_products' => count($reviewsData),
+            'total_orders' => count($allOrders),
+            'data' => array_values($reviewsData),
+        ]);
+
+    }
+
+    private function refreshToken($credentials)
+    {
+        $refreshResponse = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
+            'grant_type' => 'refresh_token',
+            'client_id' => $credentials->client_id,
+            'client_secret' => $credentials->client_secret,
+            'refresh_token' => $credentials->refresh_token,
+        ]);
+
+        if ($refreshResponse->failed()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No se pudo refrescar el token',
+                'error' => $refreshResponse->json(),
+            ], 401);
+        }
+
+        $data = $refreshResponse->json();
+        $credentials->update([
+            'access_token' => $data['access_token'],
+            'refresh_token' => $data['refresh_token'],
+            'expires_at' => now()->addSeconds($data['expires_in']),
+        ]);
+
+        return null;
+    }
+
+    private function getUserId($credentials)
+    {
+        $userResponse = Http::withToken($credentials->access_token)
+            ->timeout(30)
+            ->retry(3, 100)
+            ->get('https://api.mercadolibre.com/users/me');
+
+        return $userResponse->successful() ? $userResponse->json()['id'] : null;
+    }
+
+    private function getAllOrdersByDateRange($credentials, $userId, $limit, $startDate, $endDate)
+    {
         $allOrders = [];
+        $offset = 0;
+        $pageSize = 50; // Tamaño máximo permitido por la API
 
         do {
+            // Construir parámetros base
+            $queryParams = [
+                'seller' => $userId,
+                'order.status' => 'paid',
+                'limit' => $pageSize,
+                'offset' => $offset,
+            ];
+
+            // Agregar fecha de inicio si está disponible
+            if ($startDate !== null) {
+                $queryParams['order.date_created.from'] = $startDate->format('Y-m-d\TH:i:s.Z\Z');
+            }
+
+            // Agregar fecha de fin si está disponible
+            if ($endDate !== null) {
+                $queryParams['order.date_created.to'] = $endDate->format('Y-m-d\TH:i:s.Z\Z');
+            }
+
             $ordersResponse = Http::withToken($credentials->access_token)
-                ->get("https://api.mercadolibre.com/orders/search", [
-                    'seller' => $userId,
-                    'order.status' => 'paid',
-                    'limit' => $limit,
-                    'offset' => $offset,
-                ]);
+                ->timeout(60)
+                ->retry(3, 100)
+                ->get("https://api.mercadolibre.com/orders/search", $queryParams);
 
             if ($ordersResponse->failed()) {
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'Error al conectar con la API de MercadoLibre.',
+                    'message' => 'Error al obtener órdenes de MercadoLibre',
                     'error' => $ordersResponse->json(),
                 ], $ordersResponse->status());
             }
 
             $data = $ordersResponse->json();
             $orders = $data['results'];
-            $total = $data['paging']['total'] ?? count($orders);
-
             $allOrders = array_merge($allOrders, $orders);
-            $offset += $limit;
+            $offset += $pageSize;
 
-        } while ($offset < $total);
+            // Si ya tenemos suficientes órdenes o no hay más, salir
+            if (count($allOrders) >= $limit || empty($orders)) {
+                break;
+            }
 
-        $reviewsData = [];
-        $productCounter = 0;
+        } while ($offset < ($data['paging']['total'] ?? PHP_INT_MAX));
 
+        return $allOrders;
+    }
+
+    private function getUniqueProducts($allOrders)
+    {
+        $uniqueProducts = [];
         foreach ($allOrders as $order) {
             foreach ($order['order_items'] as $item) {
                 $productId = $item['item']['id'];
-                $productName = $item['item']['title'];
-                $productPrice = $item['unit_price'];
-
-                // Solo consultar una vez por producto
-                if (isset($reviewsData[$productId])) {
-                    continue;
-                }
-
-                $reviewResponse = Http::withToken($credentials->access_token)
-                    ->get("https://api.mercadolibre.com/reviews/item/{$productId}");
-
-                if ($reviewResponse->failed()) {
-                    continue;
-                }
-
-                $reviews = $reviewResponse->json();
-                $filteredReviews = array_filter(array_map(function ($review) {
-                    return [
-                        'rating' => $review['rating'] ?? null,
-                        'comment' => $review['content'] ?? null,
-                        'full_review' => $review['content'] ? $review : null,
+                if (!isset($uniqueProducts[$productId])) {
+                    $uniqueProducts[$productId] = [
+                        'name' => $item['item']['title'],
+                        'price' => $item['unit_price'],
                     ];
-                }, $reviews['reviews'] ?? []), function ($review) {
-                    return !empty($review['comment']);
-                });
+                }
+            }
+        }
+        return $uniqueProducts;
+    }
 
-                $reviewsData[$productId] = [
-                    'product' => [
-                        'id' => $productId,
-                        'name' => $productName,
-                        'price' => $productPrice,
-                    ],
-                    'reviews_count' => count($filteredReviews),
-                    'reviews' => $filteredReviews,
-                ];
+    private function processReviewsInParallel($credentials, $allOrders, $concurrentLimit)
+    {
+        $client = new Client(['timeout' => 30]);
+        $uniqueProducts = $this->getUniqueProducts($allOrders);
+        $reviewsData = [];
+        $productIds = array_keys($uniqueProducts);
+        $productChunks = array_chunk($productIds, $concurrentLimit);
 
-                $productCounter++;
+        foreach ($productChunks as $chunk) {
+            $promises = [];
+
+            foreach ($chunk as $productId) {
+                $promises[$productId] = $client->getAsync(
+                    "https://api.mercadolibre.com/reviews/item/{$productId}", [
+                        'headers' => [
+                            'Authorization' => 'Bearer ' . $credentials->access_token
+                        ]
+                    ]
+                );
+            }
+
+            $responses = Promise\Utils::settle($promises)->wait();
+
+            foreach ($responses as $productId => $response) {
+                $productInfo = $uniqueProducts[$productId];
+
+                if ($response['state'] === 'fulfilled') {
+                    $reviews = json_decode($response['value']->getBody(), true);
+
+                    $filteredReviews = array_filter(array_map(function ($review) {
+                        return [
+                            'rating' => $review['rating'] ?? null,
+                            'comment' => $review['content'] ?? null,
+                            'full_review' => $review['content'] ? $review : null,
+                        ];
+                    }, $reviews['reviews'] ?? []), function ($review) {
+                        return !empty($review['comment']);
+                    });
+
+                    // Solo agregar si hay reviews
+                    if (!empty($filteredReviews)) {
+                        $reviewsData[$productId] = [
+                            'product' => [
+                                'id' => $productId,
+                                'name' => $productInfo['name'],
+                                'price' => $productInfo['price'],
+                            ],
+                            'reviews_count' => count($filteredReviews),
+                            'reviews' => $filteredReviews,
+                        ];
+                    }
+                } else {
+                    Log::error("Error obteniendo reviews para producto $productId", [
+                        'error' => $response['reason']->getMessage()
+                    ]);
+                }
+            }
+
+            if (count($productChunks) > 1) {
+                usleep(200000); // Pequeña pausa entre chunks
             }
         }
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Reviews obtenidas con éxito.',
-            'total_products' => $productCounter,
-            'data' => $reviewsData,
-        ]);
+        return $reviewsData;
     }
 }

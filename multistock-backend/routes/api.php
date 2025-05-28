@@ -14,7 +14,8 @@ use App\Http\Controllers\WarehouseCompaniesController;
 use App\Http\Controllers\InfoController;
 
 use App\Http\Controllers\MercadoLibreProductController;
-
+//test
+use App\Http\Controllers\MercadoLibre\Products\testingController;
 
 //  REPORTES //
 use App\Http\Controllers\MercadoLibre\Reportes\compareAnnualSalesDataController;
@@ -31,7 +32,7 @@ use App\Http\Controllers\MercadoLibre\Reportes\getTopSellingProductsController;
 use App\Http\Controllers\MercadoLibre\Reportes\getWeeksOfMonthController;
 use App\Http\Controllers\MercadoLibre\Reportes\summaryController;
 use App\Http\Controllers\MercadoLibre\Reportes\getSalesByDateRangeController;
-use App\Http\Controllers\MercadoLibre\Reportes\reviewController;
+use App\Http\Controllers\MercadoLibre\Reportes\ReviewController;
 use App\Http\Controllers\MercadoLibre\Reportes\productReportController;
 use App\Http\Controllers\MercadoLibre\Reportes\getStockRotationController;
 use App\Http\Controllers\MercadoLibre\Reportes\getStockReceptionController;
@@ -80,7 +81,7 @@ use App\Http\Controllers\SalePoint\postDocumentSaleController;
 use App\Http\Controllers\SalePoint\getDocumentByDownloadController;
 use App\Http\Controllers\SalePoint\getAllHistorySaleIssueController;
 use App\Http\Controllers\SalePoint\getAllHistorySaleFinishController;
-USE App\Http\Controllers\SalePoint\putSaleNoteController;
+use App\Http\Controllers\SalePoint\putSaleNoteController;
 // LOGIN //
 
 use App\Http\Controllers\MercadoLibre\Login\loginController;
@@ -254,4 +255,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/generated-sale-note/{saleId}/{status}', [PutSaleNoteController::class, 'putSaleNote']); // Actualizar estado de venta
     Route::patch('/sale-note-patch/{saleId}/{status}', [getHistorySalePatchStatusController::class, 'getHistorySalePatchStatus']); // Actualizar estado de venta
     Route::put('/sale-note/{companyId}/{folio}', [putSaleNoteByFolioController::class, 'putSaleNoteByFolio']); // Actualizar nota de venta por folio
+    //test
+    Route::get('/test/{clientId}',[testingController::class,'testing']);
+
 });
