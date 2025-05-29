@@ -70,6 +70,7 @@ class GetHistorySaleController
                     'warehouse_name' => $sale->warehouse->name ?? 'N/A',
                     'amount_total_products' => $sale->amount_total_products,
                     'status_sale' => $sale->status_sale,
+                    'type_emission'=>$sale->type_emission,
                     'price_final'=>$sale->price_final,
                     'created_at' => $sale->created_at->format('Y-m-d'),
                     'updated_at' => $sale->updated_at->format('Y-m-d'),
