@@ -8,10 +8,17 @@ use Illuminate\Http\Request;
 
 class getTopSellingProductsController
 {
+    const API_PRODUCT_LIMIT = 20;    // Límite de la API por petición
+    const MAX_PARALLEL_REQS = 5;     // Máximo de peticiones paralelas
+    const MAX_TOTAL_PRODUCTS = 1000; // Límite total de productos a obtener
+    const REQUEST_TIMEOUT = 30;      // Timeout en segundos
+
     public function getTopSellingProducts($clientId)
     {
+        // Get credentials by client_id
         $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
 
+        // Check if credentials exist
         if (!$credentials) {
             return response()->json([
                 'status' => 'error',
@@ -19,25 +26,70 @@ class getTopSellingProductsController
             ], 404);
         }
 
+        // Refresh token if expired
         if ($credentials->isTokenExpired()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'El token ha expirado. Por favor, renueve su token.',
-            ], 401);
+            $refreshResponse = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
+                'grant_type' => 'refresh_token',
+                'client_id' => env('MELI_CLIENT_ID'),
+                'client_secret' => env('MELI_CLIENT_SECRET'),
+                'refresh_token' => $credentials->refresh_token,
+            ]);
+
+            if ($refreshResponse->failed()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'El token ha expirado y no se pudo refrescar',
+                    'error' => $refreshResponse->json(),
+                ], 401);
+            }
+
+            $newTokenData = $refreshResponse->json();
+            $credentials->access_token = $newTokenData['access_token'];
+            $credentials->refresh_token = $newTokenData['refresh_token'] ?? $credentials->refresh_token;
+            $credentials->expires_in = $newTokenData['expires_in'];
+            $credentials->updated_at = now();
+            $credentials->save();
         }
 
-        $response = Http::withToken($credentials->access_token)
-            ->get('https://api.mercadolibre.com/users/me');
+        $userResponse = Http::withToken($credentials->access_token)->get('https://api.mercadolibre.com/users/me');
 
-        if ($response->failed()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'No se pudo obtener el ID del usuario. Por favor, valide su token.',
-                'error' => $response->json(),
-            ], 500);
+        // If it fails by token, try refreshing again
+        if ($userResponse->status() === 401) {
+            $refreshResponse = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
+                'grant_type' => 'refresh_token',
+                'client_id' => env('MELI_CLIENT_ID'),
+                'client_secret' => env('MELI_CLIENT_SECRET'),
+                'refresh_token' => $credentials->refresh_token,
+            ]);
+
+            if ($refreshResponse->failed()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'El token ha expirado y no se pudo refrescar',
+                    'error' => $refreshResponse->json(),
+                ], 401);
+            }
+
+            $newTokenData = $refreshResponse->json();
+            $credentials->access_token = $newTokenData['access_token'];
+            $credentials->refresh_token = $newTokenData['refresh_token'] ?? $credentials->refresh_token;
+            $credentials->expires_in = $newTokenData['expires_in'];
+            $credentials->updated_at = now();
+            $credentials->save();
+
+            // Retry the request
+            $userResponse = Http::withToken($credentials->access_token)->get('https://api.mercadolibre.com/users/me');
+
+            if ($userResponse->failed()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'No se pudo obtener el ID del usuario',
+                    'error' => $userResponse->json(),
+                ], 500);
+            }
         }
 
-        $userId = $response->json()['id'];
+        $userId = $userResponse->json()['id'];
 
         $year = request()->query('year', date('Y'));
         $month = request()->query('month');
@@ -68,6 +120,32 @@ class getTopSellingProductsController
         $productSales = [];
         $totalSales = 0;
 
+        // 1. Recolectar todos los productId únicos
+        $productIds = [];
+        foreach ($orders as $order) {
+            foreach ($order['order_items'] as $item) {
+                $productIds[$item['item']['id']] = true;
+            }
+        }
+        $productIds = array_keys($productIds);
+
+        // 2. Obtener detalles de productos en lotes de 20 en paralelo
+        $productDetails = [];
+        $chunks = array_chunk($productIds, 20);
+        foreach ($chunks as $chunk) {
+            $responses = Http::pool(fn ($pool) =>
+                collect($chunk)->map(fn ($productId) =>
+                    $pool->withToken($credentials->access_token)
+                        ->get("https://api.mercadolibre.com/items/{$productId}")
+                )->toArray()
+            );
+            foreach ($responses as $i => $response) {
+                if ($response->successful()) {
+                    $productDetails[$chunk[$i]] = $response->json();
+                }
+            }
+        }
+
         foreach ($orders as $order) {
             foreach ($order['order_items'] as $item) {
                 $productId = $item['item']['id'];
@@ -88,84 +166,84 @@ class getTopSellingProductsController
                     $skuSource = 'item_seller_custom_field';
                 }
 
-                $productDetailsResponse = Http::withToken($credentials->access_token)
-                    ->get("https://api.mercadolibre.com/items/{$productId}");
+                $productData = $productDetails[$productId] ?? null;
 
-                if ($productDetailsResponse->successful()) {
-                    $productData = $productDetailsResponse->json();
-                    
-                    // 3. Si no se encontró en el ítem, buscar en seller_sku del producto
-                    if (empty($sku)) {
-                        if (isset($productData['seller_sku'])) {
-                            $sku = $productData['seller_sku'];
-                            $skuSource = 'product_seller_sku';
-                        }
-                    }
-
-                    // 4. Si aún no se encontró, buscar en los atributos del producto
-                    if (empty($sku) && isset($productData['attributes'])) {
-                        foreach ($productData['attributes'] as $attribute) {
-                            if (in_array(strtolower($attribute['id']), ['seller_sku', 'sku', 'codigo', 'reference', 'product_code']) || 
-                                in_array(strtolower($attribute['name']), ['sku', 'código', 'referencia', 'codigo', 'código de producto'])) {
-                                $sku = $attribute['value_name'];
-                                $skuSource = 'product_attributes';
-                                break;
-                            }
-                        }
-                    }
-
-                    // 5. Si sigue sin encontrarse, intentar con el modelo como último recurso
-                    if (empty($sku) && isset($productData['attributes'])) {
-                        foreach ($productData['attributes'] as $attribute) {
-                            if (strtolower($attribute['id']) === 'model' || 
-                                strtolower($attribute['name']) === 'modelo') {
-                                $sku = $attribute['value_name'];
-                                $skuSource = 'model_fallback';
-                                break;
-                            }
-                        }
-                    }
-
-                    // 6. Establecer mensaje predeterminado si no se encontró SKU
-                    if (empty($sku)) {
-                        $sku = 'No se encuentra disponible en mercado libre';
-                    }
-
-                    // Manejo de variaciones (tamaño)
-                    if ($variationId) {
-                        $variationResponse = Http::withToken($credentials->access_token)
-                            ->get("https://api.mercadolibre.com/items/{$productId}/variations/{$variationId}");
-
-                        if ($variationResponse->successful()) {
-                            $variationData = $variationResponse->json();
-
-                            foreach ($variationData['attribute_combinations'] ?? [] as $attribute) {
-                                if (in_array(strtolower($attribute['id']), ['size', 'talle'])) {
-                                    $size = $attribute['value_name'];
-                                    break;
-                                }
-                            }
-                        }
-                    }
-
-                    if (!isset($productSales[$productId])) {
-                        $productSales[$productId] = [
-                            'id' => $productId,
-                            'variation_id' => $variationId,
-                            'title' => $item['item']['title'],
-                            'sku' => $sku,
-                            'sku_source' => $skuSource,
-                            'quantity' => 0,
-                            'total_amount' => 0,
-                            'size' => $size,
-                            'variation_attributes' => $productData['attributes'],
-                        ];
-                    }
-
-                    $productSales[$productId]['quantity'] += $item['quantity'];
-                    $productSales[$productId]['total_amount'] += $item['quantity'] * $item['unit_price'];
-                    $totalSales += $item['quantity'] * $item['unit_price'];
+                // Si no se encontraron detalles del producto, continuar con el siguiente ítem
+                if (!$productData) {
+                    continue;
                 }
+
+                // 3. Si no se encontró en el ítem, buscar en seller_sku del producto
+                if (empty($sku)) {
+                    if (isset($productData['seller_sku'])) {
+                        $sku = $productData['seller_sku'];
+                        $skuSource = 'product_seller_sku';
+                    }
+                }
+
+                // 4. Si aún no se encontró, buscar en los atributos del producto
+                if (empty($sku) && isset($productData['attributes'])) {
+                    foreach ($productData['attributes'] as $attribute) {
+                        if (in_array(strtolower($attribute['id']), ['seller_sku', 'sku', 'codigo', 'reference', 'product_code']) || 
+                            in_array(strtolower($attribute['name']), ['sku', 'código', 'referencia', 'codigo', 'código de producto'])) {
+                            $sku = $attribute['value_name'];
+                            $skuSource = 'product_attributes';
+                            break;
+                        }
+                    }
+                }
+
+                // 5. Si sigue sin encontrarse, intentar con el modelo como último recurso
+                if (empty($sku) && isset($productData['attributes'])) {
+                    foreach ($productData['attributes'] as $attribute) {
+                        if (strtolower($attribute['id']) === 'model' || 
+                            strtolower($attribute['name']) === 'modelo') {
+                            $sku = $attribute['value_name'];
+                            $skuSource = 'model_fallback';
+                            break;
+                        }
+                    }
+                }
+
+                // 6. Establecer mensaje predeterminado si no se encontró SKU
+                if (empty($sku)) {
+                    $sku = 'No se encuentra disponible en mercado libre';
+                }
+
+                // Manejo de variaciones (tamaño)
+                if ($variationId) {
+                    $variationResponse = Http::withToken($credentials->access_token)
+                        ->get("https://api.mercadolibre.com/items/{$productId}/variations/{$variationId}");
+
+                    if ($variationResponse->successful()) {
+                        $variationData = $variationResponse->json();
+
+                        foreach ($variationData['attribute_combinations'] ?? [] as $attribute) {
+                            if (in_array(strtolower($attribute['id']), ['size', 'talle'])) {
+                                $size = $attribute['value_name'];
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (!isset($productSales[$productId])) {
+                    $productSales[$productId] = [
+                        'id' => $productId,
+                        'variation_id' => $variationId,
+                        'title' => $item['item']['title'],
+                        'sku' => $sku,
+                        'sku_source' => $skuSource,
+                        'quantity' => 0,
+                        'total_amount' => 0,
+                        'size' => $size,
+                        'variation_attributes' => $productData['attributes'],
+                    ];
+                }
+
+                $productSales[$productId]['quantity'] += $item['quantity'];
+                $productSales[$productId]['total_amount'] += $item['quantity'] * $item['unit_price'];
+                $totalSales += $item['quantity'] * $item['unit_price'];
             }
         }
 
@@ -186,5 +264,10 @@ class getTopSellingProductsController
             'total_pages' => $totalPages,
             'data' => $productSales,
         ]);
+
+        // Guardar en cache por 1 hora (3600 segundos)
+        cache()->put($cacheKey, $responseData, 3600);
+
+        return response()->json($responseData);
     }
 }
