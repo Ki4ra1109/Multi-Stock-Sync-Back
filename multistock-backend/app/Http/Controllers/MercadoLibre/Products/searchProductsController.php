@@ -139,7 +139,7 @@ class searchProductsController extends Controller
                         $promises[] = $client->getAsync('https://api.mercadolibre.com/items', [
                             'query' => [
                                 'ids' => $batchIds,
-                                'attributes' => 'id,title,price,currency_id,available_quantity,sold_quantity,thumbnail,permalink,status,category_id'
+                                'attributes' => 'id,title,price,currency_id,available_quantity,sold_quantity,thumbnail,permalink,status,category_id,permalink'
                             ]
                         ]);
                     }
@@ -185,6 +185,7 @@ class searchProductsController extends Controller
                                             'status_translated' => $translatedStatus,
                                             'category_id' => $itemResult['body']['category_id'] ?? null,
                                             'category_name' => $categoryName,
+                                            'permalink' => $itemResult['permalink'],
                                         ];
                                     }
                                 }
