@@ -73,7 +73,8 @@ class getCancelledOrdersController
                         'product' => [
                             'title' => $item['item']['title'] ?? null,
                             'quantity' => $item['quantity'] ?? null,
-                            'price' => $item['unit_price'] ?? null
+                            'price' => $item['unit_price'] ?? null,
+                            'id_mlc' => $item['item']['id'] ?? null,
                         ]
                     ];
                 }
