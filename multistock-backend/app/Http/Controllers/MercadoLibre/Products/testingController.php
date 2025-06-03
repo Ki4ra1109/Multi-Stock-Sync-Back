@@ -60,10 +60,13 @@ class testingController
             ], 500);
         }
         error_log("userResponse " . json_encode($userResponse));
-        // Obtener el ID del usuario
         $userId = $userResponse->json()['id'];
-        $validated =
-        $baseUrl='https://api.mercadolibre.com/categories/MLC6428/attributes/conditional';
+        // Obtener el ID del usuario
+        $validateData = $request->validate(['baseurl'=> 'sometimes | string']);
+        $baseUrl='https://api.mercadolibre.com/users/{$userId}/items/search?catalog_listing=true';
+
+        if(isset($validateData['baseurl'])) $baseUrl =$validateData['baseurl'];
+        error_log($baseUrl);
         $response =Http::timeout(30)->withToken($credentials->access_token)->get($baseUrl);
         return response()->json($response->json(), $response->status());
 

@@ -109,12 +109,14 @@ use App\Http\Controllers\MercadoLibre\Products\itemController;
 use App\Http\Controllers\MercadoLibre\Products\getStockController;
 use App\Http\Controllers\MercadoLibre\Products\putProductoController;
 use App\Http\Controllers\MercadoLibre\Products\CreateProductController;
+use App\Http\Controllers\MercadoLibre\Products\CreateProductsMasiveController;
 use App\Http\Controllers\MercadoLibre\Products\getCatalogProductController;
 use App\Http\Controllers\MercadoLibre\Products\getCategoriaController;
 use App\Http\Controllers\MercadoLibre\Products\getAtributosCategoriaController;
 use App\Http\Controllers\MercadoLibre\Products\getSpecsDomainController;
 use App\Http\Controllers\MercadoLibre\Products\getExcelCargaMasivaMLController;
 use App\Http\Controllers\MercadoLibre\Products\getProductosExcelController;
+
 
 // SyncStatus //
 use App\Http\Controllers\SyncStatusController;
@@ -192,6 +194,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/mercadolibre/stock/{client_id}', [getStockController::class, 'getStock']); // Obtener stock de productos
     Route::get('/mercadolibre/save-products/{client_id}', [saveProductsController::class, 'saveProducts']); // Guardar productos
     Route::get('/mercadolibre/products/search/{client_id}', [searchProductsController::class, 'searchProducts']); // Buscar productos
+    Route::get('/mercadolibre/categorias/{client_id}',[CreateProductsMasiveController::class,'ListCategory']);//lista de categorias por compañia
 
     // CREACIÓN Y MODIFICACIÓN DE PRODUCTOS
     Route::post('/mercadolibre/Products/{client_id}/crear-producto', [CreateProductController::class, 'create']); // Crear producto
@@ -200,8 +203,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/mercadolibre/update-stock/{client_id}/{productId}', [putProductoByUpdateController::class, 'putProductoByUpdate']); // Actualizar stock
     Route::get('/mercadolibre/carga-masiva', [getExcelCargaMasivaMLController::class, 'redirigir']); // Redirigir a carga masiva
     Route::post('/mercadolibre/carga-masiva/leer-excel', [getProductosExcelController::class, 'leerExcel']); // Leer carga masiva
-    Route::put('/mercadolibre/update/{client_id}/{productId}', [putProductoController::class, 'putProductoByUpdate']); // Actualizar stock
-
+    Route::put('/mercadolibre/update/{client_id}/{productId}', [CreateProductsMasiveController::class, 'putProductoByUpdate']); // Actualizar stock
+    Route::get('/mercadolibre/carga-masiva/descargar-platilla/{client_id}/{categoryId}', [CreateProductsMasiveController::class, 'downloadTemplate']); // Leer carga masiva
 
     // REPORTES MERCADO LIBRE
     Route::get('/mercadolibre/annual-sales/{client_id}', [getAnnualSalesController::class, 'getAnnualSales']); // Ventas anuales
