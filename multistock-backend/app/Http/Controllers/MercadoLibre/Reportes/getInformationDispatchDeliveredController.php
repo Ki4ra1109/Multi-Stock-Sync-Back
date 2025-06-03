@@ -41,12 +41,12 @@ class getInformationDispatchDeliveredController{
 
         $shippmentResponse = Http::withToken($credentials->access_token)
             ->get("https://api.mercadolibre.com/shipments/$deliveredId");
-
+        error_log($shippmentResponse->json());
         if ($shippmentResponse->failed()) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Error al obtener la información del envío.',
-                'error' => $response->json(),
+                'error' =>  $shippmentResponse->json(),
             ], 500);
         }
 
@@ -54,7 +54,7 @@ class getInformationDispatchDeliveredController{
             "receptor" => [
                         "receiver_id" => $shippmentResponse['receiver_id'],
                         "receiver_name" => $shippmentResponse['receiver_address']['receiver_name'],
-                        "dirrection" => 
+                        "dirrection" =>
                             ($shippmentResponse['receiver_address']['state']['name'] ?? '') . ' - ' .
                             ($shippmentResponse['receiver_address']['city']['name'] ?? '') . ' - ' .
                             ($shippmentResponse['receiver_address']['address_line'] ?? ''),
