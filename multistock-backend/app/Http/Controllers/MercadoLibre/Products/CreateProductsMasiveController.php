@@ -423,7 +423,7 @@ class CreateProductsMasiveController extends Controller
         try {
             $attributes = $this->getAtributos($clientId, $categoryId);
             $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-               // === PRIMERA PESTAÑA: PLANTILLA ===
+            // === PRIMERA PESTAÑA: PLANTILLA ===
             $this->createInstructionsSheet($spreadsheet, $categoryId);
 
             // === SEGUNDA PESTAÑA: VALORES PERMITIDOS ===
@@ -442,9 +442,13 @@ class CreateProductsMasiveController extends Controller
                 'listing_type_id',
                 'description',
                 'pictures',
-                'shipping',
-                'sale_terms',
-                'catalog_product_id'
+                'local_pick_up',
+                'free_shipping',
+                'catalog_product_id',
+                'category_id',
+                'warranty_type',
+                'warranty_days'
+
             ];
 
             // Agregar headers para atributos requeridos
@@ -459,15 +463,66 @@ class CreateProductsMasiveController extends Controller
                 $column = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($index + 1);
                 $sheet->setCellValue($column . '1', $header);
                 $sheet->getStyle($column . '1')->getFont()->setBold(true);
+
+                // Prellenar category_id en la primera fila de datos con el valor del parámetro
+                if ($header === 'category_id') {
+                    $sheet->setCellValue($column . '2', $categoryId);
+                    // Aplicar el valor a más filas para facilitar el uso
+                    for ($row = 2; $row <= 1001; $row++) {
+                        $sheet->setCellValue($column . $row, $categoryId);
+                    }
+                }
             }
-
-
 
             // Auto ajustar columnas
             for ($i = 0; $i < count($headers); $i++) {
                 $column = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($i + 1);
                 $sheet->getColumnDimension($column)->setAutoSize(true);
             }
+            // En la función downloadTemplate(), después de crear la hoja 'Plantilla':
+
+            // Configurar dimensiones y estilos
+            $sheet = $spreadsheet->getSheetByName('Plantilla');
+
+            // 1. Ajustar anchos de columna específicos
+            $sheet->getColumnDimension('A')->setWidth(40);  // title (columna A)
+            $sheet->getColumnDimension('H')->setWidth(60);  // description (columna H)
+            $sheet->getColumnDimension('I')->setWidth(50);  // pictures (columna I)
+
+            // 2. Configurar wrap text y altura para descripción
+            $descriptionCol = array_search('description', $headers) + 1;
+            $descriptionLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($descriptionCol);
+
+            // Aplicar estilo wrap text a toda la columna descripción
+            $sheet->getStyle($descriptionLetter . '2:' . $descriptionLetter . '1000')
+                ->getAlignment()
+                ->setWrapText(true)
+                ->setVertical(\PhpOffice\PhpSpreadsheet\Style\Alignment::VERTICAL_TOP);
+
+            // Establecer altura de fila para descripción (aproximadamente 4 líneas)
+            for ($row = 2; $row <= 1000; $row++) {
+                $sheet->getRowDimension($row)->setRowHeight(20);
+            }
+
+            // 3. Añadir comentario flotante para pictures (URLs)
+            $picturesCol = array_search('pictures', $headers) + 1;
+            $picturesLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($picturesCol);
+
+            $comment = $sheet->getComment($picturesLetter . '1');
+            $comment->getText()->createTextRun("Ingrese URLs de imágenes separadas por comas\nEjemplo: url1.jpg,url2.jpg");
+            $comment->setWidth('300pt');
+            $comment->setHeight('50pt');
+
+            // 4. Configurar autoajuste para las demás columnas
+            foreach ($headers as $index => $header) {
+                $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($index + 1);
+                if (!in_array($header, ['title', 'description', 'pictures'])) {
+                    $sheet->getColumnDimension($colLetter)->setAutoSize(true);
+                }
+            }
+
+            // 5. Ajustar zoom para mejor visualización
+            $sheet->getSheetView()->setZoomScale(90);
 
             // === CUARTA PESTAÑA: HOJA OCULTA PARA VALORES ===
             $hiddenSheet = $spreadsheet->createSheet();
@@ -478,11 +533,10 @@ class CreateProductsMasiveController extends Controller
             // === AGREGAR VALIDACIONES DE DATOS ===
             $this->addDataValidations($sheet, $headers, $attributes);
 
-
             $spreadsheet->setActiveSheetIndex(0);
 
             $writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($spreadsheet, 'Xlsx');
-            $fileName = "plantilla_productos_categoria_{$categoryId}.xlsx";
+            $fileName = "plantilla_productos_{$categoryId}_" . date('Ymd_His') . ".xlsx";
             $tempFile = tempnam(sys_get_temp_dir(), $fileName);
             $writer->save($tempFile);
 
@@ -497,7 +551,7 @@ class CreateProductsMasiveController extends Controller
     }
 
     /**
-     * Crear listas de valores en hoja oculta - VERSIÓN SIMPLIFICADA
+     * Crear listas de valores en hoja oculta - VERSIÓN SIMPLIFICADA (SOLO NAMES)
      */
     private function createHiddenValueLists($hiddenSheet, $attributes)
     {
@@ -522,57 +576,59 @@ class CreateProductsMasiveController extends Controller
         $hiddenSheet->setCellValue('C6', 'bronze');
         $hiddenSheet->setCellValue('C7', 'free');
 
-        $currentColumn = 4; // Empezar desde columna D
+        // === WARRANTY_TYPE ===
+        $hiddenSheet->setCellValue('D1', 'warranty_type');
+        $hiddenSheet->setCellValue('D2', 'Garantía de fábrica');
+        $hiddenSheet->setCellValue('D3', 'Garantía del vendedor');
 
-        // === MAPEO DE ATRIBUTOS ===
-        $attributeColumnMap = [];
+        // === WARRANTY_DAYS ===
+        $hiddenSheet->setCellValue('E1', 'warranty_days');
+        $hiddenSheet->setCellValue('E2', '30');
+        $hiddenSheet->setCellValue('E3', '60');
+        $hiddenSheet->setCellValue('E4', '90');
+        $hiddenSheet->setCellValue('E5', '180');
+        $hiddenSheet->setCellValue('E6', '365');
 
-        // === ATRIBUTOS DE MERCADOLIBRE ===
+        // === LOCAL_PICK_UP ===
+        $hiddenSheet->setCellValue('F1', 'local_pick_up');
+        $hiddenSheet->setCellValue('F2', 'true');
+        $hiddenSheet->setCellValue('F3', 'false');
+
+        // === FREE_SHIPPING ===
+        $hiddenSheet->setCellValue('G1', 'free_shipping');
+        $hiddenSheet->setCellValue('G2', 'true');
+        $hiddenSheet->setCellValue('G3', 'false');
+
+        $currentColumn = 8;
+
+        // === ATRIBUTOS DE MERCADOLIBRE (SOLO NAMES) ===
         foreach ($attributes as $attribute) {
             if (isset($attribute['tags']['required']) && $attribute['tags']['required'] && !empty($attribute['values'])) {
                 $columnLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($currentColumn);
                 $attributeName = $attribute['name'] ?? $attribute['id'];
 
-                // Crear dos columnas: una para mostrar (names) y otra para mapeo (ids)
-                $nameColumnLetter = $columnLetter;
-                $idColumnLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($currentColumn + 1);
+                // Header
+                $hiddenSheet->setCellValue($columnLetter . '1', $attribute['id']);
 
-                // Guardar mapeo
-                $attributeColumnMap[$attributeName] = [
-                    'name_column' => $nameColumnLetter,
-                    'id_column' => $idColumnLetter,
-                    'id' => $attribute['id'],
-                    'values' => $attribute['values'] // Guardar todos los valores para mapeo
-                ];
-
-                // Headers
-                $hiddenSheet->setCellValue($nameColumnLetter . '1', $attribute['id'] . '_names');
-                $hiddenSheet->setCellValue($idColumnLetter . '1', $attribute['id'] . '_ids');
-
-                // Valores - Names en una columna, IDs en otra
+                // Solo guardar los names (ya no necesitamos IDs)
                 $row = 2;
                 foreach ($attribute['values'] as $value) {
-                    $hiddenSheet->setCellValue($nameColumnLetter . $row, $value['name'] ?? $value['id']);
-                    $hiddenSheet->setCellValue($idColumnLetter . $row, $value['id'] ?? '');
+                    $hiddenSheet->setCellValue($columnLetter . $row, $value['name'] ?? $value['id']);
                     $row++;
                 }
 
-                $currentColumn += 2; // Avanzar 2 columnas (name + id)
+                $currentColumn++;
             }
         }
-
-        // Guardar el mapeo en una celda especial para uso posterior
-        $hiddenSheet->setCellValue('Z1', json_encode($attributeColumnMap));
     }
 
     /**
-     * Agregar validaciones de datos - VERSIÓN CORREGIDA PARA NAME/ID
+     * Agregar validaciones de datos - VERSIÓN SIMPLIFICADA (SOLO NAMES)
      */
     private function addDataValidations($sheet, $headers, $attributes)
     {
         $maxRows = 1000;
 
-        // Crear mapeo de atributos para referencia rápida
         $attributeMap = [];
         foreach ($attributes as $attribute) {
             if (isset($attribute['tags']['required']) && $attribute['tags']['required'] && !empty($attribute['values'])) {
@@ -600,18 +656,44 @@ class CreateProductsMasiveController extends Controller
                     $listingTypes = ['gold_special', 'gold_pro', 'gold', 'silver', 'bronze', 'free'];
                     $this->addListValidation($sheet, $range, $listingTypes, 'Seleccione un tipo de publicación');
                     break;
+                case 'local_pick_up':
+                    $this->addListValidation($sheet, $range, ['true', 'false'], 'Seleccione true o false');
+                    break;
+
+                case 'free_shipping':
+                    $this->addListValidation($sheet, $range, ['true', 'false'], 'Seleccione true o false');
+                    break;
+
+                case 'warranty_type':
+                    $warrantyTypes = ['Garantía de fábrica', 'Garantía del vendedor'];
+                    $this->addListValidation($sheet, $range, $warrantyTypes, 'Seleccione un tipo de garantía');
+                    break;
+
+                case 'warranty_days':
+                    // Validación numérica para días de garantía
+                    $validation = $sheet->getCell($columnLetter . '2')->getDataValidation();
+                    $validation->setType(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::TYPE_WHOLE);
+                    $validation->setErrorStyle(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::STYLE_STOP);
+                    $validation->setAllowBlank(true);
+                    $validation->setShowInputMessage(true);
+                    $validation->setShowErrorMessage(true);
+                    $validation->setErrorTitle('Valor inválido');
+                    $validation->setError('Debe ser un número entero entre 1 y 365');
+                    $validation->setPromptTitle('Días de garantía');
+                    $validation->setPrompt('Ingrese el número de días de garantía (1-365)');
+                    $validation->setFormula1(1);
+                    $validation->setFormula2(365);
+                    $sheet->setDataValidation($range, $validation);
+                    break;
 
                 case 'category_id':
-                    // No agregar validación para category_id ya que está prellenado
                     break;
 
                 default:
-                    // Buscar en atributos de MercadoLibre
                     if (isset($attributeMap[$header])) {
                         $attribute = $attributeMap[$header];
-                        // USAR NAMES EN LUGAR DE IDs PARA LA LISTA DESPLEGABLE
                         $names = array_column($attribute['values'], 'name');
-                        $this->addListValidationWithMapping($sheet, $range, $attribute, "Seleccione un valor válido para {$header}");
+                        $this->addListValidation($sheet, $range, $names, "Seleccione un valor válido para {$header}");
                     }
                     break;
             }
@@ -655,149 +737,7 @@ class CreateProductsMasiveController extends Controller
             ]);
         }
     }
-    /**
-     * Agregar validación con mapeo Name->ID - NUEVO MÉTODO
-     */
-    private function addListValidationWithMapping($sheet, $range, $attribute, $promptMessage = 'Seleccione un valor de la lista')
-    {
-        try {
-            // Obtener los names para mostrar en la lista
-            $names = array_column($attribute['values'], 'name');
 
-            // Crear la lista de nombres como string separado por comas
-            $namesList = '"' . implode(',', $names) . '"';
-
-            // Obtener la primera celda del rango para aplicar la validación
-            $firstCell = explode(':', $range)[0];
-            $validation = $sheet->getCell($firstCell)->getDataValidation();
-
-            $validation->setType(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::TYPE_LIST);
-            $validation->setErrorStyle(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::STYLE_STOP);
-            $validation->setAllowBlank(false);
-            $validation->setShowInputMessage(true);
-            $validation->setShowErrorMessage(true);
-            $validation->setShowDropDown(true);
-            $validation->setErrorTitle('Valor inválido');
-            $validation->setError('Debe seleccionar un valor de la lista desplegable.');
-            $validation->setPromptTitle('Valores permitidos');
-            $validation->setPrompt($promptMessage);
-            $validation->setFormula1($namesList);
-
-            // Aplicar la validación a todo el rango
-            $sheet->setDataValidation($range, $validation);
-
-            // Agregar fórmula de conversión Name->ID usando VLOOKUP
-            $this->addNameToIdConversion($sheet, $range, $attribute);
-
-            Log::info("Validación con mapeo aplicada exitosamente", [
-                'range' => $range,
-                'names_count' => count($names),
-                'formula' => $namesList
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Error aplicando validación con mapeo', [
-                'range' => $range,
-                'attribute_id' => $attribute['id'],
-                'error' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * Agregar conversión automática de Name a ID - NUEVO MÉTODO
-     */
-    private function addNameToIdConversion($sheet, $range, $attribute)
-    {
-        // Este método agregará una columna oculta con fórmulas VLOOKUP
-        // para convertir automáticamente los names seleccionados a sus IDs correspondientes
-
-        // Por ahora, agregamos un comentario en la celda para indicar el mapeo
-        $firstCell = explode(':', $range)[0];
-        $cellComment = $sheet->getComment($firstCell);
-
-        // Crear mapeo name->id como JSON en el comentario
-        $mapping = [];
-        foreach ($attribute['values'] as $value) {
-            $mapping[$value['name']] = $value['id'];
-        }
-
-        $cellComment->getText()->createTextRun(
-            "Mapeo automático: " . json_encode($mapping, JSON_UNESCAPED_UNICODE)
-        );
-    }
-
-    /**
-     * Método para procesar el Excel y convertir Names a IDs antes del procesamiento
-     */
-    public function processExcelFile($filePath, $attributes)
-    {
-        try {
-            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($filePath);
-            $sheet = $spreadsheet->getActiveSheet();
-
-            // Obtener headers
-            $headers = [];
-            $highestColumn = $sheet->getHighestColumn();
-            $columnIndex = 1;
-
-            while ($columnIndex <= \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highestColumn)) {
-                $columnLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($columnIndex);
-                $headerValue = $sheet->getCell($columnLetter . '1')->getValue();
-                $headers[$columnIndex] = $headerValue;
-                $columnIndex++;
-            }
-
-            // Crear mapeo de atributos
-            $attributeMapping = [];
-            foreach ($attributes as $attribute) {
-                if (isset($attribute['tags']['required']) && $attribute['tags']['required'] && !empty($attribute['values'])) {
-                    $attributeName = $attribute['name'] ?? $attribute['id'];
-                    $mapping = [];
-                    foreach ($attribute['values'] as $value) {
-                        $mapping[$value['name']] = $value['id'];
-                    }
-                    $attributeMapping[$attributeName] = $mapping;
-                }
-            }
-
-            // Procesar cada fila de datos
-            $highestRow = $sheet->getHighestRow();
-            for ($row = 2; $row <= $highestRow; $row++) {
-                foreach ($headers as $colIndex => $header) {
-                    if (isset($attributeMapping[$header])) {
-                        $columnLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex);
-                        $cellValue = $sheet->getCell($columnLetter . $row)->getValue();
-
-                        // Convertir name a ID si existe en el mapeo
-                        if ($cellValue && isset($attributeMapping[$header][$cellValue])) {
-                            $newValue = $attributeMapping[$header][$cellValue];
-                            $sheet->setCellValue($columnLetter . $row, $newValue);
-
-                            Log::info("Conversión Name->ID", [
-                                'row' => $row,
-                                'column' => $header,
-                                'name' => $cellValue,
-                                'id' => $newValue
-                            ]);
-                        }
-                    }
-                }
-            }
-
-            // Guardar el archivo procesado
-            $writer = \PhpOffice\PhpSpreadsheet\IOFactory::createWriter($spreadsheet, 'Xlsx');
-            $writer->save($filePath);
-
-            return true;
-        } catch (\Exception $e) {
-            Log::error('Error procesando archivo Excel:', ['error' => $e->getMessage()]);
-            return false;
-        }
-    }
-
-    /**
-     * Crear pestaña de valores permitidos - VERSION MEJORADA CON MAPEO
-     */
     private function createValuesSheet($spreadsheet, $attributes)
     {
         $valuesSheet = $spreadsheet->createSheet();
@@ -821,11 +761,10 @@ class CreateProductsMasiveController extends Controller
         // Headers para la tabla
         $valuesSheet->setCellValue('A' . $currentRow, 'CAMPO');
         $valuesSheet->setCellValue('B' . $currentRow, 'NOMBRE MOSTRADO');
-        $valuesSheet->setCellValue('C' . $currentRow, 'ID INTERNO');
-        $valuesSheet->setCellValue('D' . $currentRow, 'TIPO');
-        $valuesSheet->setCellValue('E' . $currentRow, 'NOTAS');
+        $valuesSheet->setCellValue('C' . $currentRow, 'TIPO');
+        $valuesSheet->setCellValue('D' . $currentRow, 'NOTAS');
 
-        $headerStyle = $valuesSheet->getStyle('A' . $currentRow . ':E' . $currentRow);
+        $headerStyle = $valuesSheet->getStyle('A' . $currentRow . ':D' . $currentRow);
         $headerStyle->getFont()->setBold(true);
         $headerStyle->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
         $headerStyle->getFill()->getStartColor()->setRGB('E0E0E0');
@@ -835,30 +774,50 @@ class CreateProductsMasiveController extends Controller
         // CAMPOS FIJOS (sin valores personalizados)
         $fixedFields = [
             'currency_id' => [
-                ['name' => 'USD', 'id' => 'USD', 'desc' => 'Dólar estadounidense'],
-                ['name' => 'CLP', 'id' => 'CLP', 'desc' => 'Peso chileno']
+                ['name' => 'USD', 'desc' => 'Dólar estadounidense'],
+                ['name' => 'CLP', 'desc' => 'Peso chileno']
             ],
             'condition' => [
-                ['name' => 'new', 'id' => 'new', 'desc' => 'Producto nuevo'],
-                ['name' => 'used', 'id' => 'used', 'desc' => 'Producto usado']
+                ['name' => 'new', 'desc' => 'Producto nuevo'],
+                ['name' => 'used', 'desc' => 'Producto usado']
             ],
             'listing_type_id' => [
-                ['name' => 'gold_special', 'id' => 'gold_special', 'desc' => 'Publicación destacada premium'],
-                ['name' => 'gold_pro', 'id' => 'gold_pro', 'desc' => 'Publicación destacada pro'],
-                ['name' => 'gold', 'id' => 'gold', 'desc' => 'Publicación destacada'],
-                ['name' => 'silver', 'id' => 'silver', 'desc' => 'Publicación plata'],
-                ['name' => 'bronze', 'id' => 'bronze', 'desc' => 'Publicación bronce'],
-                ['name' => 'free', 'id' => 'free', 'desc' => 'Publicación gratuita']
+                ['name' => 'gold_special', 'desc' => 'Publicación destacada premium'],
+                ['name' => 'gold_pro', 'desc' => 'Publicación destacada pro'],
+                ['name' => 'gold', 'desc' => 'Publicación destacada'],
+                ['name' => 'silver', 'desc' => 'Publicación plata'],
+                ['name' => 'bronze', 'desc' => 'Publicación bronce'],
+                ['name' => 'free', 'desc' => 'Publicación gratuita']
+            ],
+            'local_pick_up' => [
+                ['name' => 'true', 'desc' => 'El producto puede ser recogido en local'],
+                ['name' => 'false', 'desc' => 'El producto no puede ser recogido en local']
+            ],
+            'free_shipping' => [
+                ['name' => 'true', 'desc' => 'Envío gratuito para este producto'],
+                ['name' => 'false', 'desc' => 'Envío con costo para este producto']
+            ],
+            'warranty_type' => [
+                ['name' => 'Garantía de fábrica', 'desc' => 'Garantía ofrecida por el fabricante'],
+                ['name' => 'Garantía del vendedor', 'desc' => 'Garantía ofrecida por el vendedor']
+            ],
+            'warranty_days' => [
+                ['name' => '30', 'desc' => '1 mes de garantía'],
+                ['name' => '60', 'desc' => '2 meses de garantía'],
+                ['name' => '90', 'desc' => '3 meses de garantía'],
+                ['name' => '180', 'desc' => '6 meses de garantía'],
+                ['name' => '365', 'desc' => '1 año de garantía']
             ]
+
         ];
+
 
         foreach ($fixedFields as $fieldName => $values) {
             foreach ($values as $value) {
                 $valuesSheet->setCellValue('A' . $currentRow, $fieldName);
                 $valuesSheet->setCellValue('B' . $currentRow, $value['name']);
-                $valuesSheet->setCellValue('C' . $currentRow, $value['id']);
-                $valuesSheet->setCellValue('D' . $currentRow, 'FIJO');
-                $valuesSheet->setCellValue('E' . $currentRow, $value['desc']);
+                $valuesSheet->setCellValue('C' . $currentRow, 'FIJO');
+                $valuesSheet->setCellValue('D' . $currentRow, $value['desc']);
                 $currentRow++;
             }
         }
@@ -876,13 +835,12 @@ class CreateProductsMasiveController extends Controller
 
                     $valuesSheet->setCellValue('A' . $currentRow, $fieldDisplayName);
                     $valuesSheet->setCellValue('B' . $currentRow, $value['name'] ?? $value['id']);
-                    $valuesSheet->setCellValue('C' . $currentRow, $value['id'] ?? '');
-                    $valuesSheet->setCellValue('D' . $currentRow, $typeText);
-                    $valuesSheet->setCellValue('E' . $currentRow, $notesText);
+                    $valuesSheet->setCellValue('C' . $currentRow, $typeText);
+                    $valuesSheet->setCellValue('D' . $currentRow, $notesText);
 
                     if ($isFirstRow) {
-                        $valuesSheet->getStyle('A' . $currentRow . ':E' . $currentRow)->getFont()->setBold(true);
-                        $valuesSheet->getStyle('D' . $currentRow)->getFont()->getColor()->setRGB('0066CC');
+                        $valuesSheet->getStyle('A' . $currentRow . ':D' . $currentRow)->getFont()->setBold(true);
+                        $valuesSheet->getStyle('C' . $currentRow)->getFont()->getColor()->setRGB('0066CC');
                     }
 
                     $currentRow++;
@@ -892,10 +850,11 @@ class CreateProductsMasiveController extends Controller
         }
 
         // Auto-ajustar columnas
-        foreach (['A', 'B', 'C', 'D', 'E'] as $column) {
+        foreach (['A', 'B', 'C', 'D'] as $column) {
             $valuesSheet->getColumnDimension($column)->setAutoSize(true);
         }
     }
+
     private function createInstructionsSheet($spreadsheet, $categoryId)
     {
         $instructionsSheet = $spreadsheet->getActiveSheet();
@@ -907,9 +866,16 @@ class CreateProductsMasiveController extends Controller
         $instructionsSheet->mergeCells('A1:F1');
         $instructionsSheet->getStyle('A1')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
 
-        $instructionsSheet->setCellValue('A2', "Categoría: {$categoryId}");
+        // AGREGAR CATEGORY_ID DE FORMA PROCESABLE
+        $instructionsSheet->setCellValue('A2', "Categoría ID: {$categoryId}");
         $instructionsSheet->getStyle('A2')->getFont()->setBold(true)->setSize(12);
         $instructionsSheet->mergeCells('A2:F2');
+
+        // Agregar una celda especial con solo el ID para procesamiento posterior
+        $instructionsSheet->setCellValue('H1', 'CATEGORY_DATA');
+        $instructionsSheet->setCellValue('H2', $categoryId);
+        $instructionsSheet->getStyle('H1:H2')->getFont()->getColor()->setRGB('FFFFFF'); // Texto blanco (invisible)
+        $instructionsSheet->getColumnDimension('H')->setWidth(0.1); // Columna muy pequeña
 
         $currentRow = 4;
 
@@ -923,7 +889,8 @@ class CreateProductsMasiveController extends Controller
             '• Consulte la pestaña "Valores Permitidos" para ver todos los valores válidos',
             '• Los campos marcados como requeridos son obligatorios',
             '• Puede agregar hasta 1000 productos en una sola plantilla',
-            '• Las columnas con listas desplegables tienen valores predefinidos'
+            '• Las columnas con listas desplegables tienen valores predefinidos',
+            '• El campo category_id está prellenado automáticamente'
         ];
 
         foreach ($instructions as $instruction) {
@@ -945,13 +912,26 @@ class CreateProductsMasiveController extends Controller
             'available_quantity' => 'Cantidad disponible (número entero)',
             'condition' => 'Condición: new (nuevo) o used (usado)',
             'listing_type_id' => 'Tipo de publicación (ver valores permitidos)',
-            'category_id' => 'ID de categoría (prellenado automáticamente)'
+            'category_id' => 'ID de categoría (prellenado automáticamente - NO MODIFICAR)',
+            'warranty_type' => 'Tipo de garantía: Garantía de fábrica o Garantía del vendedor',
+            'warranty_days' => 'Días de garantía (número entre 1 y 365)',
+            'local_pick_up' => 'Indica si el producto puede ser recogido en local (true/false)',
+            'free_shipping' => 'Indica si el producto tiene envío gratuito (true/false)'
         ];
 
         foreach ($requiredFields as $field => $description) {
             $instructionsSheet->setCellValue('A' . $currentRow, "• {$field}:");
             $instructionsSheet->setCellValue('B' . $currentRow, $description);
             $instructionsSheet->getStyle('A' . $currentRow)->getFont()->setBold(true);
+
+            // Resaltar category_id
+            if ($field === 'category_id') {
+                $instructionsSheet->getStyle('A' . $currentRow . ':B' . $currentRow)->getFill()
+                    ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
+                $instructionsSheet->getStyle('A' . $currentRow . ':B' . $currentRow)->getFill()
+                    ->getStartColor()->setRGB('FFE6E6');
+            }
+
             $currentRow++;
         }
 
@@ -979,7 +959,8 @@ class CreateProductsMasiveController extends Controller
             '  - Color personalizado: "Azul Marino Metalizado"',
             '  - Material específico: "Algodón Orgánico Certificado"',
             '',
-            '• El sistema procesará automáticamente los valores personalizados',
+            '• NOTA IMPORTANTE: Ahora solo se guardan los nombres de los valores',
+            '• El sistema procesará automáticamente la conversión interna',
             '• Se recomienda usar valores de la lista cuando sea posible'
         ];
 
@@ -994,6 +975,10 @@ class CreateProductsMasiveController extends Controller
                 $instructionsSheet->getStyle('A' . $currentRow)->getFont()->setBold(true)->getColor()->setRGB('CC0000');
             } elseif (strpos($instruction, 'Ejemplos') !== false) {
                 $instructionsSheet->getStyle('A' . $currentRow)->getFont()->setBold(true)->getColor()->setRGB('0066CC');
+            } elseif (strpos($instruction, 'NOTA IMPORTANTE:') !== false) {
+                $instructionsSheet->getStyle('A' . $currentRow)->getFont()->setBold(true)->getColor()->setRGB('0066CC');
+                $instructionsSheet->getStyle('A' . $currentRow)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID);
+                $instructionsSheet->getStyle('A' . $currentRow)->getFill()->getStartColor()->setRGB('E6F3FF');
             }
             $instructionsSheet->mergeCells('A' . $currentRow . ':F' . $currentRow);
             $currentRow++;
@@ -1033,6 +1018,7 @@ class CreateProductsMasiveController extends Controller
         $tips = [
             '• Guarde el archivo frecuentemente mientras trabaja',
             '• No modifique los nombres de las columnas (headers)',
+            '• NO modifique los valores de category_id (están prellenados)',
             '• No elimine las pestañas del archivo',
             '• Valide sus datos antes de procesar el archivo',
             '• Para dudas, consulte la documentación de MercadoLibre'
@@ -1041,6 +1027,12 @@ class CreateProductsMasiveController extends Controller
         foreach ($tips as $tip) {
             $instructionsSheet->setCellValue('A' . $currentRow, $tip);
             $instructionsSheet->mergeCells('A' . $currentRow . ':F' . $currentRow);
+
+            // Resaltar el tip sobre category_id
+            if (strpos($tip, 'category_id') !== false) {
+                $instructionsSheet->getStyle('A' . $currentRow)->getFont()->setBold(true)->getColor()->setRGB('CC0000');
+            }
+
             $currentRow++;
         }
 
@@ -1049,7 +1041,6 @@ class CreateProductsMasiveController extends Controller
             $instructionsSheet->getColumnDimension($column)->setAutoSize(true);
         }
     }
-
     public function ListCategory($clientId)
     {
         $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
