@@ -46,6 +46,8 @@ use App\Http\Controllers\MercadoLibre\Reportes\getDispatchEstimedLimitController
 use App\Http\Controllers\MercadoLibre\Reportes\getInformationDispatchDeliveredController;
 use App\Http\Controllers\MercadoLibre\Reportes\getCancelledOrdersController;
 use App\Http\Controllers\MercadoLibre\Reportes\getProductSellerController;
+use App\Http\Controllers\MercadoLibre\Reportes\getCompaniesProductsController;
+use App\Http\Controllers\MercadoLibre\Reportes\getCancelledCompaniesController;
 
 // Bodegas //
 use App\Http\Controllers\Warehouses\warehouseListAllController;
@@ -233,6 +235,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reviews/{clientId}', [reviewController::class, 'getReviewsByClientId']); // Reseñas por cliente
     Route::get('/mercadolibre/products/reviews/{product_id}', [getProductReviewsController::class, 'getProductReviews']); // Reseñas por producto
     Route::get('/mercadolibre/all-products/{client_id}', [getProductSellerController::class, 'getProductSeller']); // Obtener todos los productos por client_id
+    Route::get('/mercadolibre/cancelled-products', [getCancelledCompaniesController::class, 'getCancelledProductsAllCompanies']); // Obtener productos cancelados de las 4 empresas
+    Route::get('/mercadolibre/get-total-sales-all-companies', [getCompaniesProductsController::class, 'getTotalSalesAllCompanies']);//Obtener total de todos los productos vendidos
 
     // Refrescar token de MercadoLibre
     Route::post('/mercadolibre/refresh-token', [refreshAccessTokenController::class, 'refreshToken']);
@@ -258,4 +262,4 @@ Route::middleware('auth:sanctum')->group(function () {
     //test
     Route::get('/test/{clientId}',[testingController::class,'testing']);
 
-});
+   });
