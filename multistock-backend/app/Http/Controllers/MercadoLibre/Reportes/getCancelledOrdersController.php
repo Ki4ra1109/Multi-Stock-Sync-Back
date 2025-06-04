@@ -1,140 +1,121 @@
 <?php
-
 namespace App\Http\Controllers\MercadoLibre\Reportes;
 
+use App\Http\Controllers\Controller;
 use App\Models\MercadoLibreCredential;
+use App\Models\Company;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
+use GuzzleHttp\Client;
+use GuzzleHttp\Promise;
 
-class getCancelledOrdersController
+class getCancelledCompaniesController extends Controller
 {
-    public function getCancelledOrders($clientId)
+    public function getCancelledProductsAllCompanies(Request $request)
     {
-        
+        // Obtén todos los client_id de la tabla companies
+        $clientIds = Company::whereNotNull('client_id')->pluck('client_id')->toArray();
 
-        // Obtain client credentials
-        $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
+        $year = (int) $request->query('year', date('Y'));
+        $dateFrom = "{$year}-01-01T00:00:00.000-00:00";
+        $dateTo = "{$year}-12-31T23:59:59.999-00:00";
 
-        if (!$credentials) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'No se encontraron credenciales válidas para el client_id proporcionado.',
-            ], 404);
-        }
+        $allOrders = [];
+        $totalCancelled = 0;
+        $client = new Client(['timeout' => 20]);
+        $promises = [];
 
-        // Refresh token if expired
-        if ($credentials->isTokenExpired()) {
-            $refreshResponse = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
-                'grant_type' => 'refresh_token',
-                'client_id' => env('MELI_CLIENT_ID'),
-                'client_secret' => env('MELI_CLIENT_SECRET'),
-                'refresh_token' => $credentials->refresh_token,
-            ]);
+        foreach ($clientIds as $clientId) {
+            Log::info("Procesando empresa", ['client_id' => $clientId]);
 
-            if ($refreshResponse->failed()) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'El token ha expirado y no se pudo refrescar',
-                    'error' => $refreshResponse->json(),
-                ], 401);
+            $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
+            if (!$credentials) {
+                Log::warning("No credentials found for client_id: $clientId");
+                continue;
             }
 
-            $newTokenData = $refreshResponse->json();
-            $credentials->access_token = $newTokenData['access_token'];
-            $credentials->refresh_token = $newTokenData['refresh_token'] ?? $credentials->refresh_token;
-            $credentials->expires_in = $newTokenData['expires_in'];
-            $credentials->updated_at = now();
-            $credentials->save();
-        }
-
-        $userResponse = Http::withToken($credentials->access_token)->get('https://api.mercadolibre.com/users/me');
-
-        // If it fails by token, try refreshing again
-        if ($userResponse->status() === 401) {
-            $refreshResponse = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
-                'grant_type' => 'refresh_token',
-                'client_id' => env('MELI_CLIENT_ID'),
-                'client_secret' => env('MELI_CLIENT_SECRET'),
-                'refresh_token' => $credentials->refresh_token,
-            ]);
-
-            if ($refreshResponse->failed()) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'El token ha expirado y no se pudo refrescar. Por favor, renueve su token.',
-                    'error' => $refreshResponse->json(),
-                ], 401);
+            // Refresh token
+            if ($credentials->isTokenExpired()) {
+                Log::info("Token expirado, refrescando para client_id: $clientId");
+                $refreshResponse = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
+                    'grant_type' => 'refresh_token',
+                    'client_id' => env('MELI_CLIENT_ID'),
+                    'client_secret' => env('MELI_CLIENT_SECRET'),
+                    'refresh_token' => $credentials->refresh_token,
+                ]);
+                if ($refreshResponse->failed()) {
+                    Log::error("Token refresh failed for client_id: $clientId", ['response' => $refreshResponse->json()]);
+                    continue;
+                }
+                $newTokenData = $refreshResponse->json();
+                $credentials->access_token = $newTokenData['access_token'];
+                $credentials->refresh_token = $newTokenData['refresh_token'] ?? $credentials->refresh_token;
+                $credentials->expires_in = $newTokenData['expires_in'];
+                $credentials->updated_at = now();
+                $credentials->save();
+                Log::info("Token refrescado correctamente para client_id: $clientId");
             }
 
-            $newTokenData = $refreshResponse->json();
-            $credentials->access_token = $newTokenData['access_token'];
-            $credentials->refresh_token = $newTokenData['refresh_token'] ?? $credentials->refresh_token;
-            $credentials->expires_in = $newTokenData['expires_in'];
-            $credentials->updated_at = now();
-            $credentials->save();
-
-            // Retry the request
             $userResponse = Http::withToken($credentials->access_token)->get('https://api.mercadolibre.com/users/me');
-        }
+            if ($userResponse->failed()) {
+                Log::error("Failed to get user ID for client_id: $clientId", ['response' => $userResponse->json()]);
+                continue;
+            }
+            $userId = $userResponse->json()['id'];
+            Log::info("Obtenido user_id para client_id: $clientId", ['user_id' => $userId]);
 
-        if ($userResponse->failed()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'No se pudo obtener el ID del usuario.',
-                'error' => $userResponse->json(),
-            ], 500);
-        }
-
-        $userId = $userResponse->json()['id'];
-
-
-        $ordersData = [];
-        $offset = 0;
-        $limit = 50;
-
-        do {
             $params = [
                 'seller' => $userId,
                 'order.status' => 'cancelled',
-                'limit' => $limit,
-                'offset' => $offset
+                'order.date_created.from' => $dateFrom,
+                'order.date_created.to' => $dateTo,
+                'limit' => 20,
+                'offset' => 0
             ];
 
-            $response = Http::withToken($credentials->access_token)->get("https://api.mercadolibre.com/orders/search", $params);
+            $promises[$clientId] = $client->getAsync('https://api.mercadolibre.com/orders/search', [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $credentials->access_token,
+                ],
+                'query' => $params
+            ]);
+        }
 
-            if ($response->failed()) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'Error al consultar órdenes canceladas.',
-                    'error' => $response->json(),
-                ], $response->status());
-            }
+        $results = Promise\Utils::settle($promises)->wait();
 
-            $data = $response->json();
-            $offset += $limit;
-
-            foreach ($data['results'] as $order) {
-                foreach ($order['order_items'] as $item) {
-                    $ordersData[] = [
-                        'id' => $order['id'],
-                        'created_date' => $order['date_created'],
-                        'total_amount' => $order['total_amount'],
-                        'status' => $order['status'],
-                        'product' => [
-                            'title' => $item['item']['title'] ?? null,
-                            'quantity' => $item['quantity'] ?? null,
-                            'price' => $item['unit_price'] ?? null
-                        ]
-                    ];
+        foreach ($results as $clientId => $result) {
+            $ordersData = [];
+            if ($result['state'] === 'fulfilled' && $result['value']->getStatusCode() === 200) {
+                $data = json_decode($result['value']->getBody()->getContents(), true);
+                if (isset($data['results']) && is_array($data['results'])) {
+                    foreach (array_slice($data['results'], 0, 20) as $order) {
+                        if (!isset($order['order_items']) || !is_array($order['order_items'])) continue;
+                        if (isset($order['total_amount'])) $totalCancelled += $order['total_amount'];
+                        foreach ($order['order_items'] as $item) {
+                            $ordersData[] = [
+                                'id' => $order['id'],
+                                'created_date' => $order['date_created'] ?? null,
+                                'total_amount' => $order['total_amount'] ?? null,
+                                'status' => $order['status'] ?? null,
+                                'product' => [
+                                    'title' => $item['item']['title'] ?? null,
+                                    'quantity' => $item['quantity'] ?? null,
+                                    'price' => $item['unit_price'] ?? null
+                                ]
+                            ];
+                        }
+                    }
                 }
             }
-
-        } while ($offset < ($data['paging']['total'] ?? 0));
+            $allOrders[$clientId] = $ordersData;
+        }
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Órdenes canceladas obtenidas con éxito.',
-            'orders' => $ordersData,
+            'message' => 'Órdenes canceladas de todas las compañías obtenidas con éxito.',
+            'orders_by_company' => $allOrders,
+            'total_cancelled' => $totalCancelled
         ]);
     }
 }

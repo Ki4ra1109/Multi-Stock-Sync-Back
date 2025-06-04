@@ -15,34 +15,56 @@ class getSearchSaleByFolioController
         try {
             // Validar los datos de entrada
             $folio = $request->input('folio');
-            $clientId = $request->input('client_id');
-            
-            $sale = DB::table("sale")
-                ->join('warehouses', 'sale.warehouse_id', '=', 'warehouses.id')
-                ->join('companies', 'companies.id', '=', 'warehouses.assigned_company_id')
-                ->select(
-                    'sale.*',
-                    'warehouses.name as warehouse_name'
-                )
-                ->when(!is_null($folio), function ($query) use ($folio) {
-                    return $query->where('sale.id', $folio);
+
+            $sale = Sale::with([
+                'warehouse:id,name',
+                'productSales.stockWarehouse:id,title',
+            ])
+                ->whereHas('warehouse.company', function ($query) use ($companyId) {
+                    $query->where('client_id', $companyId);
                 })
-                ->where('companies.client_id', $companyId)
+                ->where('id', $folio)
                 ->first();
-            
             if (!$sale) {
                 return response()->json([
                     'message' => 'No se encontró la venta con el folio proporcionado',
                     'data' => null,
                 ], 404);
             }
-            
+            $responseFormated = [
+
+                'id' => $sale->id,
+                'client_id' => $sale->client_id,
+                'warehouse_id' => $sale->warehouse_id,
+                'warehouse_name' => $sale->warehouse->name ?? 'N/A',
+                'amount_total_products' => $sale->amount_total_products,
+                'status_sale' => $sale->status_sale,
+                'type_emission' => $sale->type_emission,
+                'price_final' => $sale->price_final,
+                'created_at' => $sale->created_at->format('Y-m-d'),
+                'updated_at' => $sale->updated_at->format('Y-m-d'),
+                'products' => $sale->productSales->map(function ($productSale) {
+                    return [
+                        'product_name' => $productSale->stockWarehouse->title ?? 'N/A',
+                        'product_id' => $productSale->product_id,
+                        'quantity' => $productSale->cantidad,
+                        'price_unit' => $productSale->precio_unidad,
+                        'subtotal' => $productSale->precio_total,
+
+                    ];
+                })->toArray(),
+
+
+            ];
+
+
             return response()->json([
+                'status' => 'success',
                 'message' => 'Venta obtenida correctamente',
-                'data' => $sale,
+                'data' => $responseFormated,
             ], 200);
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Error al obtener la venta: ' . $e->getMessage()], 500);
+            return response()->json(['status' => 'error', 'message' => 'Error al obtener la venta: ' . $e->getMessage()], 500);
         }
     }
 }
