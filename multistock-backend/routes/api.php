@@ -46,6 +46,8 @@ use App\Http\Controllers\MercadoLibre\Reportes\getDispatchEstimedLimitController
 use App\Http\Controllers\MercadoLibre\Reportes\getInformationDispatchDeliveredController;
 use App\Http\Controllers\MercadoLibre\Reportes\getCancelledOrdersController;
 use App\Http\Controllers\MercadoLibre\Reportes\getProductSellerController;
+use App\Http\Controllers\MercadoLibre\Reportes\getCompaniesProductsController;
+use App\Http\Controllers\MercadoLibre\Reportes\getCancelledCompaniesController;
 
 // Bodegas //
 use App\Http\Controllers\Warehouses\warehouseListAllController;
@@ -203,7 +205,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/mercadolibre/update-stock/{client_id}/{productId}', [putProductoByUpdateController::class, 'putProductoByUpdate']); // Actualizar stock
     Route::get('/mercadolibre/carga-masiva', [getExcelCargaMasivaMLController::class, 'redirigir']); // Redirigir a carga masiva
     Route::post('/mercadolibre/carga-masiva/leer-excel', [getProductosExcelController::class, 'leerExcel']); // Leer carga masiva
-    Route::put('/mercadolibre/update/{client_id}/{productId}', [CreateProductsMasiveController::class, 'putProductoByUpdate']); // Actualizar stock
+    Route::put('/mercadolibre/update/{client_id}/{productId}', [putProductoByUpdateController::class, 'putProductoByUpdate']); // Actualizar stock
     Route::get('/mercadolibre/carga-masiva/descargar-platilla/{client_id}/{categoryId}', [CreateProductsMasiveController::class, 'downloadTemplate']); // Leer carga masiva
 
     // REPORTES MERCADO LIBRE
@@ -236,6 +238,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reviews/{clientId}', [reviewController::class, 'getReviewsByClientId']); // Reseñas por cliente
     Route::get('/mercadolibre/products/reviews/{product_id}', [getProductReviewsController::class, 'getProductReviews']); // Reseñas por producto
     Route::get('/mercadolibre/all-products/{client_id}', [getProductSellerController::class, 'getProductSeller']); // Obtener todos los productos por client_id
+    Route::get('/mercadolibre/cancelled-products', [getCancelledCompaniesController::class, 'getCancelledProductsAllCompanies']); // Obtener productos cancelados de las 4 empresas
+    Route::get('/mercadolibre/get-total-sales-all-companies', [getCompaniesProductsController::class, 'getTotalSalesAllCompanies']);//Obtener total de todos los productos vendidos
 
     // Refrescar token de MercadoLibre
     Route::post('/mercadolibre/refresh-token', [refreshAccessTokenController::class, 'refreshToken']);
@@ -259,6 +263,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/sale-note-patch/{saleId}/{status}', [getHistorySalePatchStatusController::class, 'getHistorySalePatchStatus']); // Actualizar estado de venta
     Route::put('/sale-note/{companyId}/{folio}', [putSaleNoteByFolioController::class, 'putSaleNoteByFolio']); // Actualizar nota de venta por folio
     //test
-    Route::get('/test/{clientId}',[testingController::class,'testing']);
+    Route::get('/test/{clientId}',[testingController::class,'testing']);//para probar endpoint de mercadolibre de forma directa
 
-});
+   });
