@@ -119,6 +119,8 @@ use App\Http\Controllers\MercadoLibre\Products\getSpecsDomainController;
 use App\Http\Controllers\MercadoLibre\Products\getExcelCargaMasivaMLController;
 use App\Http\Controllers\MercadoLibre\Products\getProductosExcelController;
 
+// woocommerce //
+use App\Http\Controllers\woocommerce\WooStoreController;
 
 // SyncStatus //
 use App\Http\Controllers\SyncStatusController;
@@ -264,5 +266,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/sale-note/{companyId}/{folio}', [putSaleNoteByFolioController::class, 'putSaleNoteByFolio']); // Actualizar nota de venta por folio
     //test
     Route::get('/test/{clientId}',[testingController::class,'testing']);//para probar endpoint de mercadolibre de forma directa
+
+    // WooCommerce
+    Route::get('/woocommerce/woo/{storeId}/products', [WooStoreController::class, 'getProductsWooCommerce']); // Obtener productos de WooCommerce
+    Route::post('/woocommerce/woo-stores', [WooStoreController::class, 'storeWoocommerce']); // Registrar tienda WooCommerce
 
    });

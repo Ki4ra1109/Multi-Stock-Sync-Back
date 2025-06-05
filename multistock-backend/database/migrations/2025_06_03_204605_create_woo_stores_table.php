@@ -12,13 +12,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('woo_stores', function (Blueprint $table) {
-            $table->id();
-            $table->string('name'); // Nombre identificador de la tienda 
-            $table->string('store_url'); // URL de la tienda WooCommerce 
-            $table->string('consumer_key'); // Clave pública para conexión
-            $table->string('consumer_secret'); // Clave privada para conexión
-            $table->boolean('active')->default(true); // Para activar/desactivar tiendas si es necesario
-            $table->timestamps();
+            $table->id(); // ID autoincremental
+            $table->string('name'); // Nombre amigable de la tienda (ej: "Tienda Principal")
+            $table->string('store_url'); // URL base del sitio WordPress con WooCommerce (ej: https://ejemplo.com)
+            $table->text('consumer_key'); // Clave pública API REST WooCommerce (encriptada)
+            $table->text('consumer_secret'); // Clave secreta API REST WooCommerce (encriptada)
+            $table->boolean('active')->default(true); // Control de activación de la conexión
+            $table->timestamps(); // created_at, updated_at
         });
     }
 
