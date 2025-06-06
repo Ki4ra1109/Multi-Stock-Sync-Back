@@ -126,6 +126,9 @@ use App\Http\Controllers\woocommerce\WooStoreController;
 use App\Http\Controllers\SyncStatusController;
 use Dotenv\Repository\Adapter\PutenvAdapter;
 
+// Rol //
+use App\http\Controllers\RolController;
+
 // Rutas públicas
 Route::post('/login', [AuthController::class, 'login']); // Iniciar sesión de usuario
 Route::post('/users', [UserController::class, 'store']); // Crear usuario
@@ -139,6 +142,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users/{id}', [UserController::class,'show']); // Obtener usuario específico
     Route::patch('/users/{id}', [UserController::class,'update']); // Actualizar usuario
     Route::delete('/users/{id}', [UserController::class,'delete']); // Eliminar usuario
+
+    // ROL
+    Route::get('/roles', [RolController::class, 'index']); // Obtener todos los roles
+    Route::post('/roles', [RolController::class, 'store']); // Crear rol
+    Route::delete('/roles/{id}', [RolController::class, 'destroy']); // Eliminar rol
 
     // SINCRONIZACIÓN
     Route::post('/sincronizar', [SyncStatusController::class, 'iniciarSincronizacion']); // Iniciar sincronización

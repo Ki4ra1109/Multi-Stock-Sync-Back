@@ -21,6 +21,7 @@ class User extends Authenticatable
         'telefono',
         'email',
         'password',
+        'rol_id', // Assuming you have a role ID for user roles
     ];
 
     /**
