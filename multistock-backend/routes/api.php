@@ -146,7 +146,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ROL
     Route::get('/roles', [RolController::class, 'index']); // Obtener todos los roles
-    Route::post('/roles', [RolController::class, 'store']); // Crear rol
+    Route::post('/roles/nuevo', [RolController::class, 'store']); // Crear rol
     Route::delete('/roles/{id}', [RolController::class, 'destroy']); // Eliminar rol
 
     // SINCRONIZACIÓN
