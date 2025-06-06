@@ -45,6 +45,7 @@ class UserController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:6|confirmed',
             'password_confirmation' => 'required|string|min:6',
+            'role_id' => 'required|exists:rols,id',
         ], [
             'required' => 'El campo :attribute es obligatorio.',
             'string' => 'El campo :attribute debe ser una cadena de texto.',
@@ -68,6 +69,7 @@ class UserController extends Controller
             'telefono' => $validated['telefono'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']), // Password hashed
+            'role_id' => $validated['role_id'],
         ]);
 
         // Response with user data
@@ -86,7 +88,8 @@ class UserController extends Controller
             'nombre' => 'nullable|string|max:255',
             'apellidos' => 'nullable|string|max:255',
             'telefono' => 'nullable|string|max:20',
-            'email' => 'nullable|string|email|max:255|unique:users,email'
+            'email' => 'nullable|string|email|max:255|unique:users,email',
+            'role_id' => 'nullable|integer|exists:rols,id',
         ]);
 
         if ($validator->fails()) {

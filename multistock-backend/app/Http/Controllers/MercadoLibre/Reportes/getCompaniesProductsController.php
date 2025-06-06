@@ -15,6 +15,7 @@ class getCompaniesProductsController extends Controller
     public function getTotalSalesAllCompanies(Request $request)
     {
         $clientIds = Company::whereNotNull('client_id')->pluck('client_id')->toArray();
+        $companyNames = Company::whereNotNull('client_id')->pluck('name', 'client_id')->toArray();
 
         // Obtener año y mes desde la query
         
@@ -22,16 +23,18 @@ class getCompaniesProductsController extends Controller
         $month = (int) $request->query('month', date('m'));
 
         
-        $start = \Carbon\Carbon::create($year, $month, 1)->startOfMonth();
-        $end = \Carbon\Carbon::create($year, $month, 1)->endOfMonth();
+        $start = \Carbon\Carbon::create($year, $month, 1, 0, 0, 0, 'UTC')->startOfMonth();
+        $end = \Carbon\Carbon::create($year, $month, 1, 0, 0, 0, 'UTC')->endOfMonth();
         
         $dateFrom = $start->toIso8601String();
         $dateTo = $end->toIso8601String();
 
         $allSales = [];
         $totalSales = 0;
+        $ordersCounted = []; // [orderId] => true
         $client = new Client(['timeout' => 20]);
         $promises = [];
+
 
         foreach ($clientIds as $clientId) {
             Log::info("Procesando empresa", ['client_id' => $clientId]);
@@ -76,7 +79,7 @@ class getCompaniesProductsController extends Controller
             $page = 0;
             $hasMore = true;
             $clientOrders = [];
-            while ($hasMore && $page < 20) {
+            while ($hasMore) {
                 $params = [
                     'seller' => $userId,
                     'order.status' => 'paid',
@@ -108,38 +111,59 @@ class getCompaniesProductsController extends Controller
                 $page++;
             }
 
-            // Procesa $clientOrders igual que antes:
+            // Procesa $clientOrders
+            $processedOrders = []; // [clientId][orderMonth][orderId] => true
             foreach ($clientOrders as $order) {
                 $orderDate = \Carbon\Carbon::parse($order['date_created']);
                 if ($orderDate->year != $year || $orderDate->month != $month) {
                     continue;
                 }
                 $orderMonth = $orderDate->format('Y-m');
+                $orderId = $order['id'];
+
+                
+                if (isset($processedOrders[$clientId][$orderMonth][$orderId])) {
+                    
+                    Log::warning("Orden duplicada detectada", [
+                        'client_id' => $clientId,
+                        'order_id' => $orderId,
+                        'order_month' => $orderMonth
+                    ]);
+                    continue;
+                }
+                $processedOrders[$clientId][$orderMonth][$orderId] = true;
+
+                
+                if (isset($globalProcessedOrders[$orderId])) {
+                    Log::warning("Orden pagada aparece en varias empresas", [
+                        'order_id' => $orderId,
+                        'empresas' => $globalProcessedOrders[$orderId],
+                        'empresa_actual' => $clientId
+                    ]);
+                }
+                $globalProcessedOrders[$orderId][] = $clientId;
+
                 if (!isset($salesByCompany[$orderMonth][$clientId])) {
                     $salesByCompany[$orderMonth][$clientId] = [
                         'total_sales' => 0,
-                        'orders' => []
+                        'total_products' => 0
                     ];
                 }
                 if (isset($order['total_amount'])) {
                     $salesByCompany[$orderMonth][$clientId]['total_sales'] += $order['total_amount'];
-                    $totalSales += $order['total_amount'];
+                    
+                    if (!isset($ordersCounted[$orderId])) {
+                        $totalSales += $order['total_amount'];
+                        $ordersCounted[$orderId] = true;
+                    }
                 }
-                $orderData = [
-                    'id' => $order['id'],
-                    'created_date' => $order['date_created'] ?? null,
-                    'total_amount' => $order['total_amount'] ?? null,
-                    'status' => $order['status'] ?? null,
-                    'products' => []
-                ];
+                
+                $productCount = 0;
                 foreach ($order['order_items'] as $item) {
-                    $orderData['products'][] = [
-                        'title' => $item['item']['title'] ?? null,
-                        'quantity' => $item['quantity'] ?? null,
-                        'price' => $item['unit_price'] ?? null
-                    ];
+                    $productCount += $item['quantity'] ?? 0;
                 }
-                $salesByCompany[$orderMonth][$clientId]['orders'][] = $orderData;
+                $salesByCompany[$orderMonth][$clientId]['total_products'] += $productCount;
+
             }
         }
 
@@ -147,25 +171,17 @@ class getCompaniesProductsController extends Controller
        ksort($months);
 }
        unset($months);
-
-        foreach ($allSales as $clientId => $clientOrders) {
-            foreach ($clientOrders as $order) {
-                
-            }
-        }
+        $salesByCompany = array_map(function ($months, $monthKey) use ($companyNames) {
+            return array_map(function ($data, $clientId) use ($companyNames) {
+                return [
+                    'total_sales' => $data['total_sales'],
+                    'total_products' => $data['total_products'],
+                    'company_name' => $companyNames[$clientId] ?? 'Desconocida',
+                ];
+            }, $months, array_keys($months));
+        }, $salesByCompany, array_keys($salesByCompany));
 
         
-        $monthKey = sprintf('%04d-%02d', $year, $month);
-        foreach ($clientIds as $clientId) {
-            if (!isset($salesByCompany[$monthKey][$clientId])) {
-                $salesByCompany[$monthKey][$clientId] = [
-                    'total_sales' => 0,
-                    'orders' => []
-                ];
-            }
-            ksort($salesByCompany[$monthKey]);
-        }
-        ksort($salesByCompany);
 
         return response()->json([
             'status' => 'success',
@@ -176,6 +192,7 @@ class getCompaniesProductsController extends Controller
                 'from' => $dateFrom,
                 'to' => $dateTo,
             ],
+            
         ]);
     }
 }
