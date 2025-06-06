@@ -121,6 +121,7 @@ use App\Http\Controllers\MercadoLibre\Products\getProductosExcelController;
 
 // woocommerce //
 use App\Http\Controllers\woocommerce\WooStoreController;
+use App\Http\Controllers\Woocommerce\WooProductController;
 
 // SyncStatus //
 use App\Http\Controllers\SyncStatusController;
@@ -278,5 +279,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // WooCommerce
     Route::get('/woocommerce/woo/{storeId}/products', [WooStoreController::class, 'getProductsWooCommerce']); // Obtener productos de WooCommerce
     Route::post('/woocommerce/woo-stores', [WooStoreController::class, 'storeWoocommerce']); // Registrar tienda WooCommerce
+    Route::put('/woocommerce/woo/{storeId}/product/{productId}', [WooProductController::class, 'updateProduct']);
 
    });
