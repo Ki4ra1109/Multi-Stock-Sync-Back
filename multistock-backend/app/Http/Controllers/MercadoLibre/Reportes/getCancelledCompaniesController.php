@@ -14,14 +14,21 @@ class getCancelledCompaniesController extends Controller
     public function getCancelledProductsAllCompanies(Request $request)
     {
         $clientIds = Company::whereNotNull('client_id')->pluck('client_id')->toArray();
-
+        
+        
         $year = (int) $request->query('year', date('Y'));
-        $dateFrom = "{$year}-01-01T00:00:00.000-00:00";
-        $dateTo = "{$year}-12-31T23:59:59.999-00:00";
+        $month = (int) $request->query('month', date('m'));
+
+        $start = \Carbon\Carbon::create($year, $month, 1, 0, 0, 0, 'UTC')->startOfMonth();
+        $end = \Carbon\Carbon::create($year, $month, 1, 0, 0, 0, 'UTC')->endOfMonth();
+
+        $dateFrom = $start->toIso8601String();
+        $dateTo = $end->toIso8601String();
         
         $totalCancelled = 0;
         $client = new \GuzzleHttp\Client(['timeout' => 20]);
         $cancelledByCompany = [];
+        $globalProcessedOrders = []; // [orderId] => [clientId1, clientId2, ...]
 
         foreach ($clientIds as $clientId) {
             Log::info("Procesando empresa", ['client_id' => $clientId]);
@@ -66,7 +73,7 @@ class getCancelledCompaniesController extends Controller
             $page = 0;
             $hasMore = true;
             $clientOrders = [];
-            while ($hasMore && $page < 20) {
+            while ($hasMore) {
                 $params = [
                     'seller' => $userId,
                     'order.status' => 'cancelled',
@@ -101,7 +108,25 @@ class getCancelledCompaniesController extends Controller
             
             foreach ($clientOrders as $order) {
                 if (!isset($order['order_items']) || !is_array($order['order_items'])) continue;
-                $orderMonth = \Carbon\Carbon::parse($order['date_created'])->format('Y-m');
+                if (empty($order['date_closed'])) continue; 
+                $cancelMonth = \Carbon\Carbon::parse($order['date_closed']);
+                if ($cancelMonth->year != $year || $cancelMonth->month != $month) {
+                    continue; 
+                }
+                $orderMonth = $cancelMonth->format('Y-m');
+
+                
+                $orderId = $order['id'];
+                if (isset($globalProcessedOrders[$orderId])) {
+                    Log::warning("Orden cancelada aparece en varias empresas", [
+                        'order_id' => $orderId,
+                        'empresas' => $globalProcessedOrders[$orderId],
+                        'empresa_actual' => $clientId
+                    ]);
+                    
+                }
+                $globalProcessedOrders[$orderId][] = $clientId;
+
                 if (!isset($cancelledByCompany[$clientId][$orderMonth])) {
                     $cancelledByCompany[$clientId][$orderMonth] = [
                         'total_cancelled' => 0,
@@ -146,15 +171,39 @@ class getCancelledCompaniesController extends Controller
         
         $cancelledByCompany = array_filter($cancelledByCompany);
 
+        
+        $companyNames = Company::whereNotNull('client_id')->pluck('name', 'client_id')->toArray();
+
+        $cancelledByCompanyFormatted = [];
+        foreach ($cancelledByCompany as $clientId => $months) {
+            foreach ($months as $orderMonth => $data) {
+                $cancelledByCompanyFormatted[$orderMonth] = $cancelledByCompanyFormatted[$orderMonth] ?? [];
+                $products = [];
+                foreach ($data['orders'] as $order) {
+                    foreach ($order['products'] as $product) {
+                        $products[] = $product;
+                    }
+                }
+                $cancelledByCompanyFormatted[$orderMonth][] = [
+                    'total_cancelled' => $data['total_cancelled'],
+                    'total_orders' => count($data['orders']),
+                    'products' => $products, 
+                    'company_name' => $companyNames[$clientId] ?? 'Desconocida'
+                ];
+            }
+        }
+        ksort($cancelledByCompanyFormatted);
+
         return response()->json([
             'status' => 'success',
             'message' => 'Órdenes canceladas de todas las compañías obtenidas con éxito.',
-            'cancelled_by_company' => $cancelledByCompany,
+            'cancelled_by_company' => $cancelledByCompanyFormatted,
             'total_cancelled' => $totalCancelled,
             'date_range' => [
                 'from' => $dateFrom,
                 'to' => $dateTo,
             ],
+            
         ]);
     }
 }

@@ -79,6 +79,7 @@ class getCompaniesProductsController extends Controller
             $page = 0;
             $hasMore = true;
             $clientOrders = [];
+            $maxRetries = 3;
             while ($hasMore) {
                 $params = [
                     'seller' => $userId,
@@ -88,13 +89,27 @@ class getCompaniesProductsController extends Controller
                     'limit' => $limit,
                     'offset' => $page * $limit
                 ];
-                $response = $client->get('https://api.mercadolibre.com/orders/search', [
-                    'headers' => [
-                        'Authorization' => 'Bearer ' . $credentials->access_token,
-                    ],
-                    'query' => $params
-                ]);
-                if ($response->getStatusCode() === 200) {
+                $retries = 0;
+                do {
+                    try {
+                        $response = $client->get('https://api.mercadolibre.com/orders/search', [
+                            'headers' => [
+                                'Authorization' => 'Bearer ' . $credentials->access_token,
+                            ],
+                            'query' => $params
+                        ]);
+                        $statusCode = $response->getStatusCode();
+                    } catch (\Exception $e) {
+                        Log::error("Error de red al consultar órdenes para client_id: $clientId, intento $retries", [
+                            'exception' => $e->getMessage(),
+                            'page' => $page
+                        ]);
+                        $statusCode = 0;
+                    }
+                    $retries++;
+                } while ($statusCode !== 200 && $retries < $maxRetries);
+
+                if ($statusCode === 200) {
                     $data = json_decode($response->getBody()->getContents(), true);
                     $results = $data['results'] ?? [];
                     if (count($results) === 0) {
@@ -106,6 +121,7 @@ class getCompaniesProductsController extends Controller
                         }
                     }
                 } else {
+                    Log::error("No se pudo obtener todas las páginas para client_id: $clientId, página $page después de $maxRetries intentos.");
                     $hasMore = false;
                 }
                 $page++;
@@ -146,7 +162,8 @@ class getCompaniesProductsController extends Controller
                 if (!isset($salesByCompany[$orderMonth][$clientId])) {
                     $salesByCompany[$orderMonth][$clientId] = [
                         'total_sales' => 0,
-                        'total_products' => 0
+                        'total_products' => 0,
+                        'products' => []
                     ];
                 }
                 if (isset($order['total_amount'])) {
@@ -158,11 +175,18 @@ class getCompaniesProductsController extends Controller
                     }
                 }
                 
-                $productCount = 0;
+                
                 foreach ($order['order_items'] as $item) {
-                    $productCount += $item['quantity'] ?? 0;
+                    $product = [
+                        'title' => $item['item']['title'] ?? null,
+                        'quantity' => $item['quantity'] ?? 0,
+                        'price' => $item['unit_price'] ?? 0,
+                        'order_id' => $orderId,
+                        'date_created' => $order['date_created'] ?? null,
+                    ];
+                    $salesByCompany[$orderMonth][$clientId]['products'][] = $product;
+                    $salesByCompany[$orderMonth][$clientId]['total_products'] += $item['quantity'] ?? 0;
                 }
-                $salesByCompany[$orderMonth][$clientId]['total_products'] += $productCount;
 
             }
         }
@@ -176,6 +200,7 @@ class getCompaniesProductsController extends Controller
                 return [
                     'total_sales' => $data['total_sales'],
                     'total_products' => $data['total_products'],
+                    'products' => $data['products'],
                     'company_name' => $companyNames[$clientId] ?? 'Desconocida',
                 ];
             }, $months, array_keys($months));
