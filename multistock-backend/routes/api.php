@@ -120,7 +120,7 @@ use App\Http\Controllers\MercadoLibre\Products\getExcelCargaMasivaMLController;
 use App\Http\Controllers\MercadoLibre\Products\getProductosExcelController;
 
 // woocommerce //
-use App\Http\Controllers\woocommerce\WooStoreController;
+use App\Http\Controllers\Woocommerce\WooStoreController;
 use App\Http\Controllers\Woocommerce\WooProductController;
 
 // SyncStatus //
