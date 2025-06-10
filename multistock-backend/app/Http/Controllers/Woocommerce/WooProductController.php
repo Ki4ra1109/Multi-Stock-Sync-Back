@@ -51,21 +51,9 @@ class WooProductController extends Controller
 
             $updated = $woocommerce->put("products/{$productId}", $data);
 
-            $filtered = [
-                'id' => $updated->id,
-                'name' => $updated->name,
-                'regular_price' => $update->regular_price,
-                'stock_quantity' => $updated->stock_quantity ?? 'N/A',
-                'permalink' => $updated->permalink,
-                'sku' => $updated->sku,
-                'weight' => $updated->weight,
-                'dimensions' => $updated->dimensions,
-                'status' => $updated->status,
-            ];
-
             return response()->json([
                 'message' => 'Producto actualizado correctamente.',
-                'updated_product' => $filtered,
+                'updated_product' => $updated,
                 'status' => 'success'
             ]);
         } catch (\Exception $e) {
@@ -75,5 +63,4 @@ class WooProductController extends Controller
             ], 500);
         }
     }
-
 }
