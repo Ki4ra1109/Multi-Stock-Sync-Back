@@ -32,21 +32,41 @@ class CreateProductController extends Controller
             'pictures.*.source' => 'required|url',
             'shipping' => 'required|array',
             'sale_terms' => 'nullable|array',
+            'attributes' => 'nullable|array',
+            'SIZE_GRID_ID' => 'nullable|string',
+            // Nuevas reglas para variaciones
+            'variations' => 'nullable|array',
+            'variations.*.attribute_combinations' => 'required_with:variations|array',
+            'variations.*.attribute_combinations.*.id' => 'required_with:variations|string',
+            'variations.*.attribute_combinations.*.value_name' => 'required_with:variations|string',
+            'variations.*.attributes' => 'nullable|array',
+            'variations.*.attributes.*.id' => 'required_with:variations.*.attributes|string',
+            'variations.*.attributes.*.value_name' => 'required_with:variations.*.attributes|string',
+            'variations.*.price' => 'nullable|numeric',
+            'variations.*.available_quantity' => 'nullable|integer',
+            'variations.*.picture_ids' => 'nullable|array',
+            'variations.*.seller_custom_field' => 'nullable|string',
         ];
 
         if (!$hasCatalog) {
             $rules['title'] = 'required|string';
             $rules['category_id'] = 'required|string';
             $rules['description'] = 'nullable|string';
-            $rules['family_name'] = 'required|string';
-            $rules['attributes'] = 'nullable|array';
+
+            // Verificar si category_id existe antes de usarlo
+            if (!empty($data['category_id'])) {
+                $categoryAttributes = Http::get("https://api.mercadolibre.com/categories/{$data['category_id']}/attributes")->json();
+                if (collect($categoryAttributes)->contains('id', 'FAMILY_NAME')) {
+                    $rules['family_name'] = 'required|string';
+                }
+            }
         }
 
         $validated = validator($data, $rules)->validate();
 
         // Verificación si la categoría requiere publicación por catálogo
         $catalogRequired = false;
-        if (!$hasCatalog && isset($validated['category_id'])) {
+        if (!$hasCatalog && !empty($validated['category_id'])) {
             $attributeResponse = Http::get("https://api.mercadolibre.com/categories/{$validated['category_id']}/attributes");
 
             if ($attributeResponse->successful()) {
@@ -61,7 +81,7 @@ class CreateProductController extends Controller
             if ($catalogRequired) {
                 $searchCatalog = Http::get("https://api.mercadolibre.com/products/search", [
                     'category' => $validated['category_id'],
-                    'q' => $validated['title']
+                    'q' => $validated['title'] ?? ''
                 ]);
 
                 if ($searchCatalog->successful() && !empty($searchCatalog['results'])) {
@@ -91,6 +111,8 @@ class CreateProductController extends Controller
         if ($hasCatalog && !empty($validated['catalog_product_id']) && $validated['catalog_product_id'] !== 'undefined') {
             $payload['catalog_product_id'] = $validated['catalog_product_id'];
             $payload['catalog_listing'] = true;
+
+            unset($payload['title'], $payload['description'], $payload['family_name']);
         } else {
             $payload['title'] = $validated['title'];
             $payload['category_id'] = $validated['category_id'];
@@ -99,9 +121,10 @@ class CreateProductController extends Controller
                 $payload['description'] = ['plain_text' => $validated['description']];
             }
 
-            if ($catalogRequired) {
-                $payload['family_name'] = $validated['title'];
+            if (!$hasCatalog && !empty($validated['family_name'])) {
+                $payload['family_name'] = $validated['family_name'];
             }
+
 
             if (!empty($validated['attributes'])) {
                 $payload['attributes'] = $validated['attributes'];
@@ -112,7 +135,11 @@ class CreateProductController extends Controller
             $payload['sale_terms'] = $validated['sale_terms'];
         }
 
-        // Asegurar que category_id esté presente
+
+        if (!empty($validated['variations'])) {
+            $payload['variations'] = $this->processVariations($validated['variations']);
+        }
+
         if (!empty($validated['category_id'])) {
             $payload['category_id'] = $validated['category_id'];
         }
@@ -141,4 +168,49 @@ class CreateProductController extends Controller
             'ml_response' => $response->json()
         ]);
     }
+
+    /**
+     * Procesa las variaciones para el formato correcto de MercadoLibre
+     */
+    private function processVariations(array $variations): array
+    {
+        $processedVariations = [];
+
+        foreach ($variations as $variation) {
+            $processedVariation = [
+                'attribute_combinations' => $variation['attribute_combinations']
+            ];
+
+            // Agregar attributes si existen (como SIZE_GRID_ROW_ID)
+            if (!empty($variation['attributes'])) {
+                $processedVariation['attributes'] = $variation['attributes'];
+            }
+
+            // Agregar precio específico si existe
+            if (isset($variation['price'])) {
+                $processedVariation['price'] = $variation['price'];
+            }
+
+            // Agregar cantidad disponible específica si existe
+            if (isset($variation['available_quantity'])) {
+                $processedVariation['available_quantity'] = $variation['available_quantity'];
+            }
+
+            // Agregar IDs de imágenes específicas si existen
+            if (!empty($variation['picture_ids'])) {
+                $processedVariation['picture_ids'] = $variation['picture_ids'];
+            }
+
+            // Agregar campo personalizado del vendedor si existe
+            if (!empty($variation['seller_custom_field'])) {
+                $processedVariation['seller_custom_field'] = $variation['seller_custom_field'];
+            }
+
+            $processedVariations[] = $processedVariation;
+        }
+
+        return $processedVariations;
+    }
+
+
 }

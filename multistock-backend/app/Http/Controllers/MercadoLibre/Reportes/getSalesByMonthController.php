@@ -5,6 +5,7 @@ namespace App\Http\Controllers\MercadoLibre\Reportes;
 use App\Models\MercadoLibreCredential;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
+use Carbon\Carbon;
 
 class getSalesByMonthController
 {
@@ -88,12 +89,14 @@ class getSalesByMonthController
         $userId = $userResponse->json()['id'];
 
         // Get query parameters for month and year
-        $month = request()->query('month', date('m')); // Default to current month
-        $year = request()->query('year', date('Y')); // Default to current year
+        $month = request()->query('month', date('m'));
+        $year = request()->query('year', date('Y'));
 
-        // Calculate date range for the specified month and year
-        $dateFrom = "{$year}-{$month}-01T00:00:00.000-00:00";
-        $dateTo = date("Y-m-t\T23:59:59.999-00:00", strtotime($dateFrom));
+        $start = Carbon::create($year, $month, 1, 0, 0, 0, 'UTC')->startOfMonth();
+        $end = Carbon::create($year, $month, 1, 0, 0, 0, 'UTC')->endOfMonth();
+
+        $dateFrom = $start->toIso8601String(); 
+        $dateTo = $end->toIso8601String();     
         $offset = 0;
         $limit = 50;
         $salesByMonth = [];
