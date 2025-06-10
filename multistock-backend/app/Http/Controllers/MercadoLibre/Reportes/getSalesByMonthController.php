@@ -91,66 +91,82 @@ class getSalesByMonthController
         $month = request()->query('month', date('m')); // Default to current month
         $year = request()->query('year', date('Y')); // Default to current year
 
+        // Ensure month has leading zero if needed
+        $month = str_pad($month, 2, '0', STR_PAD_LEFT);
+
         // Calculate date range for the specified month and year
-        $dateFrom = "{$year}-{$month}-01T00:00:00.000-00:00";
-        $dateTo = date("Y-m-t\T23:59:59.999-00:00", strtotime($dateFrom));
+        $timezone = '-04:00'; // Ajusta según la zona horaria de tus órdenes
+        $dateFrom = "{$year}-{$month}-01T00:00:00.000{$timezone}";
+        $dateTo = date("Y-m-t\T23:59:59.999{$timezone}", strtotime($dateFrom));
+
         $offset = 0;
         $limit = 50;
-        $salesByMonth = [];
+
+        // Initialize the specific month key
+        $requestedMonth = "{$year}-{$month}";
+        $salesByMonth = [
+            $requestedMonth => [
+                'total_amount' => 0,
+                'orders' => []
+            ]
+        ];
 
         // API request to get sales by month
-        do{
-        $response = Http::withToken($credentials->access_token)
-            ->get("https://api.mercadolibre.com/orders/search",[
-                "seller" => $userId,
-                'order.status' => 'paid',
-                'order.date_created.from' => $dateFrom,
-                'order.date_created.to' => $dateTo,
-                'offset' => $offset,
-                'limit' => $limit,
-            ]);
+        do {
+            $response = Http::withToken($credentials->access_token)
+                ->get("https://api.mercadolibre.com/orders/search", [
+                    "seller" => $userId,
+                    'order.status' => 'paid',
+                    'order.date_created.from' => $dateFrom,
+                    'order.date_created.to' => $dateTo,
+                    'offset' => $offset,
+                    'limit' => $limit,
+                ]);
 
-        // Validate response
-        if ($response->failed()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Error al conectar con la API de MercadoLibre.',
-                'error' => $response->json(),
-            ], $response->status());
-        }
-
-        // Process sales data
-        $orders = $response->json()['results'];
-
-        foreach ($orders as $order) {
-            $month = date('Y-m', strtotime($order['date_created']));
-            if (!isset($salesByMonth[$month])) {
-                $salesByMonth[$month] = [
-                    'total_amount' => 0,
-                    'orders' => []
-                ];
+            // Validate response
+            if ($response->failed()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Error al conectar con la API de MercadoLibre.',
+                    'error' => $response->json(),
+                ], $response->status());
             }
-            $salesByMonth[$month]['total_amount'] += $order['total_amount'];
-            $salesByMonth[$month]['orders'][] = [
-                'id' => $order['id'],
-                'date_created' => $order['date_created'],
-                'total_amount' => $order['total_amount'],
-                'status' => $order['status'],
-                'sold_products' => []
-            ];
 
-            // Extract sold products (titles and quantities)
-            foreach ($order['order_items'] as $item) {
-                $salesByMonth[$month]['orders'][count($salesByMonth[$month]['orders']) - 1]['sold_products'][] = [
-                    'order_id' => $order['id'], // MercadoLibre Order ID
-                    'order_date' => $order['date_created'], // Order date
-                    'title' => $item['item']['title'], // Product title
-                    'quantity' => $item['quantity'],  // Quantity sold
-                    'price' => $item['unit_price'],   // Price per unit
-                ];
+            // Process sales data
+            $orders = $response->json()['results'];
+
+            foreach ($orders as $order) {
+                // Verificar que la orden realmente pertenece al mes solicitado
+                $orderMonth = date('Y-m', strtotime($order['date_created']));
+
+                // Solo procesar si la orden pertenece exactamente al mes solicitado
+                if ($orderMonth === $requestedMonth) {
+                    $salesByMonth[$requestedMonth]['total_amount'] += $order['total_amount'];
+
+                    $orderData = [
+                        'id' => $order['id'],
+                        'date_created' => $order['date_created'],
+                        'total_amount' => $order['total_amount'],
+                        'status' => $order['status'],
+                        'sold_products' => []
+                    ];
+
+                    // Extract sold products (titles and quantities)
+                    foreach ($order['order_items'] as $item) {
+                        $orderData['sold_products'][] = [
+                            'order_id' => $order['id'], // MercadoLibre Order ID
+                            'order_date' => $order['date_created'], // Order date
+                            'title' => $item['item']['title'], // Product title
+                            'quantity' => $item['quantity'],  // Quantity sold
+                            'price' => $item['unit_price'],   // Price per unit
+                        ];
+                    }
+
+                    $salesByMonth[$requestedMonth]['orders'][] = $orderData;
+                }
             }
-        }
-        $offset += $limit;
+
+            $offset += $limit;
         } while (count($orders) == $limit);
 
         // Return sales by month data
@@ -158,7 +174,12 @@ class getSalesByMonthController
             'status' => 'success',
             'message' => 'Ventas por mes obtenidas con éxito.',
             'data' => $salesByMonth,
+            'period' => [
+                'month' => $month,
+                'year' => $year,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo
+            ]
         ]);
     }
-
 }

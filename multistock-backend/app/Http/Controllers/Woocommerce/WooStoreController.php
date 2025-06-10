@@ -69,9 +69,11 @@ class WooStoreController extends Controller
                     'permalink' => $product->permalink,
                     'sku' => $product->sku,
                     'weight' => $product->weight,
-                    'dimensions'=> $product->dimensions,
+                    'dimensions' => $product->dimensions,
                     'status' => $product->status,
-                    
+                    'images' => $product->images,
+                    'attributes' => $product->attributes,
+
                 ];
             }
 

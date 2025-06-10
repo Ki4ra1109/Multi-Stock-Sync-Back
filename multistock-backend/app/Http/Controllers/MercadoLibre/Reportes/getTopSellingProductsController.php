@@ -152,10 +152,10 @@ class getTopSellingProductsController
                 $variationId = $item['item']['variation_id'] ?? null;
                 $size = null;
                 $skuSource = 'not_found';
-                
+
                 // 1. Primero buscar en seller_custom_field del ítem del pedido
                 $sku = $item['item']['seller_custom_field'] ?? null;
-                
+
                 // 2. Si no está, buscar en seller_sku del ítem del pedido
                 if (empty($sku)) {
                     $sku = $item['item']['seller_sku'] ?? null;
@@ -184,7 +184,7 @@ class getTopSellingProductsController
                 // 4. Si aún no se encontró, buscar en los atributos del producto
                 if (empty($sku) && isset($productData['attributes'])) {
                     foreach ($productData['attributes'] as $attribute) {
-                        if (in_array(strtolower($attribute['id']), ['seller_sku', 'sku', 'codigo', 'reference', 'product_code']) || 
+                        if (in_array(strtolower($attribute['id']), ['seller_sku', 'sku', 'codigo', 'reference', 'product_code']) ||
                             in_array(strtolower($attribute['name']), ['sku', 'código', 'referencia', 'codigo', 'código de producto'])) {
                             $sku = $attribute['value_name'];
                             $skuSource = 'product_attributes';
@@ -196,7 +196,7 @@ class getTopSellingProductsController
                 // 5. Si sigue sin encontrarse, intentar con el modelo como último recurso
                 if (empty($sku) && isset($productData['attributes'])) {
                     foreach ($productData['attributes'] as $attribute) {
-                        if (strtolower($attribute['id']) === 'model' || 
+                        if (strtolower($attribute['id']) === 'model' ||
                             strtolower($attribute['name']) === 'modelo') {
                             $sku = $attribute['value_name'];
                             $skuSource = 'model_fallback';
@@ -237,7 +237,6 @@ class getTopSellingProductsController
                         'quantity' => 0,
                         'total_amount' => 0,
                         'size' => $size,
-                        'variation_attributes' => $productData['attributes'],
                     ];
                 }
 
@@ -262,7 +261,9 @@ class getTopSellingProductsController
             'total_sales' => $totalSales,
             'current_page' => $page,
             'total_pages' => $totalPages,
+            'count'=> count($productSales),
             'data' => $productSales,
+
         ]);
 
         // Guardar en cache por 10 minutos (600 segundos)

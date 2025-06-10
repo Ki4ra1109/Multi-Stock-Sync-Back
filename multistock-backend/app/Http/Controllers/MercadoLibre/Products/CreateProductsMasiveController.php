@@ -1051,6 +1051,7 @@ class CreateProductsMasiveController extends Controller
                 'message' => 'No se encontraron credenciales válidas para el client_id proporcionado.',
             ], 404);
         }
+
         try {
             if ($credentials->isTokenExpired()) {
                 $refreshResponse = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
@@ -1059,7 +1060,7 @@ class CreateProductsMasiveController extends Controller
                     'client_secret' => $credentials->client_secret,
                     'refresh_token' => $credentials->refresh_token,
                 ]);
-                // Si la solicitud falla, devolver un mensaje de error
+
                 if ($refreshResponse->failed()) {
                     return response()->json(['error' => 'No se pudo refrescar el token'], 401);
                 }
@@ -1077,11 +1078,25 @@ class CreateProductsMasiveController extends Controller
                 'message' => 'Error al refrescar token: ' . $e->getMessage(),
             ], 500);
         }
+
         try {
             $baseUrl = 'https://api.mercadolibre.com/sites/MLC/categories/all';
-
             $response = Http::timeout(30)->withToken($credentials->access_token)->get($baseUrl);
-            return response()->json($response->json(), $response->status());
+
+            // Filtrar la respuesta para obtener solo id, name y children_categories
+            $filteredCategories = collect($response->json())
+                //->take(5000) // Limita a 5000 categorías principales
+                ->map(function ($category) {
+                    return [
+                        'id' => $category['id'],
+                        'name' => $category['name'],
+                        'children_categories' => $category['children_categories']
+                    ];
+                })
+                ->values()
+                ->all();
+
+            return response()->json($filteredCategories, $response->status());
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
