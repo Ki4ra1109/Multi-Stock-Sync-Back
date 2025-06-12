@@ -6,6 +6,7 @@ use App\Models\Rol;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 
 class RolController extends Controller
 {
@@ -14,18 +15,19 @@ class RolController extends Controller
      */
     public function index()
     {
-        //Obtener todos los roles
-        $roles = Rol::all();
+        try {
+            
+            $roles = Rol::all();
 
-        return response()->json([
-            'message'=> 'Lista de roles obtenida correctamente',
-            'data' => $roles
-        ], 200);
-        if(is_null($roles)){
             return response()->json([
-                'message' => 'No se encontraron roles',
-                'data' => []
-            ], 404);
+                'message'=> 'Lista de roles obtenida correctamente',
+                'data' => $roles
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener la lista de roles', ['error' => $e->getMessage()]);
+            return response()->json([
+                'message' => 'Error al obtener la lista de roles'
+            ], 500);
         }
     }
 
@@ -36,7 +38,7 @@ class RolController extends Controller
     {
         //Validar los datos de entrada
         $validator  = Validator::make($request->all(), [
-            'nombre' => 'Required|string|max: 50',
+            'nombre' => 'required|string|max:50',
         ],[
             'required' => 'El campo :attribute es obligatorio.',
             'string' => 'El campo :attribute debe ser una cadena de texto.',
@@ -53,6 +55,8 @@ class RolController extends Controller
         $rol = Rol::create([
             'nombre' => $validated['nombre'],
         ]);
+
+        Log::info('Rol creado', ['rol_id' => $rol->id, 'nombre' => $rol->nombre]);
 
         return response()->json(['rol' => $rol, 'message' => 'Rol creado correctamente'], 201);
     }
@@ -72,12 +76,16 @@ class RolController extends Controller
     {
         //Buscar el rol por ID
         $rol = Rol::find($id);
-        if(!$rol){
+        if (!$rol) {
+            Log::warning('Intento de eliminar rol inexistente', ['rol_id' => $id]);
             return response()->json([
                 'message' => 'Rol no encontrado'
             ], 404);
         }
         $rol->delete();
+
+        Log::info('Rol eliminado', ['rol_id' => $rol->id, 'nombre' => $rol->nombre]);
+
         return response()->json([
             'message' => 'Rol eliminado correctamente'
         ]);

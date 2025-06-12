@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class UserController extends Controller
 {
@@ -38,43 +39,48 @@ class UserController extends Controller
      */
     public function store(Request $request)
     {
-        // Validate request
-        $validator = Validator::make($request->all(), [
-            'nombre' => 'required|string|max:255',
-            'apellidos' => 'required|string|max:255',
-            'telefono' => 'required|string|max:20',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:6|confirmed',
-            'password_confirmation' => 'required|string|min:6',
-            'role_id' => 'nullable|exists:rols,id'  // lo ve el admin
-        ], [
-            'required' => 'El campo :attribute es obligatorio.',
-            'string' => 'El campo :attribute debe ser una cadena de texto.',
-            'max' => 'El campo :attribute no debe ser mayor que :max caracteres.',
-            'email' => 'El campo :attribute debe ser una dirección de correo válida.',
-            'unique' => 'El campo :attribute ya ha sido registrado.',
-            'min' => 'El campo :attribute debe tener al menos :min caracteres.',
-            'confirmed' => 'La confirmación de :attribute no coincide.',
-        ]);
+        try {
+            // Validate request
+            $validator = Validator::make($request->all(), [
+                'nombre' => 'required|string|max:255',
+                'apellidos' => 'required|string|max:255',
+                'telefono' => 'required|string|max:20',
+                'email' => 'required|string|email|max:255|unique:users',
+                'password' => 'required|string|min:6|confirmed',
+                'password_confirmation' => 'required|string|min:6',
+                'role_id' => 'nullable|exists:rols,id'  // lo ve el admin
+            ], [
+                'required' => 'El campo :attribute es obligatorio.',
+                'string' => 'El campo :attribute debe ser una cadena de texto.',
+                'max' => 'El campo :attribute no debe ser mayor que :max caracteres.',
+                'email' => 'El campo :attribute debe ser una dirección de correo válida.',
+                'unique' => 'El campo :attribute ya ha sido registrado.',
+                'min' => 'El campo :attribute debe tener al menos :min caracteres.',
+                'confirmed' => 'La confirmación de :attribute no coincide.',
+            ]);
 
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
+            if ($validator->fails()) {
+                return response()->json(['errors' => $validator->errors()], 422);
+            }
+
+            $validated = $validator->validated();
+
+            // Create user
+            $user = User::create([
+                'nombre' => $validated['nombre'],
+                'apellidos' => $validated['apellidos'],
+                'telefono' => $validated['telefono'],
+                'email' => $validated['email'],
+                'password' => Hash::make($validated['password']), // Password hashed
+                'role_id' => $validated['role_id'] ?? null,
+            ]);
+            Log::info('Usuario creado', ['user_id' => $user->id]);
+            // Response with user data
+            return response()->json(['user' => $user, 'message' => 'Usuario creado correctamente'], 201);
+        } catch (\Exception $e) {
+            Log::error('Error al crear usuario', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'Error interno al crear el usuario'], 500);
         }
-
-        $validated = $validator->validated();
-
-        // Create user
-        $user = User::create([
-            'nombre' => $validated['nombre'],
-            'apellidos' => $validated['apellidos'],
-            'telefono' => $validated['telefono'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']), // Password hashed
-            'role_id' => $validated['role_id'] ?? null,
-        ]);
-
-        // Response with user data
-        return response()->json(['user' => $user, 'message' => 'Usuario creado correctamente'], 201);
     }
 
     /**
@@ -126,7 +132,14 @@ class UserController extends Controller
     
     public function asignarRol(Request $request, $userId)
     {
+        Log::info('Entrando a asignarRol', [
+            'userId' => $userId,
+            'request' => $request->all(),
+            'auth_user' => Auth::user(),
+        ]);
+
         if (optional(Auth::user())->id == $userId) {
+            Log::warning('Intento de cambiar su propio rol', ['userId' => $userId]);
             return response()->json(['message' => 'No puedes cambiar tu propio rol.'], 403);
         }
 
@@ -139,6 +152,11 @@ class UserController extends Controller
 
         $user->role_id = $rol->id;
         $user->save();
+
+        Log::info('Rol asignado correctamente', [
+            'user_id' => $user->id,
+            'role_id' => $rol->id,
+        ]);
 
         return response()->json(['message' => 'Rol asignado correctamente']);
     }
