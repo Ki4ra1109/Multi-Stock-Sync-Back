@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
 
 class UserController extends Controller
 {
@@ -45,7 +46,7 @@ class UserController extends Controller
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:6|confirmed',
             'password_confirmation' => 'required|string|min:6',
-            'role_id' => 'required|exists:rols,id',
+            'role_id' => 'nullable|exists:rols,id'  // lo ve el admin
         ], [
             'required' => 'El campo :attribute es obligatorio.',
             'string' => 'El campo :attribute debe ser una cadena de texto.',
@@ -69,7 +70,7 @@ class UserController extends Controller
             'telefono' => $validated['telefono'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']), // Password hashed
-            'role_id' => $validated['role_id'],
+            'role_id' => $validated['role_id'] ?? null,
         ]);
 
         // Response with user data
@@ -119,4 +120,27 @@ class UserController extends Controller
         $user->delete();
         return response()->json(['message' => 'Usuario eliminado correctamente']);
     }
+
+   
+
+    
+    public function asignarRol(Request $request, $userId)
+    {
+        if (optional(Auth::user())->id == $userId) {
+            return response()->json(['message' => 'No puedes cambiar tu propio rol.'], 403);
+        }
+
+        $request->validate([
+            'role_id' => 'required|exists:rols,id',
+        ]);
+
+        $user = User::findOrFail($userId);
+        $rol = \App\Models\Rol::findOrFail($request->role_id);
+
+        $user->role_id = $rol->id;
+        $user->save();
+
+        return response()->json(['message' => 'Rol asignado correctamente']);
+    }
 }
+

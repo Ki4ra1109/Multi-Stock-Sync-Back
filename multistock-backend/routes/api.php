@@ -49,6 +49,7 @@ use App\Http\Controllers\MercadoLibre\Reportes\getProductSellerController;
 use App\Http\Controllers\MercadoLibre\Reportes\getCompaniesProductsController;
 use App\Http\Controllers\MercadoLibre\Reportes\getCancelledCompaniesController;
 
+
 // Bodegas //
 use App\Http\Controllers\Warehouses\warehouseListAllController;
 use App\Http\Controllers\Warehouses\warehouseNewCompanyController;
@@ -132,14 +133,22 @@ use Dotenv\Repository\Adapter\PutenvAdapter;
 // Rol //
 use App\http\Controllers\RolController;
 
+
+
 // Rutas públicas
 Route::post('/login', [AuthController::class, 'login']); // Iniciar sesión de usuario
 Route::post('/users', [UserController::class, 'store']); // Crear usuario
 
 // Rutas protegidas
 Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/logout', [AuthController::class, 'logout']); // Cerrar sesión
+Route::post('/logout', [AuthController::class, 'logout']); // Cerrar sesión
 
+//
+Route::put('/users/{id}/asignar-rol', [UserController::class, 'asignarRol'])->middleware(['auth:sanctum', 'role:admin']);
+
+Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
+    Route::get('/history-sale/{client_id}', [getHistorySaleController::class, 'getHistorySale']); 
+});
     // USUARIOS
     Route::get('/users', [UserController::class, 'usersList']); // Obtener lista de usuarios
     Route::get('/users/{id}', [UserController::class, 'show']); // Obtener usuario específico
@@ -150,6 +159,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/roles', [RolController::class, 'index']); // Obtener todos los roles
     Route::post('/roles/nuevo', [RolController::class, 'store']); // Crear rol
     Route::delete('/roles/{id}', [RolController::class, 'destroy']); // Eliminar rol
+    Route::put('/roles/{id}', [RolController::class, 'update']); // Actualizar rol
 
     // SINCRONIZACIÓN
     Route::post('/sincronizar', [SyncStatusController::class, 'iniciarSincronizacion']); // Iniciar sincronización
@@ -267,7 +277,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // PUNTO DE VENTA
     Route::get('/clients-all', [clientAllListController::class, 'clientAllList']); // Obtener todos los clientes
-    Route::get('/history-sale/{client_id}', [getHistorySaleController::class, 'getHistorySale']); // Obtener historial de ventas
+    //Route::get('/history-sale/{client_id}', [getHistorySaleController::class, 'getHistorySale']); // Obtener historial de ventas
     Route::get('/history-sale-pendient/{client_id}', [getHistoryPendientController::class, 'getHistoryPendient']); // Obtener historial pendiente
     Route::get('/products-by-company/{idCompany}', [getProductByCompanyIdController::class, 'getProductByCompanyId']); // Productos por empresa
     Route::get('/search-sale-by-folio/{companyId}', [getSearchSaleByFolioController::class, 'getSearchSaleByFolio']); // Buscar venta por folio
