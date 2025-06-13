@@ -42,28 +42,75 @@ class getAtributosCategoriaController extends Controller
         $response = Http::withToken($cred->access_token)
             ->get("https://api.mercadolibre.com/categories/{$id}/attributes");
 
+        if ($response->failed()) {
+            return response()->json(['error' => 'Error al obtener atributos'], $response->status());
+        }
+
         $responseData = $response->json();
 
-        // Inyectar valores manuales en SIZE_GRID_ID si vienen vacíos
-        foreach ($responseData as &$attr) {
-            if ($attr['id'] === 'SIZE_GRID_ID' && empty($attr['values'])) {
-                $attr['values'] = [
-                    [
-                        'id' => '336013',
-                        'name' => 'Ropa interior - CHILE (numérica)',
-                    ],
-                    [
-                        'id' => '336014',
-                        'name' => 'Ropa superior - CHILE (letras)',
-                    ],
-                    [
-                        'id' => '336015',
-                        'name' => 'Calzas - CHILE (numérica)',
-                    ],
+        // Filtrar los atributos
+        $filteredAttributes = [];
+        $sizeGridAttribute = null;
+
+        // Si la respuesta es directamente un array de atributos
+        $attributes = is_array($responseData) ? $responseData : ($responseData['attributes'] ?? []);
+
+        foreach ($attributes as $attribute) {
+            // Verificar si es el atributo size_grid_id
+            if ($attribute['id'] === 'SIZE_GRID_ID') {
+                // Crear un array con solo los campos necesarios para SIZE_GRID_ID
+                $filteredAttribute = [
+                    'id' => $attribute['id'],
+                    'name' => $attribute['name'],
+                    'tags' => $attribute['tags'] ?? [],
+                    'value_type' => $attribute['value_type'] ?? null
                 ];
+
+                // Agregar values solo si existe
+                if (isset($attribute['values']) && !empty($attribute['values'])) {
+                    $filteredAttribute['values'] = $attribute['values'];
+                }
+
+                continue; // Saltar al siguiente atributo
+            }
+
+            // Verificar si cumple con los criterios de filtrado dentro del objeto tags
+            $tags = $attribute['tags'] ?? [];
+            $isRequired = isset($tags['required']) && $tags['required'] === true;
+            $isCatalogRequired = isset($tags['catalog_required']) && $tags['catalog_required'] === true;
+
+            // Solo agregar si cumple con alguno de los criterios (required O catalog_required)
+            if ($isRequired || $isCatalogRequired) {
+                // Crear un array con solo los campos necesarios
+                $filteredAttribute = [
+                    'id' => $attribute['id'],
+                    'name' => $attribute['name'],
+                    'tags' => $attribute['tags'] ?? [],
+                    'value_type' => $attribute['value_type'] ?? null
+                ];
+
+                // Agregar values solo si existe
+                if (isset($attribute['values']) && !empty($attribute['values'])) {
+                    $filteredAttribute['values'] = $attribute['values'];
+                }
+
+                $filteredAttributes[] = $filteredAttribute;
             }
         }
 
-        return response()->json($responseData, $response->status());
+        // Crear respuesta filtrada
+        $filteredResponse = [
+            'category_id' => $id,
+            'filtered_attributes' => $filteredAttributes,
+            'has_size_grid' => $sizeGridAttribute !== null,
+            'total_filtered' => count($filteredAttributes),
+            'filter_criteria' => [
+                'tags.required' => true,
+                'tags.catalog_required' => true,
+                'condition' => 'OR' // Indica que se incluyen atributos que cumplan required O catalog_required
+            ]
+        ];
+
+        return response()->json($filteredResponse, 200);
     }
 }
