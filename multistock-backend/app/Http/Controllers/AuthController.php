@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {
@@ -63,5 +64,39 @@ class AuthController extends Controller
         $request->user()->currentAccessToken()->delete();
 
         return response()->json(['message' => 'Sesión cerrada correctamente']);
+    }
+
+    /**
+     * Change user password.
+     */
+    public function changePassword(Request $request)
+    {
+        Log::info('Intento de cambio de contraseña', [
+            'user_id' => Auth::id(),
+            'request' => $request->all()
+        ]);
+
+        $request->validate([
+            'current_password' => 'required',
+            'new_password' => 'required|min:8|confirmed',
+        ]);
+
+        $user = User::find(Auth::id());
+        
+        if (!$user) {
+            return response()->json(['message' => 'Usuario no encontrado.'], 404);
+        }
+
+        if (!Hash::check($request->current_password, $user->password)) {
+            Log::warning('Contraseña actual incorrecta', ['user_id' => $user->id]);
+            return response()->json(['message' => 'La contraseña actual es incorrecta.'], 422);
+        }
+
+        $user->password = Hash::make($request->new_password);
+        $user->save();
+
+        Log::info('Contraseña cambiada correctamente', ['user_id' => $user->id]);
+
+        return response()->json(['message' => 'Contraseña actualizada correctamente.']);
     }
 }

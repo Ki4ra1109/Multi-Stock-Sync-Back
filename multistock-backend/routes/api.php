@@ -129,20 +129,27 @@ use App\Http\Controllers\SyncStatusController;
 use Dotenv\Repository\Adapter\PutenvAdapter;
 
 // Rol //
-use App\http\Controllers\RolController;
+use App\Http\Controllers\RolController;
 
 
 
 // Rutas públicas
 Route::post('/login', [AuthController::class, 'login']); // Iniciar sesión de usuario
 Route::post('/users', [UserController::class, 'store']); // Crear usuario
+Route::get('/users/{id}', [UserController::class, 'show']);
 
 // Rutas protegidas
 Route::middleware('auth:sanctum')->group(function () {
 Route::post('/logout', [AuthController::class, 'logout']); // Cerrar sesión
 
+Route::post('/user/change-password', [AuthController::class, 'changePassword'])->middleware('auth:sanctum');//cambiar contraseña
+
 //
 Route::put('/users/{id}/asignar-rol', [UserController::class, 'asignarRol'])->middleware(['auth:sanctum', 'role:admin']);
+
+Route::middleware('auth:sanctum')->get('/user/profile', function (Request $request) {
+    return response()->json(['user' => $request->user()]);
+});
 
 Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::get('/history-sale/{client_id}', [getHistorySaleController::class, 'getHistorySale']); 
@@ -152,6 +159,8 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::get('/users/{id}', [UserController::class,'show']); // Obtener usuario específico
     Route::patch('/users/{id}', [UserController::class,'update']); // Actualizar usuario
     Route::delete('/users/{id}', [UserController::class,'delete']); // Eliminar usuario
+
+
 
     // ROL
     Route::get('/roles', [RolController::class, 'index']); // Obtener todos los roles
@@ -292,3 +301,4 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::put('/woocommerce/woo/{storeId}/product/{productId}', [WooProductController::class, 'updateProduct']);
 
    });
+
