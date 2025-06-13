@@ -25,13 +25,15 @@ class UserController extends Controller
      */
     public function show($id)
     {
-        $user = User::find($id);
-        
+        $user = User::with('rol')->find($id);
+
         if (!$user) {
             return response()->json(['message' => 'Usuario no encontrado'], 404);
         }
-        
-        return response()->json($user);
+
+        return response()->json([
+            'user' => $user
+        ]);
     }
 
     /**
