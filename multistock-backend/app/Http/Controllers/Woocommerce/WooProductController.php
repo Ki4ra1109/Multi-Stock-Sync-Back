@@ -54,7 +54,7 @@ class WooProductController extends Controller
             $filtered = [
                 'id' => $updated->id,
                 'name' => $updated->name,
-                'regular_price' => $update->regular_price,
+                'regular_price' => $updated->regular_price,
                 'stock_quantity' => $updated->stock_quantity ?? 'N/A',
                 'permalink' => $updated->permalink,
                 'sku' => $updated->sku,
@@ -71,6 +71,57 @@ class WooProductController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error al actualizar el producto.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function createProduct(Request $request, $storeId)
+    {
+        try {
+            $woocommerce = $this->connect($storeId);
+
+            $data = $request->all();
+
+            // Validación de campos requeridos
+            if (empty($data['name'])) {
+                return response()->json([
+                    'message' => 'El nombre del producto es requerido.',
+                    'status' => 'error'
+                ], 422);
+            }
+
+            // Campos por defecto para un nuevo producto
+            $productData = array_merge([
+                'type' => 'simple',
+                'status' => 'publish',
+                'featured' => false,
+                'catalog_visibility' => 'visible',
+                'manage_stock' => false,
+            ], $data);
+
+            $created = $woocommerce->post("products", $productData);
+
+            $filtered = [
+                'id' => $created->id,
+                'name' => $created->name,
+                'regular_price' => $created->regular_price,
+                'stock_quantity' => $created->stock_quantity ?? 'N/A',
+                'permalink' => $created->permalink,
+                'sku' => $created->sku,
+                'weight' => $created->weight,
+                'dimensions' => $created->dimensions,
+                'status' => $created->status,
+            ];
+
+            return response()->json([
+                'message' => 'Producto creado correctamente.',
+                'created_product' => $filtered,
+                'status' => 'success'
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error al crear el producto.',
                 'error' => $e->getMessage()
             ], 500);
         }

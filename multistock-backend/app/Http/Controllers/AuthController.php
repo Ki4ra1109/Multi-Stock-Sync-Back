@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Models\Rol;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -35,7 +36,7 @@ class AuthController extends Controller
 
         // Find user by email
         $user = User::where('email', $validated['email'])->first();
-
+        $role =Rol::where('id', $user->role_id)->first();
         // Check if user exists
         if (!$user) {
             return response()->json(['message' => 'Usuario no encontrado'], 404);
@@ -51,6 +52,7 @@ class AuthController extends Controller
 
         return response()->json([
             'user' => $user,
+            'role' => $role,
             'token' => $token,
         ]);
     }
@@ -82,7 +84,7 @@ class AuthController extends Controller
         ]);
 
         $user = User::find(Auth::id());
-        
+
         if (!$user) {
             return response()->json(['message' => 'Usuario no encontrado.'], 404);
         }

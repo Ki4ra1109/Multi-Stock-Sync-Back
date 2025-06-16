@@ -26,13 +26,22 @@ class UserController extends Controller
     public function show($id)
     {
         $user = User::with('rol')->find($id);
-
         if (!$user) {
             return response()->json(['message' => 'Usuario no encontrado'], 404);
         }
+        $userData = [
+            'id' => $user->id,
+            'nombre' => $user->nombre,
+            'apellidos' => $user->apellidos,
+            'telefono' => $user->telefono,
+            'email' => $user->email,
+            'role_id' => $user->role_id,
+            'role' => $user->rol->nombre,
+        ];
 
         return response()->json([
-            'user' => $user
+            'user' => $userData
+
         ]);
     }
 
@@ -74,7 +83,7 @@ class UserController extends Controller
                 'telefono' => $validated['telefono'],
                 'email' => $validated['email'],
                 'password' => Hash::make($validated['password']), // Password hashed
-                'role_id' => $validated['role_id'] ?? null,
+                'role_id' => $validated['role_id'] ?? null
             ]);
             Log::info('Usuario creado', ['user_id' => $user->id]);
             // Response with user data
@@ -120,7 +129,7 @@ class UserController extends Controller
     public function delete($id)
     {
         $user = User::find($id);
-        
+
         if (!$user) {
             return response()->json(['message' => 'Usuario no encontrado'], 404);
         }
@@ -129,9 +138,7 @@ class UserController extends Controller
         return response()->json(['message' => 'Usuario eliminado correctamente']);
     }
 
-   
 
-    
     public function asignarRol(Request $request, $userId)
     {
         Log::info('Entrando a asignarRol', [
