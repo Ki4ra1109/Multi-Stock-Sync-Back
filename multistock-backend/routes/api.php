@@ -287,7 +287,7 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
 
     // PUNTO DE VENTA
     Route::get('/clients-all', [clientAllListController::class, 'clientAllList']); // Obtener todos los clientes
-    //Route::get('/history-sale/{client_id}', [getHistorySaleController::class, 'getHistorySale']); // Obtener historial de ventas
+    Route::get('/history-sale/{client_id}', [getHistorySaleController::class, 'getHistorySale']); // Obtener historial de ventas
     Route::get('/history-sale-pendient/{client_id}', [getHistoryPendientController::class, 'getHistoryPendient']); // Obtener historial pendiente
     Route::get('/products-by-company/{idCompany}', [getProductByCompanyIdController::class, 'getProductByCompanyId']); // Productos por empresa
     Route::get('/search-sale-by-folio/{companyId}', [getSearchSaleByFolioController::class, 'getSearchSaleByFolio']); // Buscar venta por folio
