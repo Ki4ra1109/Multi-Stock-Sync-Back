@@ -158,6 +158,22 @@ class UserController extends Controller
         $user = User::findOrFail($userId);
         $rol = \App\Models\Rol::findOrFail($request->role_id);
 
+    
+    
+
+        $rolesPermitidosRRHH = [2, 3, 4]; 
+        $userAuth = Auth::user();
+
+        if (
+            $userAuth->rol && $userAuth->rol->nombre === 'RRHH' && 
+            !in_array($request->role_id, $rolesPermitidosRRHH)          
+        ) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No tienes permisos para asignar este rol.'
+            ], 403);
+        }
+
         $user->role_id = $rol->id;
         $user->save();
 

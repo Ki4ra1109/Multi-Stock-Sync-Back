@@ -147,8 +147,8 @@ Route::post('/logout', [AuthController::class, 'logout']); // Cerrar sesión
 
 Route::post('/user/change-password', [AuthController::class, 'changePassword'])->middleware('auth:sanctum');//cambiar contraseña
 
-//
-Route::put('/users/{id}/asignar-rol', [UserController::class, 'asignarRol'])->middleware(['auth:sanctum', 'role:admin']);
+// Asignar roles
+Route::put('/users/{id}/asignar-rol', [UserController::class, 'asignarRol'])->middleware(['auth:sanctum', 'role:admin,RRHH']);
 
 Route::middleware('auth:sanctum')->get('/user/profile', function (Request $request) {
     return response()->json(['user' => $request->user()]);
