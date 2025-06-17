@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers\Woocommerce;
 
-use App\Http\Controllers\Controller;
 use App\Models\WooStore;
+use Automattic\WooCommerce\Client;
+use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Validator;
 
 class WooCategoryController extends Controller
 {

@@ -81,12 +81,20 @@ class getAtributosCategoriaController extends Controller
 
             // Solo agregar si cumple con alguno de los criterios (required O catalog_required)
             if ($isRequired || $isCatalogRequired) {
+                // Determinar el value_type apropiado
+                $valueType = $attribute['value_type'] ?? null;
+
+                // Cambiar value_type a "list" para COLOR y BRAND
+                if (in_array($attribute['id'], ['COLOR', 'BRAND'])) {
+                    $valueType = 'list';
+                }
+
                 // Crear un array con solo los campos necesarios
                 $filteredAttribute = [
                     'id' => $attribute['id'],
                     'name' => $attribute['name'],
                     'tags' => $attribute['tags'] ?? [],
-                    'value_type' => $attribute['value_type'] ?? null
+                    'value_type' => $valueType
                 ];
 
                 // Agregar values solo si existe

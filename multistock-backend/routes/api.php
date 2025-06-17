@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Woocommerce\WooCategoryController;
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
@@ -126,7 +126,7 @@ use App\Http\Controllers\MercadoLibre\Products\SizeGridController;
 // woocommerce //
 use App\Http\Controllers\Woocommerce\WooStoreController;
 use App\Http\Controllers\Woocommerce\WooProductController;
-
+use App\Http\Controllers\Woocommerce\WooCategoryController;
 // SyncStatus //
 use App\Http\Controllers\SyncStatusController;
 use Dotenv\Repository\Adapter\PutenvAdapter;
@@ -314,8 +314,8 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::delete('/woocommerce/woo/{storeId}/product/{productId}', [WooProductController::class, 'deleteProduct']);
     Route::get('/woocommerce/woo/{storeId}/product/{productId}', [WooProductController::class, 'getProduct']);
     //categorias wooComerce
-    Route::Get('/woocommerce/woo/{storeId}/categories', [WooCategoryController::class, 'getCategoriesWooCommerce']);
-    Route::Get('/woocommerce/woo/{storeId}/category/{categoryId}',[WooCategoryController::class, 'getCategoryWooCommerce']);
+    Route::Get('/woocommerce/woo/{storeId}/categories', [WooCategoryController::class, 'listCategories']);
+    Route::Get('/woocommerce/woo/{storeId}/category/{categoryId}',[WooCategoryController::class, 'getCategory']);
     Route::Post('/woocomerce/{storeId}/category', [WooCategoryController::class, 'createCategory']);
    });
 
