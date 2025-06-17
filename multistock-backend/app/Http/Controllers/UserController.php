@@ -36,6 +36,7 @@ class UserController extends Controller
             'telefono' => $user->telefono,
             'email' => $user->email,
             'role_id' => $user->role_id,
+            'role' => $user->rol->nombre,
         ];
 
         return response()->json([
@@ -158,15 +159,15 @@ class UserController extends Controller
         $user = User::findOrFail($userId);
         $rol = \App\Models\Rol::findOrFail($request->role_id);
 
-    
-    
 
-        $rolesPermitidosRRHH = [2, 3, 4]; 
+
+
+        $rolesPermitidosRRHH = [2, 3, 4];
         $userAuth = Auth::user();
 
         if (
-            $userAuth->rol && $userAuth->rol->nombre === 'RRHH' && 
-            !in_array($request->role_id, $rolesPermitidosRRHH)          
+            $userAuth->rol && $userAuth->rol->nombre === 'RRHH' &&
+            !in_array($request->role_id, $rolesPermitidosRRHH)
         ) {
             return response()->json([
                 'status' => 'error',
