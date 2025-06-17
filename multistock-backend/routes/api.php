@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Woocommerce\WooCategoryController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
@@ -154,7 +155,7 @@ Route::middleware('auth:sanctum')->get('/user/profile', function (Request $reque
 });
 
 Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
-    Route::get('/history-sale/{client_id}', [getHistorySaleController::class, 'getHistorySale']); 
+    Route::get('/history-sale/{client_id}', [getHistorySaleController::class, 'getHistorySale']);
 });
     // USUARIOS
     Route::get('/users', [UserController::class, 'usersList']); // Obtener lista de usuarios
@@ -309,6 +310,12 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::get('/woocommerce/woo/{storeId}/products', [WooStoreController::class, 'getProductsWooCommerce']); // Obtener productos de WooCommerce
     Route::post('/woocommerce/woo-stores', [WooStoreController::class, 'storeWoocommerce']); // Registrar tienda WooCommerce
     Route::put('/woocommerce/woo/{storeId}/product/{productId}', [WooProductController::class, 'updateProduct']);
-
+    Route::post('/woocommerce/woo/{storeId}/product', [WooProductController::class, 'createProduct']);
+    Route::delete('/woocommerce/woo/{storeId}/product/{productId}', [WooProductController::class, 'deleteProduct']);
+    Route::get('/woocommerce/woo/{storeId}/product/{productId}', [WooProductController::class, 'getProduct']);
+    //categorias wooComerce
+    Route::Get('/woocommerce/woo/{storeId}/categories', [WooCategoryController::class, 'getCategoriesWooCommerce']);
+    Route::Get('/woocommerce/woo/{storeId}/category/{categoryId}',[WooCategoryController::class, 'getCategoryWooCommerce']);
+    Route::Post('/woocomerce/{storeId}/category', [WooCategoryController::class, 'createCategory']);
    });
 
