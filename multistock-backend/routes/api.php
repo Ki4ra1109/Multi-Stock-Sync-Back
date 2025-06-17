@@ -276,7 +276,7 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::get('/mercadolibre/top-selling-products/{client_id}', [getTopSellingProductsController::class, 'getTopSellingProducts']); // Productos más vendidos
     Route::get('/mercadolibre/upcoming-shipments/{client_id}', [getUpcomingShipmentsController::class, 'getUpcomingShipments']); // Próximos envíos
     Route::get('/mercadolibre/weeks-of-month', [getWeeksOfMonthController::class, 'getWeeksOfMonth']); // Semanas del mes
-    Route::get('/reviews/{clientId}', [reviewController::class, 'getReviewsByClientId']); // Reseñas por cliente
+    Route::get('/mercadolibre/review/{clientId}', [ReviewController::class, 'getReviewsByClientId']); // Reseñas por cliente
     Route::get('/mercadolibre/products/reviews/{product_id}', [getProductReviewsController::class, 'getProductReviews']); // Reseñas por producto
     Route::get('/mercadolibre/all-products/{client_id}', [getProductSellerController::class, 'getProductSeller']); // Obtener todos los productos por client_id
     Route::get('/mercadolibre/cancelled-products', [getCancelledCompaniesController::class, 'getCancelledProductsAllCompanies']); // Obtener productos cancelados de las 4 empresas
