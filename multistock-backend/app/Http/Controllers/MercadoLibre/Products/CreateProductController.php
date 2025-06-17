@@ -351,6 +351,9 @@ class CreateProductController extends Controller
     /**
      * Extrae los campos específicos de una guía de talles
      */
+    /**
+     * Extrae los campos específicos de una guía de talles de forma simplificada
+     */
     private function extractSizeGuideFields($sizeGuide)
     {
         $result = [
@@ -360,25 +363,28 @@ class CreateProductController extends Controller
             'rows' => []
         ];
 
-        // Filtrar rows
+        // Filtrar rows de forma simplificada
         if (isset($sizeGuide['rows']) && is_array($sizeGuide['rows'])) {
             foreach ($sizeGuide['rows'] as $row) {
-                $filteredRow = [
-                    'id' => $row['id'] ?? null,
-                    'attributes' => []
-                ];
+                $sizeName = null;
 
-                // Filtrar attributes dentro de cada row
+                // Buscar el atributo SIZE para obtener el nombre
                 if (isset($row['attributes']) && is_array($row['attributes'])) {
                     foreach ($row['attributes'] as $attribute) {
-                        $filteredRow['attributes'][] = [
-                            'id' => $attribute['id'] ?? null,
-                            'values' => $attribute['values'] ?? []
-                        ];
+                        if ($attribute['id'] === 'SIZE' && isset($attribute['values'][0]['name'])) {
+                            $sizeName = $attribute['values'][0]['name'];
+                            break; // Solo tomamos el primer SIZE que encontremos
+                        }
                     }
                 }
 
-                $result['rows'][] = $filteredRow;
+                // Solo agregar si encontramos un size name
+                if ($sizeName) {
+                    $result['rows'][] = [
+                        'id' => $row['id'] ?? null,
+                        'size' => $sizeName
+                    ];
+                }
             }
         }
 
