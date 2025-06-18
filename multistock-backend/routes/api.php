@@ -310,9 +310,10 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::get('/woocommerce/woo/{storeId}/products', [WooStoreController::class, 'getProductsWooCommerce']); // Obtener productos de WooCommerce
     Route::post('/woocommerce/woo-stores', [WooStoreController::class, 'storeWoocommerce']); // Registrar tienda WooCommerce
     Route::put('/woocommerce/woo/{storeId}/product/{productId}', [WooProductController::class, 'updateProduct']);
-    Route::post('/woocommerce/woo/{storeId}/product', [WooProductController::class, 'createProduct']);
+    Route::post('/woocommerce/woo/{storeId}/product', [WooProductController::class, 'createProduct']);// Crear producto en WooCommerce
     Route::delete('/woocommerce/woo/{storeId}/product/{productId}', [WooProductController::class, 'deleteProduct']);
     Route::get('/woocommerce/woo/{storeId}/product/{productId}', [WooProductController::class, 'getProduct']);
+    Route::get('/woocommerce/woo/{storeId}/productc-list', [WooProductController::class, 'listProducts']);
     //categorias wooComerce
     Route::Get('/woocommerce/woo/{storeId}/categories', [WooCategoryController::class, 'listCategories']);
     Route::Get('/woocommerce/woo/{storeId}/category/{categoryId}',[WooCategoryController::class, 'getCategory']);
