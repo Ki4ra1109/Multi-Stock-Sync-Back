@@ -266,6 +266,11 @@ class WooProductController extends Controller
 
             $products = $woocommerce->get('products', $params);
 
+            
+            if (!is_array($products)) {
+                $products = [$products];
+            }
+
             $filtered = array_map([$this, 'filterProductResponse'], $products);
 
             return response()->json([
