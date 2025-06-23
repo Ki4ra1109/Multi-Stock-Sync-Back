@@ -7,6 +7,7 @@ use Automattic\WooCommerce\Client;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 
 class WooProductController extends Controller
 {
@@ -116,7 +117,7 @@ class WooProductController extends Controller
             $created = $woocommerce->post("products", $productData);
 
             // Respuesta filtrada con información relevante
-            $filtered = $this->filterProductResponse($created);
+            $filtered = $this->filterProductResponse($created, $woocommerce);
 
             return response()->json([
                 'message' => 'Producto creado correctamente.',
@@ -196,7 +197,7 @@ class WooProductController extends Controller
 
             $updated = $woocommerce->put("products/{$productId}", $data);
 
-            $filtered = $this->filterProductResponse($updated);
+            $filtered = $this->filterProductResponse($updated, $woocommerce);
 
             return response()->json([
                 'message' => 'Producto actualizado correctamente.',
@@ -227,7 +228,7 @@ class WooProductController extends Controller
             $product = $woocommerce->get("products/{$productId}");
 
             return response()->json([
-                'product' => $this->filterProductResponse($product),
+                'product' => $this->filterProductResponse($product, $woocommerce),
                 'status' => 'success'
             ]);
 
@@ -271,7 +272,9 @@ class WooProductController extends Controller
                 $products = [$products];
             }
 
-            $filtered = array_map([$this, 'filterProductResponse'], $products);
+            $filtered = array_map(function($product) use ($woocommerce) {
+                return $this->filterProductResponse($product, $woocommerce);
+            }, $products);
 
             return response()->json([
                 'products' => $filtered,
@@ -296,13 +299,124 @@ class WooProductController extends Controller
 
             return response()->json([
                 'message' => 'Producto eliminado correctamente.',
-                'deleted_product' => $this->filterProductResponse($deleted),
+                'deleted_product' => $this->filterProductResponse($deleted, $woocommerce),
                 'status' => 'success'
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error al eliminar el producto.',
+                'error' => $e->getMessage(),
+                'status' => 'error'
+            ], 500);
+        }
+    }
+public function listVariations($storeId, $productId)
+    {
+        try {
+            $woocommerce = $this->connect($storeId);
+
+            $variations = $woocommerce->get("products/{$productId}/variations");
+
+            return response()->json([
+                'variations' => $variations,
+                'status' => 'success'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error al obtener las variaciones.',
+                'error' => $e->getMessage(),
+                'status' => 'error'
+            ], 500);
+        }
+    }
+
+    public function createVariation(Request $request, $storeId, $productId)
+    {
+        try {
+            $woocommerce = $this->connect($storeId);
+
+            $validator = Validator::make($request->all(), [
+                'regular_price' => 'required|numeric|min:0',
+                'sale_price' => 'sometimes|numeric|min:0',
+                'attributes' => 'required|array',
+                'attributes.*.name' => 'required|string',
+                'attributes.*.option' => 'required|string',
+                'sku' => 'sometimes|string|max:100',
+                'stock_quantity' => 'sometimes|integer|min:0',
+            ]);
+
+            if ($validator->fails()) {
+                Log::warning('Validación fallida al crear variación', [
+                    'errors' => $validator->errors(),
+                    'data_enviada' => $request->all(),
+                    'storeId' => $storeId,
+                    'productId' => $productId
+                ]);
+                return response()->json([
+                    'message' => 'Error de validación.',
+                    'errors' => $validator->errors(),
+                    'status' => 'error'
+                ], 422);
+            }
+
+            $data = $validator->validated();
+
+            $variation = $woocommerce->post("products/{$productId}/variations", $data);
+
+            return response()->json([
+                'message' => 'Variación creada correctamente.',
+                'variation' => $variation,
+                'status' => 'success'
+            ]);
+        } catch (\Automattic\WooCommerce\HttpClient\HttpClientException $e) {
+            Log::error('Error al crear la variación', [
+                'message' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'response_body' => method_exists($e, 'getResponse') ? $e->getResponse() : null,
+                'woo_body' => method_exists($e, 'getResponse') ? $e->getResponse() : null,
+                'data_enviada' => $request->all(),
+                'storeId' => $storeId,
+                'productId' => $productId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Error al crear la variación.',
+                'error' => $e->getMessage(),
+                'status' => 'error'
+            ], 500);
+        } catch (\Exception $e) {
+            Log::error('Error general al crear variación', [
+                'message' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'data_enviada' => $request->all(),
+                'storeId' => $storeId,
+                'productId' => $productId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Error al crear la variación.',
+                'error' => $e->getMessage(),
+                'status' => 'error'
+            ], 500);
+        }
+    }
+
+    public function deleteVariation($storeId, $productId, $variationId)
+    {
+        try {
+            $woocommerce = $this->connect($storeId);
+
+            $deleted = $woocommerce->delete("products/{$productId}/variations/{$variationId}", ['force' => true]);
+
+            return response()->json([
+                'message' => 'Variación eliminada correctamente.',
+                'deleted_variation' => $deleted,
+                'status' => 'success'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error al eliminar la variación.',
                 'error' => $e->getMessage(),
                 'status' => 'error'
             ], 500);
@@ -343,8 +457,20 @@ class WooProductController extends Controller
     /**
      * Filtrar la respuesta del producto para mostrar solo campos relevantes
      */
-    private function filterProductResponse($product)
+    private function filterProductResponse($product, $woocommerce)
     {
+        if ($product->type === 'variable') {
+            $minPrice = null;
+            foreach ($product->variations as $variationId) {
+                $variation = $woocommerce->get("products/{$product->id}/variations/{$variationId}");
+                $variationPrice = floatval($variation->sale_price ?: $variation->regular_price);
+                if ($variationPrice > 0 && ($minPrice === null || $variationPrice < $minPrice)) {
+                    $minPrice = $variationPrice;
+                }
+            }
+            $product->price = $minPrice !== null ? (string)$minPrice : "";
+        }
+
         return [
             'id' => $product->id,
             'name' => $product->name,

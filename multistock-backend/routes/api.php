@@ -128,6 +128,8 @@ use App\Http\Controllers\MercadoLibre\Products\SizeGridController;
 use App\Http\Controllers\Woocommerce\WooStoreController;
 use App\Http\Controllers\Woocommerce\WooProductController;
 use App\Http\Controllers\Woocommerce\WooCategoryController;
+
+
 // SyncStatus //
 use App\Http\Controllers\SyncStatusController;
 use Dotenv\Repository\Adapter\PutenvAdapter;
@@ -312,14 +314,19 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     // WooCommerce
     Route::get('/woocommerce/woo/{storeId}/products', [WooStoreController::class, 'getProductsWooCommerce']); // Obtener productos de WooCommerce
     Route::post('/woocommerce/woo-stores', [WooStoreController::class, 'storeWoocommerce']); // Registrar tienda WooCommerce
-    Route::put('/woocommerce/woo/{storeId}/product/{productId}', [WooProductController::class, 'updateProduct']);
+    Route::put('/woocommerce/woo/{storeId}/product/{productId}', [WooProductController::class, 'updateProduct']);// Modificar producto en WooCommerce
     Route::post('/woocommerce/woo/{storeId}/product', [WooProductController::class, 'createProduct']);// Crear producto en WooCommerce
-    Route::delete('/woocommerce/woo/{storeId}/product/{productId}', [WooProductController::class, 'deleteProduct']);
+    Route::delete('/woocommerce/woo/{storeId}/product/{productId}', [WooProductController::class, 'deleteProduct']);// Eliminar producto en WooCommerce
+    
     Route::get('/woocommerce/woo/{storeId}/product/{productId}', [WooProductController::class, 'getProduct']);
-    Route::get('/woocommerce/woo/{storeId}/productc-list', [WooProductController::class, 'listProducts']);
+    Route::get('/woocommerce/woo/{storeId}/productc-list', [WooProductController::class, 'listProducts']);//listar productos de WooCommerce
     //categorias wooComerce
     Route::Get('/woocommerce/woo/{storeId}/categories', [WooCategoryController::class, 'listCategories']);
     Route::Get('/woocommerce/woo/{storeId}/category/{categoryId}',[WooCategoryController::class, 'getCategory']);
     Route::Post('/woocomerce/{storeId}/category', [WooCategoryController::class, 'createCategory']);
    });
-
+   
+    Route::get('/woocommerce/woo/{storeId}/product/{productId}/variation-list', [WooProductController::class, 'listVariations']);// Listar variaciones de producto
+    Route::post('/woocommerce/woo/{storeId}/product/{productId}/variation', [WooProductController::class, 'createVariation']);// Crear variación de producto
+    Route::delete('/woocommerce/woo/{storeId}/product/{productId}/variation/{variationId}', [WooProductController::class, 'deleteVariation']);// Eliminar variación de producto
+  
