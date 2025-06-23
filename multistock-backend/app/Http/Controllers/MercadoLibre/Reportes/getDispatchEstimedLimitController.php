@@ -21,7 +21,7 @@ class getDispatchEstimedLimitController
                 'message' => 'No se encontraron credenciales válidas para el client_id proporcionado.',
             ], 404);
         }
-        
+
         if ($credentials->isTokenExpired()) {
         $refreshResponse = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
             'grant_type' => 'refresh_token',
@@ -99,7 +99,7 @@ class getDispatchEstimedLimitController
 
                     $handlingLimitRaw = $shipmentData['shipping_option']['estimated_handling_limit']['date'] ?? null;
 
-                    if ($handlingLimitRaw && $shipmentData['status_history']['date_shipped'] === null) {    
+                    if ($handlingLimitRaw && $shipmentData['status_history']['date_shipped'] === null) {
                         $handlingDate = Carbon::parse($handlingLimitRaw)->toDateString();
                         $today = Carbon::now()->toDateString();
 
@@ -109,7 +109,7 @@ class getDispatchEstimedLimitController
                                 'id' => $shipmentData['id'],
                                 'estimated_handling_limit' => $handlingLimitRaw,
                                 'shipping_date' => $shipmentData['status_history']['date_shipped'] ?? 'Aun no despachado',
-                                'direction' => 
+                                'direction' =>
                                         ($shipmentData['receiver_address']['state']['name'] ?? '') . ' - ' .
                                         ($shipmentData['receiver_address']['city']['name'] ?? '') . ' - ' .
                                         ($shipmentData['receiver_address']['address_line'] ?? ''),
@@ -130,9 +130,10 @@ class getDispatchEstimedLimitController
 
         if (empty($shippingDetails)) {
             return response()->json([
-                'status' => 'error',
+                'status' => 'success',
                 'message' => 'No se encontraron envíos con fecha límite de despacho para hoy.',
-            ], 404);
+                'data'=>[]
+            ], 200);
         }
 
         return response()->json([
