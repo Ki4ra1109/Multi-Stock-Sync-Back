@@ -83,6 +83,11 @@ class WooCategoryController extends Controller
 
             $categories = $woocommerce->get('products/categories', $params);
 
+            
+            if ($categories instanceof \stdClass) {
+                $categories = [$categories];
+            }
+
             $filtered = array_map([$this, 'filterCategoryResponse'], $categories);
 
             return response()->json([
