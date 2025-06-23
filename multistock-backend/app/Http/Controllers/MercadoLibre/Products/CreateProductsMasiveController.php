@@ -465,7 +465,11 @@ class CreateProductsMasiveController extends Controller
                     $fieldDisplayName = $isFirstRow ? $attributeName . ' (*)' : '';
                     $typeText = $isFirstRow ? 'FLEXIBLE' : '';
                     $notesText = $isFirstRow ? 'Puede usar valores personalizados' : '';
-
+                    if(isset($attribute['id']) && $attribute['id']== 'size_grid_id'){
+                        $genders=
+                        $brand=
+                        $sizeGridId = $this->getSizeGuides();
+                    }
                     $valuesSheet->setCellValue('A' . $currentRow, $fieldDisplayName);
                     $valuesSheet->setCellValue('B' . $currentRow, $value['name'] ?? $value['id']);
                     $valuesSheet->setCellValue('C' . $currentRow, $typeText);
@@ -736,5 +740,182 @@ class CreateProductsMasiveController extends Controller
                 'message' => 'Error en peticion a ML: ' . $e->getMessage(),
             ], 500);
         }
+    }
+    private function getSizeGuides(Request $request, $client_id)
+    {
+        $credentials = MercadoLibreCredential::where('client_id', $client_id)->first();
+        error_log("credentials " . json_encode($credentials));
+        if (!$credentials) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No se encontraron credenciales válidas para el client_id proporcionado.',
+            ], 404);
+        }
+        try {
+            if ($credentials->isTokenExpired()) {
+                $refreshResponse = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
+                    'grant_type' => 'refresh_token',
+                    'client_id' => $credentials->client_id,
+                    'client_secret' => $credentials->client_secret,
+                    'refresh_token' => $credentials->refresh_token,
+                ]);
+
+                if ($refreshResponse->failed()) {
+                    return response()->json(['error' => 'No se pudo refrescar el token'], 401);
+                }
+
+                $data = $refreshResponse->json();
+                $credentials->update([
+                    'access_token' => $data['access_token'],
+                    'refresh_token' => $data['refresh_token'],
+                    'expires_at' => now()->addSeconds($data['expires_in']),
+                ]);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al refrescar token: ' . $e->getMessage(),
+            ], 500);
+        }
+
+        $userResponse = Http::withToken($credentials->access_token)
+            ->get('https://api.mercadolibre.com/users/me');
+
+        if ($userResponse->failed()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No se pudo obtener el ID del usuario.',
+                'error' => $userResponse->json(),
+            ], 500);
+        }
+
+        error_log("userResponse " . json_encode($userResponse));
+        $userId = $userResponse->json()['id'];
+        $request->validate([
+            'domain_id' => 'required|string',
+            'gender' => 'required|string',
+            'brand' => 'required|string',
+        ]);
+
+        $payload = [
+            'domain_id' => explode('-', $request->domain_id)[1],
+            'site_id' => explode('-', $request->domain_id)[0],
+            'seller_id' => $userId,
+            'attributes' => [
+                [
+                    'id' => 'GENDER',
+                    'values' => [
+                        ['name' => $request->gender]
+                    ]
+                ],
+                [
+                    'id' => 'BRAND',
+                    'values' => [
+                        ['name' => $request->brand]
+                    ]
+                ]
+            ]
+        ];
+
+        error_log("payload " . json_encode($payload));
+        $response = Http::withToken($credentials->access_token)->post('https://api.mercadolibre.com/catalog/charts/search', $payload);
+
+        if ($response->failed()) {
+            Log::error('Error al obtener guías de talles de Mercado Libre:', [
+                'payload' => $payload,
+                'ml_response' => $response->json()
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al obtener guías de talles',
+                'ml_error' => $response->json(),
+            ], $response->status());
+        }
+
+        // FILTRAR LA RESPUESTA AQUÍ
+        $rawData = $response->json();
+        $filteredData = $this->filterSizeGuideData($rawData);
+
+        return response()->json([
+            'status' => 'success',
+            'total_guides'=>count($filteredData),
+            'size_guides' => $filteredData
+
+        ]);
+    }
+
+
+
+    private function filterSizeGuideData($data)
+    {
+        $filtered = [];
+
+        // Si tiene la estructura con 'charts' (estructura completa de MercadoLibre)
+        if (isset($data['charts']) && is_array($data['charts'])) {
+            foreach ($data['charts'] as $sizeGuide) {
+                $filtered[] = $this->extractSizeGuideFields($sizeGuide);
+            }
+        } // Si $data es un array de guías de talles con 'results'
+        elseif (isset($data['results']) && is_array($data['results'])) {
+            foreach ($data['results'] as $sizeGuide) {
+                $filtered[] = $this->extractSizeGuideFields($sizeGuide);
+            }
+        } // Si $data es una sola guía de talles
+        elseif (isset($data['id'])) {
+            $filtered = $this->extractSizeGuideFields($data);
+        } // Si $data es un array directo de guías
+        elseif (is_array($data)) {
+            foreach ($data as $sizeGuide) {
+                if (isset($sizeGuide['id'])) {
+                    $filtered[] = $this->extractSizeGuideFields($sizeGuide);
+                }
+            }
+        }
+
+        return $filtered;
+    }
+
+    /**
+     * Extrae los campos específicos de una guía de talles
+     */
+    /**
+     * Extrae los campos específicos de una guía de talles de forma simplificada
+     */
+    private function extractSizeGuideFields($sizeGuide)
+    {
+        $result = [
+            'id' => $sizeGuide['id'] ?? null,
+            'names' => $sizeGuide['names'] ?? null,
+            'main_attribute_id' => $sizeGuide['main_attribute_id'] ?? null,
+            'rows' => []
+        ];
+
+        // Filtrar rows de forma simplificada
+        if (isset($sizeGuide['rows']) && is_array($sizeGuide['rows'])) {
+            foreach ($sizeGuide['rows'] as $row) {
+                $sizeName = null;
+
+                // Buscar el atributo SIZE para obtener el nombre
+                if (isset($row['attributes']) && is_array($row['attributes'])) {
+                    foreach ($row['attributes'] as $attribute) {
+                        if ($attribute['id'] === 'SIZE' && isset($attribute['values'][0]['name'])) {
+                            $sizeName = $attribute['values'][0]['name'];
+                            break; // Solo tomamos el primer SIZE que encontremos
+                        }
+                    }
+                }
+
+                // Solo agregar si encontramos un size name
+                if ($sizeName) {
+                    $result['rows'][] = [
+                        'id' => $row['id'] ?? null,
+                        'size' => $sizeName
+                    ];
+                }
+            }
+        }
+
+        return $result;
     }
 }

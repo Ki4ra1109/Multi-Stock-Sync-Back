@@ -19,6 +19,7 @@ use App\Http\Controllers\MercadoLibreProductController;
 use App\Http\Controllers\MercadoLibre\Products\testingController;
 
 //  REPORTES //
+use \App\Http\Controllers\MercadoLibre\Reportes\getDeliveredShipmentsController;
 use App\Http\Controllers\MercadoLibre\Reportes\compareAnnualSalesDataController;
 use App\Http\Controllers\MercadoLibre\Reportes\compareSalesDataController;
 use App\Http\Controllers\MercadoLibre\Reportes\getAnnualSalesController;
@@ -259,6 +260,8 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::get('/mercadolibre/client-item-list/{client_id}', [productReportController::class, 'listProductsByClientIdWithPaymentStatus']); // Reporte de productos
     Route::get('/mercadolibre/daily-sales/{client_id}', [getDailySalesController::class, 'getDailySales']); // Ventas diarias
     Route::get('/mercadolibre/dispatch-estimated-limit/{client_id}', [getDispatchEstimedLimitController::class, 'getDispatchEstimedLimit']); // Límite estimado de despacho
+
+    Route::get('/mercadolibre/delivered-shipments/{client_id}',[getDeliveredShipmentsController::class, 'getDeliveredShipments']);
     Route::get('/mercadolibre/history-dispatch/{client_id}/{skuSearch}', [getHistoryDispatchController::class, 'getHistoryDispatch']); // Historial de despachos
     Route::get('/mercadolibre/information-dispatch-delivered/{client_id}/{deliveredId}', [getInformationDispatchDeliveredController::class, 'getInformationDispatchDelivered']); // Información de despacho entregado
     Route::get('/mercadolibre/invoices/{client_id}', [getInvoiceReportController::class, 'getInvoiceReport']); // Reporte de facturas
