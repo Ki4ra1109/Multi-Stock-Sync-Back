@@ -329,4 +329,5 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::get('/woocommerce/woo/{storeId}/product/{productId}/variation-list', [WooProductController::class, 'listVariations']);// Listar variaciones de producto
     Route::post('/woocommerce/woo/{storeId}/product/{productId}/variation', [WooProductController::class, 'createVariation']);// Crear variación de producto
     Route::delete('/woocommerce/woo/{storeId}/product/{productId}/variation/{variationId}', [WooProductController::class, 'deleteVariation']);// Eliminar variación de producto
+    Route::get('/woocommerce/woo-stores', [WooStoreController::class, 'getStores']); // Listar tiendas WooCommerce
   
