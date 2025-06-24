@@ -48,7 +48,7 @@ class WooStoreController extends Controller
             // Obtener parámetros de paginación con valores por defecto
             $page = $request->input('page', 1); // Página 1 por defecto
             $perPage = $request->input('per_page', 50); // 10 items por página por defecto
-
+            
 
             $page = max(1, (int)$page);
             $perPage = max(1, (int)$perPage);
@@ -97,6 +97,7 @@ class WooStoreController extends Controller
             ], 500);
         }
     }
+
     public function storeWoocommerce(Request $request)
     {
         $user = $request->user();
@@ -121,6 +122,7 @@ class WooStoreController extends Controller
             'store' => $wooStore
         ], 201);
     }
+
     public function testConnection($storeId)
     {
         try {
@@ -137,5 +139,15 @@ class WooStoreController extends Controller
                 'exception' => get_class($e)
             ], 500);
         }
+    }
+
+    
+    public function getStores(Request $request)
+    {
+        $stores = WooStore::all(['id', 'name']);
+
+        return response()->json([
+            'stores' => $stores
+        ]);
     }
 }
