@@ -227,10 +227,47 @@ class getDeliveredShipmentsController
                     continue;
                 }
 
+                // Verificación adicional: confirmar entrega en el historial
+                $isActuallyDelivered = false;
+                $shipmentHistoryRaw = $historyData[$orderIndex] ?? [];
+
+                if (!empty($shipmentHistoryRaw)) {
+                    $trackingEvents = [];
+
+                    if (isset($shipmentHistoryRaw['tracking']) && is_array($shipmentHistoryRaw['tracking'])) {
+                        $trackingEvents = $shipmentHistoryRaw['tracking'];
+                    } elseif (is_array($shipmentHistoryRaw) && isset($shipmentHistoryRaw[0]['date'])) {
+                        $trackingEvents = $shipmentHistoryRaw;
+                    }
+
+                    // Buscar evento de entrega en el historial
+                    foreach ($trackingEvents as $event) {
+                        if (isset($event['status']) && $event['status'] === 'delivered') {
+                            $isActuallyDelivered = true;
+                            break;
+                        }
+                    }
+                }
+
+                // Si no hay confirmación de entrega en el historial, descartar
+                if (!$isActuallyDelivered) {
+                    Log::info('Pedido descartado - no confirmado como entregado en historial', [
+                        'order_id' => $order['id'],
+                        'shipping_status' => $shippingStatus
+                    ]);
+                    continue;
+                }
+
+                // Obtener información del receptor y dirección
+                $receiverInfo = $shipmentInfo['receiver_address'] ?? [];
+                $clientName = $receiverInfo['receiver_name'] ?? 'N/A';
+                $receiverName = $receiverInfo['receiver_name'] ?? 'N/A';
+                $address = $this->formatAddress($receiverInfo);
+
                 // Obtener fecha de entrega del historial
-                $deliveryDate = null;
+                $dateDelivered = null;
                 $shipmentHistory = $historyData[$orderIndex] ?? [];
-                $processedHistory = [];
+                $processedHistory = null;
 
                 if (!empty($shipmentHistory)) {
                     // El historial viene en diferentes formatos, intentemos ambos
@@ -245,19 +282,30 @@ class getDeliveredShipmentsController
                         $trackingEvents = $shipmentHistory;
                     }
 
-                    // Procesar eventos de tracking
+                    // Buscar la fecha de entrega y obtener el último estado
+                    $lastStatus = null;
+                    $lastDate = null;
+
                     foreach ($trackingEvents as $event) {
-                        if (isset($event['status']) && $event['status'] === 'delivered' && !$deliveryDate) {
-                            $deliveryDate = $event['date'] ?? null;
+                        if (isset($event['status']) && $event['status'] === 'delivered' && !$dateDelivered) {
+                            $dateDelivered = $event['date'] ?? null;
                         }
 
-                        // Agregar evento procesado al historial
-                        $processedHistory[] = [
-                            'date' => $event['date'] ?? null,
-                            'substatus' => $event['substatus'] ?? null,
-                            'status' => $this->translateShippingStatus($event['status'] ?? '')
-                        ];
+                        // Obtener el último evento para el historial
+                        if (isset($event['date'])) {
+                            $eventDate = strtotime($event['date']);
+                            if (!$lastDate || $eventDate > strtotime($lastDate)) {
+                                $lastDate = $event['date'];
+                                $lastStatus = $event['status'] ?? null;
+                            }
+                        }
                     }
+
+                    // Crear el objeto de historial simplificado según la interface
+                    $processedHistory = [
+                        'status' => $this->translateShippingStatus($lastStatus ?? ''),
+                        'date_created' => $lastDate
+                    ];
                 }
 
                 // Obtener status actual y fecha actual (fuera del historial)
@@ -290,20 +338,19 @@ class getDeliveredShipmentsController
                     }
 
                     $deliveredProducts[] = [
-                        'id' => $productId,
-                        'order_id' => $order['shipping']['id'],
-                        'variation_id' => $variationId,
+                        'id' => $order['shipping']['id'],
+                        'order_id' =>$order['id'] ,
                         'title' => $item['item']['title'],
                         'quantity' => $item['quantity'],
                         'size' => $size,
                         'sku' => $sku ?: 'No se encuentra disponible en mercado libre',
-                        'sku_source' => $skuSource,
-                        'sku_missing_reason' => $skuSource === 'not_found' ?
-                            'No se encontraron campos seller_custom_field, seller_sku ni atributos SKU en el producto' : null,
-                        'delivery_date' => $deliveryDate,
+                        'shipment_history' => $processedHistory,
+                        'clientName' => $clientName,
+                        'address' => $address,
+                        'receiver_name' => $receiverName,
+                        'date_delivered' => $dateDelivered,
                         'current_status' => $currentStatus,
                         'current_date' => $currentDate,
-                        'shipment_history' => $processedHistory,
                     ];
                 }
             }
@@ -328,7 +375,7 @@ class getDeliveredShipmentsController
 
         $translations = [
             'pending' => 'pendiente',
-            'shipped' => 'enviado',
+            'shipped' => 'entregado',
             'delivered' => 'entregado',
             'not_delivered' => 'no entregado',
             'returned' => 'devuelto',
@@ -338,6 +385,47 @@ class getDeliveredShipmentsController
         ];
 
         return $translations[strtolower($status)] ?? $status;
+    }
+
+    private function formatAddress($receiverInfo)
+    {
+        if (empty($receiverInfo)) {
+            return 'N/A';
+        }
+
+        $addressParts = [];
+
+        // Agregar calle y número
+        if (!empty($receiverInfo['address_line'])) {
+            $addressParts[] = $receiverInfo['address_line'];
+        }
+
+        // Agregar número si existe por separado
+        if (!empty($receiverInfo['street_number'])) {
+            $addressParts[] = $receiverInfo['street_number'];
+        }
+
+        // Agregar barrio/zona
+        if (!empty($receiverInfo['neighborhood']['name'])) {
+            $addressParts[] = $receiverInfo['neighborhood']['name'];
+        }
+
+        // Agregar ciudad
+        if (!empty($receiverInfo['city']['name'])) {
+            $addressParts[] = $receiverInfo['city']['name'];
+        }
+
+        // Agregar estado/región
+        if (!empty($receiverInfo['state']['name'])) {
+            $addressParts[] = $receiverInfo['state']['name'];
+        }
+
+        // Agregar código postal
+        if (!empty($receiverInfo['zip_code'])) {
+            $addressParts[] = $receiverInfo['zip_code'];
+        }
+
+        return !empty($addressParts) ? implode(', ', $addressParts) : 'N/A';
     }
 
     private function extractSku($item, $productData, &$skuSource)
