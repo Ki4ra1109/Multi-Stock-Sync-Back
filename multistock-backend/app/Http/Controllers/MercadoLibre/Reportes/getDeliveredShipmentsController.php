@@ -3,298 +3,379 @@
 namespace App\Http\Controllers\MercadoLibre\Reportes;
 
 use App\Models\MercadoLibreCredential;
-use GuzzleHttp\Client;
-use GuzzleHttp\Promise;
 use Illuminate\Support\Facades\Http;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
+use GuzzleHttp\Client;
+use GuzzleHttp\Pool;
+use GuzzleHttp\Psr7\Request;
+use GuzzleHttp\Exception\RequestException;
 
-class GetDeliveredShipmentsController
+class getDeliveredShipmentsController
 {
     private $guzzleClient;
-    private $credentials;
-    private $accessToken;
-    private $maxPages = 5; // Reduced from 10 to prevent timeouts
-    private $perPage = 30; // Reduced from 50
-    private $itemBatchSize = 5; // Process items in smaller batches
 
     public function __construct()
     {
         $this->guzzleClient = new Client([
-            'base_uri' => 'https://api.mercadolibre.com/',
-            'timeout' => 15,
-            'connect_timeout' => 5,
+            'timeout' => 30,
+            'connect_timeout' => 10,
         ]);
     }
 
     public function getDeliveredShipments($clientId)
     {
-        set_time_limit(60); // Increase timeout to 60 seconds
+        $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
 
-        try {
-            $this->initializeCredentials($clientId);
-            $userId = $this->getUserId();
-
-            $result = $this->processAllOrders($userId);
-
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Envíos entregados obtenidos con éxito.',
-                'data' => $result['shipments'],
-                'totalItems' => $result['count'],
-                'partial' => $result['partial'],
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error in getDeliveredShipments: ' . $e->getMessage());
+        if (!$credentials) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Ocurrió un error al procesar los envíos.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    private function initializeCredentials($clientId)
-    {
-        $this->credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
-        if (!$this->credentials) {
-            throw new \Exception('No se encontraron credenciales válidas para el client_id proporcionado.');
+                'message' => 'No se encontraron credenciales válidas para el client_id proporcionado.',
+            ], 404);
         }
 
-        $this->refreshTokenIfNeeded();
-        $this->accessToken = $this->credentials->access_token;
-    }
-
-    private function refreshTokenIfNeeded()
-    {
-        if ($this->credentials->isTokenExpired()) {
-            $response = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
+        if ($credentials->isTokenExpired()) {
+            $refreshResponse = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
                 'grant_type' => 'refresh_token',
-                'client_id' => $this->credentials->client_id,
-                'client_secret' => $this->credentials->client_secret,
-                'refresh_token' => $this->credentials->refresh_token,
+                'client_id' => $credentials->client_id,
+                'client_secret' => $credentials->client_secret,
+                'refresh_token' => $credentials->refresh_token,
             ]);
 
-            if ($response->failed()) {
-                throw new \Exception('No se pudo refrescar el token');
+            if ($refreshResponse->failed()) {
+                return response()->json(['error' => 'No se pudo refrescar el token'], 401);
             }
 
-            $data = $response->json();
-            $this->credentials->update([
+            $data = $refreshResponse->json();
+            $credentials->update([
                 'access_token' => $data['access_token'],
                 'refresh_token' => $data['refresh_token'],
                 'expires_at' => now()->addSeconds($data['expires_in']),
             ]);
         }
-    }
 
-    private function getUserId()
-    {
-        $response = Http::withToken($this->accessToken)
-            ->timeout(10)
+        $response = Http::withToken($credentials->access_token)
             ->get('https://api.mercadolibre.com/users/me');
 
         if ($response->failed()) {
-            throw new \Exception('No se pudo obtener el ID del usuario');
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No se pudo obtener el ID del usuario. Por favor, valide su token.',
+                'error' => $response->json(),
+            ], 500);
         }
 
-        return $response->json()['id'];
-    }
+        $userId = $response->json()['id'];
 
-    private function processAllOrders($userId)
-    {
+        $perPage = 50;
         $page = 1;
-        $allShipments = [];
-        $partial = false;
 
-        do {
-            $orders = $this->fetchOrdersPage($userId, $page);
-            $batchResult = $this->processOrderBatch($orders);
-
-            $allShipments = array_merge($allShipments, $batchResult['shipments']);
-            $partial = $batchResult['partial'];
-
-            $page++;
-
-            if ($partial) {
-                Log::warning('Partial results due to processing limits');
-                break;
-            }
-
-        } while (count($orders) === $this->perPage && $page <= $this->maxPages);
-
-        return [
-            'shipments' => $allShipments,
-            'count' => count($allShipments),
-            'partial' => $partial,
-        ];
-    }
-
-    private function fetchOrdersPage($userId, $page)
-    {
-        $response = Http::withToken($this->accessToken)
-            ->timeout(15)
+        // Cambio principal: buscar órdenes con shipping.status = 'delivered'
+        $response = Http::withToken($credentials->access_token)
             ->get("https://api.mercadolibre.com/orders/search", [
                 'seller' => $userId,
                 'order.status' => 'paid',
-                'offset' => ($page - 1) * $this->perPage,
-                'limit' => $this->perPage
+                'shipping.status' => 'delivered', // Solo envíos entregados
+                'offset' => ($page - 1) * $perPage,
+                'limit' => $perPage
             ]);
 
         if ($response->failed()) {
-            throw new \Exception('Error al obtener órdenes');
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al conectar con la API de MercadoLibre.',
+                'error' => $response->json(),
+            ], $response->status());
         }
 
-        return $response->json()['results'];
+        $orders = $response->json()['results'];
+
+        if (empty($orders)) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'No se encontraron productos entregados.',
+                'data' => [],
+            ]);
+        }
+
+        $deliveredProducts = $this->processOrdersAsync($orders, $credentials->access_token);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Productos entregados obtenidos con éxito.',
+            'total_delivered' => count($deliveredProducts),
+            'data' => $deliveredProducts,
+        ]);
     }
 
-    private function processOrderBatch($orders)
+    private function processOrdersAsync($orders, $accessToken)
     {
-        $shipmentPromises = [];
-        $orderContexts = [];
+        $deliveredProducts = [];
+        $headers = [
+            'Authorization' => 'Bearer ' . $accessToken,
+            'Content-Type' => 'application/json',
+        ];
 
-        foreach ($orders as $order) {
+        // Crear todas las peticiones
+        $requests = [];
+        $requestMap = [];
+
+        foreach ($orders as $orderIndex => $order) {
             $shippingId = $order['shipping']['id'] ?? null;
-            if (!$shippingId) continue;
 
-            $orderContexts[$shippingId] = $order;
+            if ($shippingId) {
+                // Petición para información del envío
+                $requests[] = new Request('GET', "https://api.mercadolibre.com/shipments/{$shippingId}", $headers);
+                $requestMap[count($requests) - 1] = ['type' => 'shipment', 'order_index' => $orderIndex];
 
-            $shipmentPromises["shipment_{$shippingId}"] = $this->guzzleClient->getAsync("shipments/{$shippingId}", [
-                'headers' => ['Authorization' => "Bearer {$this->accessToken}"]
-            ]);
-        }
+                // Petición para historial del envío
+                $historyHeaders = array_merge($headers, ['x-format-new' => 'true']);
+                $requests[] = new Request('GET', "https://api.mercadolibre.com/shipments/{$shippingId}/history", $historyHeaders);
+                $requestMap[count($requests) - 1] = ['type' => 'history', 'order_index' => $orderIndex];
 
-        $responses = Promise\Utils::settle($shipmentPromises)->wait();
+                // Peticiones para detalles de productos
+                foreach ($order['order_items'] as $itemIndex => $item) {
+                    $productId = $item['item']['id'];
+                    $variationId = $item['item']['variation_id'] ?? null;
 
-        $processedShipments = [];
-        $partial = false;
+                    $requests[] = new Request('GET', "https://api.mercadolibre.com/items/{$productId}", $headers);
+                    $requestMap[count($requests) - 1] = ['type' => 'product', 'order_index' => $orderIndex, 'item_index' => $itemIndex];
 
-        foreach ($responses as $key => $response) {
-            $shippingId = str_replace('shipment_', '', $key);
-            $order = $orderContexts[$shippingId] ?? null;
-
-            if (!$order || $response['state'] !== 'fulfilled') continue;
-
-            $shipmentInfo = json_decode($response['value']->getBody(), true);
-            if (!is_array($shipmentInfo)) continue;
-
-            if (($shipmentInfo['status'] ?? null) !== 'delivered') continue;
-
-            $shipmentResult = $this->processDeliveredShipment($order, $shippingId, $shipmentInfo);
-            $processedShipments = array_merge($processedShipments, $shipmentResult['shipments']);
-            $partial = $partial || $shipmentResult['partial'];
-
-            if ($partial) break;
-        }
-
-        return [
-            'shipments' => $processedShipments,
-            'partial' => $partial,
-        ];
-    }
-
-    private function processDeliveredShipment($order, $shippingId, $shipmentInfo)
-    {
-        $commonData = [
-            'clientName' => $this->getClientName($order),
-            'address' => $this->getAddress($shipmentInfo),
-            'receiverName' => $this->getReceiverName($shipmentInfo),
-            'dateDelivered' => $this->getDeliveryDate($shipmentInfo),
-            'shipmentHistory' => $this->getShipmentHistory($shippingId),
-        ];
-
-        $itemBatches = array_chunk($order['order_items'], $this->itemBatchSize);
-        $processedItems = [];
-        $partial = false;
-
-        foreach ($itemBatches as $batch) {
-            $batchResult = $this->processItemBatch($batch, $shippingId, $order, $commonData);
-            $processedItems = array_merge($processedItems, $batchResult['items']);
-            $partial = $partial || $batchResult['partial'];
-
-            if ($partial) break;
-        }
-
-        return [
-            'shipments' => $processedItems,
-            'partial' => $partial,
-        ];
-    }
-
-    private function processItemBatch($items, $shippingId, $order, $commonData)
-    {
-        $itemPromises = [];
-        $itemContexts = [];
-
-        foreach ($items as $item) {
-            $productId = $item['item']['id'];
-            $itemContexts[$productId] = [
-                'item' => $item,
-                'variationId' => $item['item']['variation_id'] ?? 'N/A'
-            ];
-
-            $itemPromises[$productId] = $this->guzzleClient->getAsync("items/{$productId}", [
-                'headers' => ['Authorization' => "Bearer {$this->accessToken}"],
-                'timeout' => 10
-            ]);
-        }
-
-        $responses = Promise\Utils::settle($itemPromises)->wait();
-
-        $processedItems = [];
-        $partial = false;
-
-        foreach ($responses as $productId => $response) {
-            $context = $itemContexts[$productId] ?? null;
-            if (!$context || $response['state'] !== 'fulfilled') continue;
-
-            $productData = json_decode($response['value']->getBody(), true);
-            if (!is_array($productData)) continue;
-
-            $processedItems[] = $this->buildItemResult(
-                $context['item'],
-                $shippingId,
-                $order,
-                $commonData,
-                $productData,
-                $context['variationId']
-            );
-
-            // Check memory usage
-            if (memory_get_usage(true) > 50 * 1024 * 1024) { // 50MB
-                $partial = true;
-                break;
+                    // Si hay variación, crear petición para obtener sus detalles
+                    if ($variationId && $variationId !== 'N/A') {
+                        $requests[] = new Request('GET', "https://api.mercadolibre.com/items/{$productId}/variations/{$variationId}", $headers);
+                        $requestMap[count($requests) - 1] = ['type' => 'variation', 'order_index' => $orderIndex, 'item_index' => $itemIndex];
+                    }
+                }
             }
         }
 
-        return [
-            'items' => $processedItems,
-            'partial' => $partial,
-        ];
+        // Ejecutar todas las peticiones usando Pool
+        $responses = [];
+        $pool = new Pool($this->guzzleClient, $requests, [
+            'concurrency' => 10, // Número de peticiones concurrentes
+            'fulfilled' => function ($response, $index) use (&$responses) {
+                $responses[$index] = [
+                    'success' => true,
+                    'data' => json_decode($response->getBody()->getContents(), true)
+                ];
+            },
+            'rejected' => function (RequestException $reason, $index) use (&$responses) {
+                $responses[$index] = [
+                    'success' => false,
+                    'error' => $reason->getMessage()
+                ];
+                Log::warning('Petición fallida', ['index' => $index, 'error' => $reason->getMessage()]);
+            },
+        ]);
+
+        try {
+            // Ejecutar el pool de peticiones
+            $promise = $pool->promise();
+            $promise->wait();
+
+            // Organizar respuestas por tipo
+            $shipmentData = [];
+            $historyData = [];
+            $productData = [];
+            $variationData = [];
+
+            foreach ($responses as $index => $response) {
+                if (!$response['success']) {
+                    continue;
+                }
+
+                $mapInfo = $requestMap[$index];
+                $key = $mapInfo['order_index'];
+
+                switch ($mapInfo['type']) {
+                    case 'shipment':
+                        $shipmentData[$key] = $response['data'];
+                        break;
+                    case 'history':
+                        $historyData[$key] = $response['data'];
+                        break;
+                    case 'product':
+                        $productKey = "{$key}_{$mapInfo['item_index']}";
+                        $productData[$productKey] = $response['data'];
+                        break;
+                    case 'variation':
+                        $variationKey = "{$key}_{$mapInfo['item_index']}";
+                        $variationData[$variationKey] = $response['data'];
+                        break;
+                }
+            }
+
+            // Procesar resultados
+            foreach ($orders as $orderIndex => $order) {
+                $shippingId = $order['shipping']['id'] ?? null;
+
+                if (!$shippingId) {
+                    continue;
+                }
+
+                // Obtener información del envío
+                $shipmentInfo = $shipmentData[$orderIndex] ?? [];
+                $shippingStatus = $shipmentInfo['status'] ?? null;
+
+                // Verificar que el estado sea 'delivered'
+                if ($shippingStatus !== 'delivered') {
+                    Log::info('Pedido descartado - no está entregado', [
+                        'order_id' => $order['id'],
+                        'shipping_status' => $shippingStatus
+                    ]);
+                    continue;
+                }
+
+                // Verificación adicional: confirmar entrega en el historial
+                $isActuallyDelivered = false;
+                $shipmentHistoryRaw = $historyData[$orderIndex] ?? [];
+
+                if (!empty($shipmentHistoryRaw)) {
+                    $trackingEvents = [];
+
+                    if (isset($shipmentHistoryRaw['tracking']) && is_array($shipmentHistoryRaw['tracking'])) {
+                        $trackingEvents = $shipmentHistoryRaw['tracking'];
+                    } elseif (is_array($shipmentHistoryRaw) && isset($shipmentHistoryRaw[0]['date'])) {
+                        $trackingEvents = $shipmentHistoryRaw;
+                    }
+
+                    // Buscar evento de entrega en el historial
+                    foreach ($trackingEvents as $event) {
+                        if (isset($event['status']) && $event['status'] === 'delivered') {
+                            $isActuallyDelivered = true;
+                            break;
+                        }
+                    }
+                }
+
+                // Si no hay confirmación de entrega en el historial, descartar
+                if (!$isActuallyDelivered) {
+                    Log::info('Pedido descartado - no confirmado como entregado en historial', [
+                        'order_id' => $order['id'],
+                        'shipping_status' => $shippingStatus
+                    ]);
+                    continue;
+                }
+
+                // Obtener información del receptor y dirección
+                $receiverInfo = $shipmentInfo['receiver_address'] ?? [];
+                $clientName = $receiverInfo['receiver_name'] ?? 'N/A';
+                $receiverName = $receiverInfo['receiver_name'] ?? 'N/A';
+                $address = $this->formatAddress($receiverInfo);
+
+                // Obtener fecha de entrega del historial
+                $dateDelivered = null;
+                $shipmentHistory = $historyData[$orderIndex] ?? [];
+                $processedHistory = null;
+
+                if (!empty($shipmentHistory)) {
+                    // El historial viene en diferentes formatos, intentemos ambos
+                    $trackingEvents = [];
+
+                    // Formato 1: shipmentHistory['tracking']
+                    if (isset($shipmentHistory['tracking']) && is_array($shipmentHistory['tracking'])) {
+                        $trackingEvents = $shipmentHistory['tracking'];
+                    }
+                    // Formato 2: shipmentHistory es directamente un array de eventos
+                    elseif (is_array($shipmentHistory) && isset($shipmentHistory[0]['date'])) {
+                        $trackingEvents = $shipmentHistory;
+                    }
+
+                    // Buscar la fecha de entrega y obtener el último estado
+                    $lastStatus = null;
+                    $lastDate = null;
+
+                    foreach ($trackingEvents as $event) {
+                        if (isset($event['status']) && $event['status'] === 'delivered' && !$dateDelivered) {
+                            $dateDelivered = $event['date'] ?? null;
+                        }
+
+                        // Obtener el último evento para el historial
+                        if (isset($event['date'])) {
+                            $eventDate = strtotime($event['date']);
+                            if (!$lastDate || $eventDate > strtotime($lastDate)) {
+                                $lastDate = $event['date'];
+                                $lastStatus = $event['status'] ?? null;
+                            }
+                        }
+                    }
+
+                    // Crear el objeto de historial simplificado según la interface
+                    $processedHistory = [
+                        'status' => $this->translateShippingStatus($lastStatus ?? ''),
+                        'date_created' => $lastDate
+                    ];
+                }
+
+                // Obtener status actual y fecha actual (fuera del historial)
+                $currentStatus = $this->translateShippingStatus($shippingStatus);
+                $currentDate = Carbon::now()->toISOString();
+
+                // Procesar items de la orden
+                foreach ($order['order_items'] as $itemIndex => $item) {
+                    $productId = $item['item']['id'];
+                    $variationId = $item['item']['variation_id'] ?? 'N/A';
+                    $size = 'N/A';
+                    $sku = null;
+                    $skuSource = 'not_found';
+
+                    $productKey = "{$orderIndex}_{$itemIndex}";
+
+                    // Obtener detalles del producto
+                    if (isset($productData[$productKey])) {
+                        $sku = $this->extractSku($item, $productData[$productKey], $skuSource);
+                    }
+
+                    // Obtener información de variación si existe
+                    if ($variationId !== 'N/A' && isset($variationData[$productKey])) {
+                        foreach ($variationData[$productKey]['attribute_combinations'] ?? [] as $attribute) {
+                            if (in_array(strtolower($attribute['id']), ['size', 'talle'])) {
+                                $size = $attribute['value_name'];
+                                break;
+                            }
+                        }
+                    }
+
+                    $deliveredProducts[] = [
+                        'id' => $order['shipping']['id'],
+                        'order_id' =>$order['id'] ,
+                        'title' => $item['item']['title'],
+                        'quantity' => $item['quantity'],
+                        'size' => $size,
+                        'sku' => $sku ?: 'No se encuentra disponible en mercado libre',
+                        'shipment_history' => $processedHistory,
+                        'clientName' => $clientName,
+                        'address' => $address,
+                        'receiver_name' => $receiverName,
+                        'date_delivered' => $dateDelivered,
+                        'current_status' => $currentStatus,
+                        'current_date' => $currentDate,
+                    ];
+                }
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Error procesando peticiones asíncronas', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return [];
+        }
+
+        return $deliveredProducts;
     }
 
-    private function buildItemResult($item, $shippingId, $order, $commonData, $productData, $variationId)
+    private function translateShippingStatus($status)
     {
-        return [
-            'id' => $shippingId,
-            'order_id' => $order['id'],
-            'title' => $item['item']['title'],
-            'quantity' => $item['quantity'],
-            'size' => $this->getItemSize($productData['id'], $variationId),
-            'sku' => $this->extractSku($item, $productData),
-            'shipment_history' => $commonData['shipmentHistory'],
-            'clientName' => $commonData['clientName'],
-            'address' => $commonData['address'],
-            'receiver_name' => $commonData['receiverName'],
-            'date_delivered' => $commonData['dateDelivered'],
-        ];
-    }
+        if (empty($status)) {
+            return '';
+        }
 
-    private function getShipmentHistory($shippingId)
-    {
         $translations = [
             'pending' => 'pendiente',
-            'shipped' => 'enviado',
+            'shipped' => 'entregado',
             'delivered' => 'entregado',
             'not_delivered' => 'no entregado',
             'returned' => 'devuelto',
@@ -303,129 +384,89 @@ class GetDeliveredShipmentsController
             'handling' => 'en preparación',
         ];
 
-        try {
-            $response = $this->guzzleClient->get("shipments/{$shippingId}/history", [
-                'headers' => [
-                    'Authorization' => "Bearer {$this->accessToken}",
-                    'x-format-new' => 'true'
-                ],
-                'timeout' => 10
-            ]);
-
-            $data = json_decode($response->getBody(), true);
-            $status = $data['status'] ?? 'unknown';
-
-            return [
-                'status' => $translations[$status] ?? $status,
-                'date_created' => $data['date_created'] ?? null
-            ];
-
-        } catch (\Exception $e) {
-            Log::error("Error getting history for shipment {$shippingId}: " . $e->getMessage());
-            return ['status' => 'unknown', 'date_created' => null];
-        }
+        return $translations[strtolower($status)] ?? $status;
     }
 
-    private function getItemSize($productId, $variationId)
+    private function formatAddress($receiverInfo)
     {
-        if ($variationId === 'N/A') return 'N/A';
-
-        try {
-            $response = $this->guzzleClient->get("items/{$productId}/variations/{$variationId}", [
-                'headers' => ['Authorization' => "Bearer {$this->accessToken}"],
-                'timeout' => 5
-            ]);
-
-            $data = json_decode($response->getBody(), true);
-            foreach ($data['attribute_combinations'] ?? [] as $attribute) {
-                if (in_array(strtolower($attribute['id']), ['size', 'talle'])) {
-                    return $attribute['value_name'];
-                }
-            }
-        } catch (\Exception $e) {
-            Log::error("Error getting size for variation {$variationId}: " . $e->getMessage());
+        if (empty($receiverInfo)) {
+            return 'N/A';
         }
 
-        return 'N/A';
+        $addressParts = [];
+
+        // Agregar calle y número
+        if (!empty($receiverInfo['address_line'])) {
+            $addressParts[] = $receiverInfo['address_line'];
+        }
+
+        // Agregar número si existe por separado
+        if (!empty($receiverInfo['street_number'])) {
+            $addressParts[] = $receiverInfo['street_number'];
+        }
+
+        // Agregar barrio/zona
+        if (!empty($receiverInfo['neighborhood']['name'])) {
+            $addressParts[] = $receiverInfo['neighborhood']['name'];
+        }
+
+        // Agregar ciudad
+        if (!empty($receiverInfo['city']['name'])) {
+            $addressParts[] = $receiverInfo['city']['name'];
+        }
+
+        // Agregar estado/región
+        if (!empty($receiverInfo['state']['name'])) {
+            $addressParts[] = $receiverInfo['state']['name'];
+        }
+
+        // Agregar código postal
+        if (!empty($receiverInfo['zip_code'])) {
+            $addressParts[] = $receiverInfo['zip_code'];
+        }
+
+        return !empty($addressParts) ? implode(', ', $addressParts) : 'N/A';
     }
 
-    private function extractSku($item, $productData)
+    private function extractSku($item, $productData, &$skuSource)
     {
+        // 1. Primero buscar en seller_custom_field del ítem del pedido
         $sku = $item['item']['seller_custom_field'] ?? null;
-
-        if (empty($sku) && isset($productData['seller_sku'])) {
-            $sku = $productData['seller_sku'];
+        if (!empty($sku)) {
+            $skuSource = 'seller_custom_field';
+            return $sku;
         }
 
-        if (empty($sku) && isset($productData['attributes'])) {
+        // 2. Si no está, buscar en seller_sku del producto
+        if (isset($productData['seller_sku']) && !empty($productData['seller_sku'])) {
+            $skuSource = 'seller_sku';
+            return $productData['seller_sku'];
+        }
+
+        // 3. Si aún no se encontró, buscar en los atributos del producto
+        if (isset($productData['attributes'])) {
             foreach ($productData['attributes'] as $attribute) {
                 if (in_array(strtolower($attribute['id']), ['seller_sku', 'sku', 'codigo', 'reference', 'product_code']) ||
                     in_array(strtolower($attribute['name']), ['sku', 'código', 'referencia', 'codigo', 'código de producto'])) {
-                    $sku = $attribute['value_name'];
-                    break;
+                    $skuSource = 'attributes';
+                    return $attribute['value_name'];
                 }
             }
         }
 
-        if (empty($sku) && isset($productData['attributes'])) {
+        // 4. Si sigue sin encontrarse, intentar con el modelo como último recurso
+        if (isset($productData['attributes'])) {
             foreach ($productData['attributes'] as $attribute) {
                 if (strtolower($attribute['id']) === 'model' ||
                     strtolower($attribute['name']) === 'modelo') {
-                    $sku = $attribute['value_name'];
-                    break;
+                    $skuSource = 'model_fallback';
+                    return $attribute['value_name'];
                 }
             }
         }
 
-        return $sku ?: 'No se encuentra disponible en mercado libre';
-    }
-
-    private function getClientName($order)
-    {
-        if (isset($order['buyer']['nickname'])) {
-            return $order['buyer']['nickname'];
-        }
-
-        if (isset($order['buyer']['first_name']) && isset($order['buyer']['last_name'])) {
-            return trim($order['buyer']['first_name'] . ' ' . $order['buyer']['last_name']);
-        }
-
-        return null;
-    }
-
-    private function getAddress($shipmentInfo)
-    {
-        if (!isset($shipmentInfo['receiver_address']) || !is_array($shipmentInfo['receiver_address'])) {
-            return null;
-        }
-
-        $receiverAddress = $shipmentInfo['receiver_address'];
-        return implode(', ', array_filter([
-            $receiverAddress['street_name'] ?? null,
-            $receiverAddress['street_number'] ?? null,
-            $receiverAddress['city']['name'] ?? null,
-            $receiverAddress['state']['name'] ?? null,
-            $receiverAddress['zip_code'] ?? null
-        ]));
-    }
-
-    private function getReceiverName($shipmentInfo)
-    {
-        return $shipmentInfo['receiver_address']['receiver_name'] ?? null;
-    }
-
-    private function getDeliveryDate($shipmentInfo)
-    {
-        if (!isset($shipmentInfo['status_history']) || !is_array($shipmentInfo['status_history'])) {
-            return null;
-        }
-
-        foreach ($shipmentInfo['status_history'] as $historyItem) {
-            if (isset($historyItem['status']) && $historyItem['status'] === 'delivered') {
-                return $historyItem['date_created'] ?? null;
-            }
-        }
-
+        // 5. No se encontró SKU
+        $skuSource = 'not_found';
         return null;
     }
 }

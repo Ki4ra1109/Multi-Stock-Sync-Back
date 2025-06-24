@@ -54,11 +54,11 @@ class getProductsToDispatchController
 
         $userId = $response->json()['id'];
 
-       
+
         $dateFrom = Carbon::now()->format('Y-m-d\T00:00:00.000-00:00');
         $dateTo = Carbon::now()->format('Y-m-d\T23:59:59.999-00:00');
 
-        
+
         $perPage = 50;
         $page = 1;
 
@@ -107,7 +107,7 @@ class getProductsToDispatchController
                 $shipmentInfo = $shipmentInfoResponse->successful() ? $shipmentInfoResponse->json() : [];
                 $shippingStatus = $shipmentInfo['status'] ?? null;
 
-                
+
                 if (!in_array($shippingStatus, ['ready_to_ship', 'handling', 'shipped'])) {
                     Log::info('Pedido descartado por estado de envío', [
                         'order_id' => $order['id'],
