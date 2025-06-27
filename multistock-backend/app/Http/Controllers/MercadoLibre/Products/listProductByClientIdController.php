@@ -16,7 +16,7 @@ class listProductByClientIdController
 
     public function listProductsByClientId($clientId)
     {
-        ini_set('max_execution_time', 900); // 15 minutos
+        ini_set('max_execution_time', 600); // 10 minutos
 
         $statusDictionary = [
             'active' => 'Activo',
@@ -167,17 +167,24 @@ class listProductByClientIdController
 
                     // Procesar en lotes de 20
                     $itemBatches = array_chunk($newIds, 20);
-                    foreach ($itemBatches as $batch) {
-                        try {
-                            $batchIds = implode(',', $batch);
-                            $itemResponse = $client->get('https://api.mercadolibre.com/items', [
-                                'query' => [
-                                    'ids' => $batchIds,
-                                    'attributes' => 'id,title,price,currency_id,available_quantity,sold_quantity,thumbnail,permalink,status,category_id'
-                                ]
-                            ]);
+                    $promises = [];
 
-                            $itemData = json_decode($itemResponse->getBody(), true);
+                    foreach ($itemBatches as $batch) {
+                        $batchIds = implode(',', $batch);
+                        $promises[] = $client->getAsync('https://api.mercadolibre.com/items', [
+                            'query' => [
+                                'ids' => $batchIds,
+                                'attributes' => 'id,title,price,currency_id,available_quantity,sold_quantity,thumbnail,permalink,status,category_id'
+                            ]
+                        ]);
+                    }
+
+                    // Esperar todas las respuestas en paralelo
+                    $responses = Promise\Utils::settle($promises)->wait();
+
+                    foreach ($responses as $response) {
+                        if ($response['state'] === 'fulfilled') {
+                            $itemData = json_decode($response['value']->getBody(), true);
                             foreach ($itemData as $itemResult) {
                                 if (isset($itemResult['code']) && $itemResult['code'] == 200) {
                                     $id = $itemResult['body']['id'];
@@ -202,14 +209,9 @@ class listProductByClientIdController
                                     $successCount++;
                                 }
                             }
-                        } catch (\Exception $e) {
-                            Log::error("Error procesando lote", [
-                                'error' => $e->getMessage(),
-                                'batch_size' => count($batch)
-                            ]);
-                            $errorCount += count($batch);
+                        } else {
+                            $errorCount += 20; // O cuenta los errores según el batch
                         }
-                        usleep(100000); // 100ms entre lotes de 20
                     }
                     
                     Log::info("Progreso", [
