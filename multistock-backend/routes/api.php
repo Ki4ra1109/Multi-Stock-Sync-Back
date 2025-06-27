@@ -144,6 +144,7 @@ Route::post('/login', [AuthController::class, 'login']); // Iniciar sesión de u
 Route::post('/users', [UserController::class, 'store']); // Crear usuario
 Route::get('/users/{id}', [UserController::class, 'show']);
 
+
 // Rutas protegidas
 Route::middleware('auth:sanctum')->group(function () {
 Route::post('/logout', [AuthController::class, 'logout']); // Cerrar sesión
