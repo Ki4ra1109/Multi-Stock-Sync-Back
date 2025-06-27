@@ -173,7 +173,7 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::post('/roles/nuevo', [RolController::class, 'store']); // Crear rol
     Route::delete('/roles/{id}', [RolController::class, 'destroy']); // Eliminar rol
     Route::put('/roles/{id}', [RolController::class, 'update']); // Actualizar rol
-
+    
     // SINCRONIZACIÓN
     Route::post('/sincronizar', [SyncStatusController::class, 'iniciarSincronizacion']); // Iniciar sincronización
     Route::get('/estado-sincronizacion', [SyncStatusController::class, 'estadoSincronizacion']); // Estado de sincronización
