@@ -128,10 +128,23 @@ class UserController extends Controller
      */
     public function delete($id)
     {
-        $user = User::find($id);
+        $user = User::with('rol')->find($id);
 
         if (!$user) {
             return response()->json(['message' => 'Usuario no encontrado'], 404);
+        }
+
+       
+        if (
+            $user->rol &&
+            (
+                ($user->rol->nombre === 'admin' && $user->rol->is_master) ||
+                strtolower($user->rol->nombre) === 'admin master'
+            )
+        ) {
+            return response()->json([
+                'message' => 'No se puede eliminar el usuario admin master.'
+            ], 403);
         }
 
         $user->delete();
