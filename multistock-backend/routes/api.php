@@ -187,7 +187,7 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::delete('/clientes/{id}', [ClientesController::class, 'destroy']); // Eliminar cliente
 
     // BODEGAS (CRUD completo)
-    Route::get("/warehouses-list", [warehouseListAllController::class, 'warehouse_list_all']);
+    Route::get("/warehouses-list", warehouseListAllController::class);
     Route::get('/warehouses/{id}', [warehouseShowByIdController::class, 'warehouse_show']); // Ver bodega específica
     Route::post('/warehouses', [warehouseNewWarehouseStoreController::class, 'warehouse_store']); // Crear bodega
     Route::patch('/warehouses/{id}', [warehouseUpdateDetailsController::class, 'warehouse_update']); // Actualizar bodega
