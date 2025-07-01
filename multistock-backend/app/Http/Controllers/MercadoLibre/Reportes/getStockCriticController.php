@@ -185,13 +185,18 @@ class getStockCriticController
             $initialData = $initialResponse->json();
             $totalItems = $initialData['paging']['total'] ?? 0;
             $scrollId = $initialData['scroll_id'] ?? null;
+            $processedCount = 0;
+            $retryCount = 0;
+            $maxRetries = 3;
+            $emptyBatchCount = 0;
+            $maxEmptyBatches = 5;
 
-            Log::info("Starting product scan", [
-                'total_products' => $totalItems,
+            Log::info("Iniciando obtención de productos con scan", [
+                'total_productos' => $totalItems,
                 'scroll_id' => $scrollId
             ]);
 
-            while ($hasMore && $scrollId) {
+            while ($processedCount < $totalItems && $retryCount < $maxRetries && $emptyBatchCount < $maxEmptyBatches) {
                 try {
                     $response = Http::withToken($credentials->access_token)
                         ->get("https://api.mercadolibre.com/users/{$userId}/items/search", [
@@ -201,89 +206,134 @@ class getStockCriticController
                         ]);
 
                     if ($response->failed()) {
-                        Log::error("Scroll request failed", [
+                        Log::error("Error en solicitud de scroll", [
                             'scroll_id' => $scrollId,
-                            'response' => $response->json()
+                            'response' => $response->json(),
+                            'retry_count' => $retryCount
                         ]);
-                        $errorCount++;
-                        break;
+                        $retryCount++;
+                        usleep(100000); // 100ms pause before retry
+                        continue;
                     }
 
                     $data = $response->json();
                     $items = $data['results'] ?? [];
                     $scrollId = $data['scroll_id'] ?? null;
 
-                    if (empty($items) || !$scrollId) {
-                        $hasMore = false;
-                        continue;
-                    }
-
-                    // Filtrar IDs ya procesados y preparar promesas
-                    $newIds = array_filter($items, function($id) use ($processedIds) {
-                        return !isset($processedIds[$id]);
-                    });
-
-                    if (empty($newIds)) {
-                        continue;
-                    }
-
-                    // Crear lotes de promesas para procesamiento paralelo
-                    $promises = [];
-                    foreach (array_chunk($newIds, 20) as $batch) {
-                        $batchIds = implode(',', $batch);
-                        $promises[] = $client->getAsync('https://api.mercadolibre.com/items', [
-                            'query' => [
-                                'ids' => $batchIds,
-                                'attributes' => 'id,title,available_quantity,price,permalink'
-                            ]
-                        ]);
-                    }
-
-                    // Ejecutar promesas en paralelo
-                    $responses = Promise\Utils::settle($promises)->wait();
-                    foreach ($responses as $response) {
-                        if ($response['state'] === 'fulfilled') {
-                            $batchResults = json_decode($response['value']->getBody(), true);
-                            foreach ($batchResults as $itemResult) {
-                                if (
-                                    isset($itemResult['code']) &&
-                                    $itemResult['code'] == 200 &&
-                                    isset($itemResult['body']['available_quantity']) &&
-                                    $itemResult['body']['available_quantity'] <= 5
-                                ) {
-                                    $productsStock[] = [
-                                        'id' => $itemResult['body']['id'],
-                                        'title' => $itemResult['body']['title'],
-                                        'available_quantity' => $itemResult['body']['available_quantity'],
-                                        'price' => $itemResult['body']['price'] ?? null,
-                                        'permalink' => $itemResult['body']['permalink'] ?? null
-                                    ];
-                                    $successCount++;
-                                }
-                                $processedIds[$itemResult['body']['id']] = true;
-                            }
-                        } else {
-                            Log::error("Error in promise", [
-                                'reason' => $response['reason']
+                    if (empty($items)) {
+                        $emptyBatchCount++;
+                        if ($processedCount < $totalItems) {
+                            Log::warning("Lote vacío recibido", [
+                                'processed' => $processedCount,
+                                'total' => $totalItems,
+                                'empty_batches' => $emptyBatchCount,
+                                'retry_count' => $retryCount
                             ]);
-                            $errorCount++;
+                            
+                            if ($emptyBatchCount >= 3) {
+                                // Intentar obtener nuevo scroll_id después de varios lotes vacíos
+                                $newScrollResponse = Http::withToken($credentials->access_token)
+                                    ->get("https://api.mercadolibre.com/users/{$userId}/items/search", [
+                                        'search_type' => 'scan',
+                                        'limit' => $this->batchSize
+                                    ]);
+                                
+                                if ($newScrollResponse->successful()) {
+                                    $newData = $newScrollResponse->json();
+                                    $newScrollId = $newData['scroll_id'] ?? null;
+                                    if ($newScrollId && $newScrollId !== $scrollId) {
+                                        Log::info("Nuevo scroll_id obtenido", ['scroll_id' => $newScrollId]);
+                                        $scrollId = $newScrollId;
+                                        $emptyBatchCount = 0; // Reset empty batch count
+                                        $retryCount = 0; // Reset retry count
+                                    }
+                                }
+                            }
+                            usleep(100000); // 100ms pause
+                            continue;
+                        }
+                        break; // Si ya procesamos todo, salir del loop
+                    }
+
+                    // Reset counters on successful batch
+                    $emptyBatchCount = 0;
+                    $retryCount = 0;
+
+                    // Procesar items en paralelo
+                    $promises = [];
+                    foreach ($items as $item) {
+                        if (!in_array($item, $processedIds)) {
+                            $promises[] = $client->getAsync("https://api.mercadolibre.com/items/{$item}");
+                            $processedIds[] = $item;
                         }
                     }
 
-                    Log::info("Progress update", [
-                        'total_products' => $totalItems,
-                        'processed' => count($processedIds),
-                        'critical_stock' => count($productsStock),
-                        'percentage' => round((count($processedIds) / $totalItems) * 100, 2) . '%'
+                    if (empty($promises)) {
+                        $emptyBatchCount++;
+                        continue;
+                    }
+
+                    $results = Promise\Utils::settle($promises)->wait();
+                    $batchSuccess = 0;
+                    foreach ($results as $result) {
+                        if ($result['state'] === 'fulfilled') {
+                            $itemData = json_decode($result['value']->getBody(), true);
+                            if ($itemData['available_quantity'] <= 5) {
+                                $productsStock[] = [
+                                    'id' => $itemData['id'],
+                                    'title' => $itemData['title'],
+                                    'stock' => $itemData['available_quantity'],
+                                    'price' => $itemData['price'],
+                                    'permalink' => $itemData['permalink'],
+                                    'thumbnail' => $itemData['thumbnail']
+                                ];
+                            }
+                            $batchSuccess++;
+                            $successCount++;
+                        } else {
+                            $errorCount++;
+                            Log::error("Error al obtener detalles del item", [
+                                'error' => $result['reason']->getMessage()
+                            ]);
+                        }
+                    }
+
+                    if ($batchSuccess === 0) {
+                        $emptyBatchCount++;
+                    }
+
+                    $processedCount = count($processedIds);
+                    $percentage = ($processedCount / $totalItems) * 100;
+
+                    Log::info("Progreso de procesamiento", [
+                        'processed' => $processedCount,
+                        'total' => $totalItems,
+                        'percentage' => round($percentage, 2) . '%',
+                        'success' => $successCount,
+                        'errors' => $errorCount,
+                        'empty_batches' => $emptyBatchCount
                     ]);
 
-                    usleep(100000); // 100ms entre lotes para evitar rate limiting
+                    usleep(100000); // 100ms pause between batches
+
                 } catch (\Exception $e) {
-                    Log::error("Error in scroll iteration", [
+                    Log::error("Error en el procesamiento del lote", [
                         'error' => $e->getMessage(),
-                        'scroll_id' => $scrollId
+                        'retry_count' => $retryCount,
+                        'empty_batches' => $emptyBatchCount
                     ]);
+                    $retryCount++;
+                    usleep(100000); // 100ms pause before retry
                 }
+            }
+
+            if ($processedCount < $totalItems) {
+                Log::warning("Proceso terminado sin completar todos los productos", [
+                    'processed' => $processedCount,
+                    'total' => $totalItems,
+                    'empty_batches' => $emptyBatchCount,
+                    'retries' => $retryCount
+                ]);
             }
 
             $responseData = [
@@ -298,12 +348,13 @@ class getStockCriticController
                 ]
             ];
 
-            Log::info("Process completed", [
+            Log::info("Proceso completado", [
                 'total_products' => $totalItems,
-                'processed' => count($processedIds),
+                'processed' => $processedCount,
                 'critical_stock' => count($productsStock),
-                'success_count' => $successCount,
-                'error_count' => $errorCount
+                'success' => $successCount,
+                'errors' => $errorCount,
+                'empty_batches' => $emptyBatchCount
             ]);
 
             Cache::put($cacheKey, $responseData, now()->addMinutes(10));
@@ -487,7 +538,7 @@ class getStockCriticController
         foreach ($productos as $producto) {
             $sheet->setCellValue('A' . $row, $producto['id']);
             $sheet->setCellValue('B' . $row, $producto['title']);
-            $sheet->setCellValue('C' . $row, $producto['available_quantity']);
+            $sheet->setCellValue('C' . $row, $producto['stock']);
             $sheet->setCellValue('D' . $row, $producto['price'] ?? 'N/A');
 
             // Crear un enlace clicable si existe permalink
@@ -501,7 +552,7 @@ class getStockCriticController
             }
 
             // aplicar color rojo cuando stock es menor o igual a 2
-            if ($producto['available_quantity'] <= 2) {
+            if ($producto['stock'] <= 2) {
                 $sheet->getStyle('C' . $row)->getFont()->getColor()->setRGB('FF0000');
                 $sheet->getStyle('C' . $row)->getFont()->setBold(true);
             }
