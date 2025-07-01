@@ -65,4 +65,15 @@ class getProductosExcelController extends Controller
             'data' => $productos
         ]);
     }
+    public function redirigir()
+    {
+        
+        $totalProductos = 100;
+        $mensaje = "Carga masiva completada correctamente.";
+
+        return view('mercadolibre.carga_masiva', [
+            'totalProductos' => $totalProductos,
+            'mensaje' => $mensaje
+        ]);
+    }
 }
