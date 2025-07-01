@@ -22,43 +22,42 @@ use Illuminate\Support\Facades\File;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Promise;
+use GuzzleHttp\Pool;
+use GuzzleHttp\Psr7\Request as GuzzleRequest;
 
 class getStockCriticController
 {
-
+    private $batchSize = 100; // Aumentamos el tamaño del lote para reducir el número de llamadas
+    private $maxConcurrent = 5; // Número máximo de solicitudes concurrentes
 
     public function getStockCritic(Request $request, $clientId)
     {
-
-
-        set_time_limit(180);
+        set_time_limit(240); // 4 minutos máximo
         try {
             $validatedData = $request->validate([
                 'excel' => 'sometimes|max:4',
                 'mail' => 'sometimes|email|max:255',
             ]);
             $excel = false;
-            $mail=null;
+            $mail = null;
             if (isset($validatedData['excel'])) {
                 $excel = $request->boolean('excel');
-                error_log("excel " . json_encode($excel));
+                Log::info("Excel output requested", ['excel' => $excel]);
             }
             if (isset($validatedData['mail'])) {
                 $mail = $validatedData['mail'];
-                error_log("mail " . json_encode($mail));
+                Log::info("Mail output requested", ['mail' => $mail]);
             }
         } catch (\Exception $e) {
-            // Log the error message
-            error_log('Error en getStockCriticController: ' . $e->getMessage());
-            // You can also log the stack trace for debugging purposes
-            error_log('Stack Trace: ' . $e->getTraceAsString());
+            Log::error('Error en validación de datos:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'status' => 'error',
-                'message' => 'Error al procesar la solicitud.' . $e->getMessage(),
+                'message' => 'Error al procesar la solicitud: ' . $e->getMessage(),
             ], 500);
         }
-
-
 
         if (empty($clientId) || !is_numeric($clientId)) {
             return response()->json([
@@ -67,12 +66,10 @@ class getStockCriticController
             ], 400);
         }
 
-
         $cacheKey = "mercado_libre:stock_critic:{$clientId}";
 
-
         if (Cache::has($cacheKey)) {
-            error_log("entro a cache download");
+            Log::info("Returning cached data for client", ['client_id' => $clientId]);
             $cachedData = Cache::get($cacheKey);
 
             if ($excel == true) {
@@ -80,7 +77,6 @@ class getStockCriticController
             } else if ($mail) {
                 return $this->reportStockCriticMail($cachedData, $mail);
             } else {
-                // Ni excel ni mail fueron solicitados, devolver los datos en JSON
                 return response()->json([
                     'status' => 'success',
                     'message' => 'Datos obtenidos de cache',
@@ -89,25 +85,30 @@ class getStockCriticController
                 ]);
             }
         }
-        //Validar y obtener credenciales
+
         $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
-        error_log("credentials " . json_encode($credentials));
         if (!$credentials) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'No se encontraron credenciales válidas para el client_id proporcionado.',
             ], 404);
         }
+
         try {
             if ($credentials->isTokenExpired()) {
+                Log::info("Refreshing expired token for client", ['client_id' => $clientId]);
                 $refreshResponse = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
                     'grant_type' => 'refresh_token',
                     'client_id' => $credentials->client_id,
                     'client_secret' => $credentials->client_secret,
                     'refresh_token' => $credentials->refresh_token,
                 ]);
-                // Si la solicitud falla, devolver un mensaje de error
+
                 if ($refreshResponse->failed()) {
+                    Log::error("Token refresh failed", [
+                        'client_id' => $clientId,
+                        'response' => $refreshResponse->json()
+                    ]);
                     return response()->json([
                         'status' => 'error',
                         'message' => 'El token ha expirado y no se pudo refrescar',
@@ -118,119 +119,118 @@ class getStockCriticController
                 $newTokenData = $refreshResponse->json();
                 $credentials->access_token = $newTokenData['access_token'];
                 $credentials->refresh_token = $newTokenData['refresh_token'] ?? $credentials->refresh_token;
-                $credentials->expires_in = $newTokenData['expires_in'];
+                $credentials->expires_at = now()->addSeconds($newTokenData['expires_in']);
                 $credentials->updated_at = now();
                 $credentials->save();
             }
         } catch (\Exception $e) {
+            Log::error("Error refreshing token", [
+                'client_id' => $clientId,
+                'error' => $e->getMessage()
+            ]);
             return response()->json([
                 'status' => 'error',
                 'message' => 'Error al refrescar token: ' . $e->getMessage(),
             ], 500);
         }
-        // Comprobar si el token ha expirado y refrescarlo si es necesario
-
 
         $userResponse = Http::withToken($credentials->access_token)
             ->get('https://api.mercadolibre.com/users/me');
 
-        // If it fails by token, try refreshing again
-        if ($userResponse->status() === 401) {
-            $refreshResponse = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
-                'grant_type' => 'refresh_token',
-                'client_id' => $credentials->client_id,
-                'client_secret' => $credentials->client_secret,
-                'refresh_token' => $credentials->refresh_token,
-            ]);
-
-            if ($refreshResponse->failed()) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'El token ha expirado y no se pudo refrescar',
-                    'error' => $refreshResponse->json(),
-                ], 401);
-            }
-
-            $newTokenData = $refreshResponse->json();
-            $credentials->access_token = $newTokenData['access_token'];
-            $credentials->refresh_token = $newTokenData['refresh_token'] ?? $credentials->refresh_token;
-            $credentials->expires_in = $newTokenData['expires_in'];
-            $credentials->updated_at = now();
-            $credentials->save();
-
-            // Retry the request
-            $userResponse = Http::withToken($credentials->access_token)->get('https://api.mercadolibre.com/users/me');
-        }
-
         if ($userResponse->failed()) {
+            Log::error("Failed to get user info", [
+                'client_id' => $clientId,
+                'response' => $userResponse->json()
+            ]);
             return response()->json([
                 'status' => 'error',
                 'message' => 'No se pudo obtener el ID del usuario.',
                 'error' => $userResponse->json(),
             ], 500);
         }
-        error_log("userResponse " . json_encode($userResponse));
-        // Obtener el ID del usuario
+
         $userId = $userResponse->json()['id'];
-        $limit = 100;
-        $offset = 0;
-        $totalItems = 0;
         $productsStock = [];
         $processedIds = [];
+        $successCount = 0;
+        $errorCount = 0;
+        $hasMore = true;
+        $scrollId = null;
 
-        // Construir la URL base
-        $baseUrl = "https://api.mercadolibre.com/users/{$userId}/items/search";
         try {
-
-            $maxProductos = 1000; // Ajustar según necesidades (1000 es el maximo)
-            $productosProcessed = 0; //contador de productos para terminar la ejecucion el caso de alcanzar $maxProductos
-            //se setea los headers y el tiempo de espera de la conexion asyncrona
             $client = new Client([
                 'timeout' => 30,
                 'headers' => [
                     'Authorization' => 'Bearer ' . $credentials->access_token
                 ]
             ]);
-            do {
-                // se arma la url para obtener lotes de IDs de productos para consultar a travez de ids
-                $searchUrl = $baseUrl . (strpos($baseUrl, '?') !== false ? '&' : '?') .
-                    http_build_query(['limit' => $limit, 'offset'=> $offset]);
-                error_log("URL: {$searchUrl}");
-                $response = Http::timeout(30)->withToken($credentials->access_token)->get($searchUrl);
-                if ($response->failed()) {
-                    return response()->json([
-                        'status' => 'error',
-                        'message' => 'Error al conectar con la API de MercadoLibre.',
-                        'error' => $response->json(),
-                        'request_url' => $searchUrl,
-                    ], $response->status());
-                }
-                $json = $response->json();
-                $items = $json['results'] ?? [];
-                $total = $json['paging']['total'] ?? 0;
 
-                if (empty($items)) {
-                    break; // No hay más items para procesar
-                }
+            $initialResponse = Http::withToken($credentials->access_token)
+                ->get("https://api.mercadolibre.com/users/{$userId}/items/search", [
+                    'search_type' => 'scan',
+                    'limit' => $this->batchSize
+                ]);
 
-                //se separan los 100 items de la peticion en grupos de 20 que es el maximo
-                // de items que se pueden pedir a la vez
-                $itemBatches = array_chunk($items, 20);
-                $totalItems += count($items);
-                $productosProcessed += count($items);
+            if ($initialResponse->failed()) {
+                Log::error("Initial scan request failed", [
+                    'response' => $initialResponse->json()
+                ]);
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Error al iniciar la búsqueda de productos',
+                    'details' => $initialResponse->json()
+                ], 500);
+            }
 
-                // Solucion azyncrona mmultiples peticiones paralelas
-                foreach ($itemBatches as $batch) {
-                    // Filtrar IDs ya procesados
-                    $uniqueBatch = array_diff($batch, $processedIds);
-                    $processedIds = array_merge($processedIds, $uniqueBatch);
+            $initialData = $initialResponse->json();
+            $totalItems = $initialData['paging']['total'] ?? 0;
+            $scrollId = $initialData['scroll_id'] ?? null;
 
-                    if (empty($uniqueBatch)) continue;
+            Log::info("Starting product scan", [
+                'total_products' => $totalItems,
+                'scroll_id' => $scrollId
+            ]);
 
-                    // Crear promesas para peticiones paralelas
+            while ($hasMore && $scrollId) {
+                try {
+                    $response = Http::withToken($credentials->access_token)
+                        ->get("https://api.mercadolibre.com/users/{$userId}/items/search", [
+                            'search_type' => 'scan',
+                            'scroll_id' => $scrollId,
+                            'limit' => $this->batchSize
+                        ]);
+
+                    if ($response->failed()) {
+                        Log::error("Scroll request failed", [
+                            'scroll_id' => $scrollId,
+                            'response' => $response->json()
+                        ]);
+                        $errorCount++;
+                        break;
+                    }
+
+                    $data = $response->json();
+                    $items = $data['results'] ?? [];
+                    $scrollId = $data['scroll_id'] ?? null;
+
+                    if (empty($items) || !$scrollId) {
+                        $hasMore = false;
+                        continue;
+                    }
+
+                    // Filtrar IDs ya procesados y preparar promesas
+                    $newIds = array_filter($items, function($id) use ($processedIds) {
+                        return !isset($processedIds[$id]);
+                    });
+
+                    if (empty($newIds)) {
+                        continue;
+                    }
+
+                    // Crear lotes de promesas para procesamiento paralelo
                     $promises = [];
-                    foreach (array_chunk($uniqueBatch, 20) as $subBatch) {
-                        $batchIds = implode(',', $subBatch);
+                    foreach (array_chunk($newIds, 20) as $batch) {
+                        $batchIds = implode(',', $batch);
                         $promises[] = $client->getAsync('https://api.mercadolibre.com/items', [
                             'query' => [
                                 'ids' => $batchIds,
@@ -239,70 +239,79 @@ class getStockCriticController
                         ]);
                     }
 
-                    // Ejecutar todas las promesas en paralelo
-                    try {
-                        $responses = Promise\Utils::unwrap($promises);
-
-                        // Procesar cada respuesta de las promesas
-                        foreach ($responses as $response) {
-                            if ($response->getStatusCode() == 200) {
-                                $batchResults = json_decode($response->getBody()->getContents(), true);
-
-                                // Validar que batchResults sea un array antes de procesarlo
-                                if (!is_array($batchResults)) {
-                                    error_log("Error: La respuesta no es un array válido: " . $response->getBody());
-                                    continue;
+                    // Ejecutar promesas en paralelo
+                    $responses = Promise\Utils::settle($promises)->wait();
+                    foreach ($responses as $response) {
+                        if ($response['state'] === 'fulfilled') {
+                            $batchResults = json_decode($response['value']->getBody(), true);
+                            foreach ($batchResults as $itemResult) {
+                                if (
+                                    isset($itemResult['code']) &&
+                                    $itemResult['code'] == 200 &&
+                                    isset($itemResult['body']['available_quantity']) &&
+                                    $itemResult['body']['available_quantity'] <= 5
+                                ) {
+                                    $productsStock[] = [
+                                        'id' => $itemResult['body']['id'],
+                                        'title' => $itemResult['body']['title'],
+                                        'available_quantity' => $itemResult['body']['available_quantity'],
+                                        'price' => $itemResult['body']['price'] ?? null,
+                                        'permalink' => $itemResult['body']['permalink'] ?? null
+                                    ];
+                                    $successCount++;
                                 }
-
-                                // Procesar los resultados
-                                foreach ($batchResults as $itemResult) {
-                                    if (
-                                        isset($itemResult['code']) &&
-                                        $itemResult['code'] == 200 &&
-                                        isset($itemResult['body']['available_quantity']) &&
-                                        $itemResult['body']['available_quantity'] <= 5
-                                    ) {
-                                        $productsStock[] = [
-                                            'id' => $itemResult['body']['id'],
-                                            'title' => $itemResult['body']['title'],
-                                            'available_quantity' => $itemResult['body']['available_quantity'],
-                                            'price' => $itemResult['body']['price'] ?? null,
-                                            'permalink' => $itemResult['body']['permalink'] ?? null
-                                        ];
-                                    }
-                                }
-                            } else {
-                                error_log("Respuesta de API con estado no exitoso: " . $response->getStatusCode());
+                                $processedIds[$itemResult['body']['id']] = true;
                             }
+                        } else {
+                            Log::error("Error in promise", [
+                                'reason' => $response['reason']
+                            ]);
+                            $errorCount++;
                         }
-                    } catch (\Exception $e) {
-                        error_log("Error en peticiones asincrónicas: " . $e->getMessage());
-                        error_log("Traza del error: " . $e->getTraceAsString());
                     }
+
+                    Log::info("Progress update", [
+                        'total_products' => $totalItems,
+                        'processed' => count($processedIds),
+                        'critical_stock' => count($productsStock),
+                        'percentage' => round((count($processedIds) / $totalItems) * 100, 2) . '%'
+                    ]);
+
+                    usleep(100000); // 100ms entre lotes para evitar rate limiting
+                } catch (\Exception $e) {
+                    Log::error("Error in scroll iteration", [
+                        'error' => $e->getMessage(),
+                        'scroll_id' => $scrollId
+                    ]);
                 }
-
-
-                $offset += $limit;
-
-                // terminar si se procesaron todos los productos
-                if ($productosProcessed >= $maxProductos) {
-                    break;
-                }
-            } while ($offset < $total);
+            }
 
             $responseData = [
-                'total_items_processed' => $totalItems,
+                'total_items_processed' => count($processedIds),
+                'success_count' => $successCount,
+                'error_count' => $errorCount,
                 'products_count' => count($productsStock),
-                'productos' => $productsStock
-
+                'productos' => $productsStock,
+                'details' => [
+                    'total_available' => $totalItems,
+                    'completion_percentage' => round((count($processedIds) / $totalItems) * 100, 2) . '%'
+                ]
             ];
 
+            Log::info("Process completed", [
+                'total_products' => $totalItems,
+                'processed' => count($processedIds),
+                'critical_stock' => count($productsStock),
+                'success_count' => $successCount,
+                'error_count' => $errorCount
+            ]);
 
             Cache::put($cacheKey, $responseData, now()->addMinutes(10));
-            if (isset($validatedData['excel']) && $excel == true) {
-                return $this->reportStockCriticExcel($productsStock);
+
+            if ($excel == true) {
+                return $this->reportStockCriticExcel($responseData);
             } else if ($mail) {
-                return $this->reportStockCriticMail($productsStock, $mail);
+                return $this->reportStockCriticMail($responseData, $mail);
             } else {
                 return response()->json([
                     'status' => 'success',
@@ -311,13 +320,19 @@ class getStockCriticController
                     'from_cache' => false
                 ], 200);
             }
+
         } catch (\Exception $e) {
+            Log::error("General error in getStockCritic", [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'status' => 'error',
                 'message' => 'Error al procesar datos: ' . $e->getMessage(),
             ], 500);
         }
     }
+
     private function reportStockCriticMail($result, $email = null)
     {
         try {
@@ -380,12 +395,9 @@ class getStockCriticController
         }
     }
 
-
     private function reportStockCriticExcel($result)
     {
         try {
-
-
             if (!empty($result)) {
                 $fileName = 'stock_critico_' . date('Ymd_His') . '.xlsx';
 
@@ -428,7 +440,6 @@ class getStockCriticController
             ], 500);
         }
     }
-
 
     private function createStockCriticoSpreadsheet($data)
     {
@@ -513,9 +524,6 @@ class getStockCriticController
         return $spreadsheet;
     }
 }
-
-
-
 
 class StockCriticoReport extends Mailable
 {
