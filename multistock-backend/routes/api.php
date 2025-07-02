@@ -55,6 +55,7 @@ use App\Http\Controllers\MercadoLibre\Reportes\getCancelledCompaniesController;
 
 // Bodegas //
 use App\Http\Controllers\Warehouses\warehouseListAllController;
+use App\Http\Controllers\Warehouses\warehouseCompanyListController;
 use App\Http\Controllers\Warehouses\warehouseNewCompanyController;
 use App\Http\Controllers\Warehouses\warehouseNewWarehouseStoreController;
 use App\Http\Controllers\Warehouses\warehouseShowByIdController;
@@ -189,7 +190,7 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::delete('/clientes/{id}', [ClientesController::class, 'destroy']); // Eliminar cliente
 */
     // BODEGAS (CRUD completo)
-        Route::get("/warehouses-list", [warehouseListAllController::class, 'warehouse_list_all']);// Listar todas las bodegas
+    Route::get("/warehouses-list", [warehouseCompanyListController::class, 'company_list_all']); // Listar todas las empresas con sus bodegas
     Route::get('/warehouses/{id}', [warehouseShowByIdController::class, 'warehouse_show']); // Ver bodega específica
     Route::post('/warehouses', [warehouseNewWarehouseStoreController::class, 'warehouse_store']); // Crear bodega
     Route::patch('/warehouses/{id}', [warehouseUpdateDetailsController::class, 'warehouse_update']); // Actualizar bodega
