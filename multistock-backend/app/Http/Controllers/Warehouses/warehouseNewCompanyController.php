@@ -7,6 +7,7 @@ use App\Models\Warehouse;
 use App\Models\StockWarehouse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class warehouseNewCompanyController{
         /**
@@ -32,7 +33,7 @@ class warehouseNewCompanyController{
             ], 201);
 
         } catch (\Exception $e) {
-            \Log::error('Error al crear empresa por URL:', ['error' => $e->getMessage()]);
+            Log::error('Error al crear empresa por URL:', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Error al crear la empresa.', 'error' => $e->getMessage()], 500);
         }
     }
