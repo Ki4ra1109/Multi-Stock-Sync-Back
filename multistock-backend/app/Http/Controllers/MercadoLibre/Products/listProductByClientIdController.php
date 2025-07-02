@@ -16,7 +16,9 @@ class listProductByClientIdController
 
     public function listProductsByClientId($clientId)
     {
-        ini_set('max_execution_time', 600); // 10 minutos
+
+        ini_set('max_execution_time', 240); // 4 minutos
+
 
         $statusDictionary = [
             'active' => 'Activo',
@@ -31,6 +33,17 @@ class listProductByClientIdController
 
         $cacheKey = "mercado_libre:products:{$clientId}";
         
+        // Verificar si existe caché
+        if (Cache::has($cacheKey)) {
+            Log::info("Retornando datos desde caché para el cliente: {$clientId}");
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Productos obtenidos desde caché',
+                'data' => Cache::get($cacheKey),
+                'from_cache' => true
+            ]);
+        }
+
         try {
             // Obtener credenciales
             $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
@@ -212,6 +225,9 @@ class listProductByClientIdController
                         } else {
                             $errorCount += 20; // O cuenta los errores según el batch
                         }
+                      
+                        usleep(50000); // 50ms entre lotes de 20
+
                     }
                     
                     Log::info("Progreso", [
@@ -221,7 +237,7 @@ class listProductByClientIdController
                         'scroll_id' => $scrollId
                     ]);
 
-                    usleep(500000); // 500ms entre lotes de 50
+                    usleep(250000); // 250ms entre lotes de 50
                 } catch (\Exception $e) {
                     Log::error("Error general en iteración", [
                         'error' => $e->getMessage(),
