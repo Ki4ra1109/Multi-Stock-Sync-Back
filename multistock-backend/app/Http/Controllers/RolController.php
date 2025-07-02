@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Rol;
+use App\Models\User;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Validator;
@@ -82,6 +83,17 @@ class RolController extends Controller
                 'message' => 'Rol no encontrado'
             ], 404);
         }
+
+        
+        if ($rol->nombre === 'admin' && $rol->is_master) {
+            $user = auth()->guard()->user();
+            if (!$user || !$user->rol || !$user->rol->is_master) {
+                return response()->json([
+                    'message' => 'No se puede eliminar el rol admin master'
+                ], 403);
+            }
+        }
+
         $rol->delete();
 
         Log::info('Rol eliminado', ['rol_id' => $rol->id, 'nombre' => $rol->nombre]);
@@ -89,5 +101,34 @@ class RolController extends Controller
         return response()->json([
             'message' => 'Rol eliminado correctamente'
         ]);
+    }
+
+    public function delete($id)
+    {
+        $user = User::with('rol')->find($id);
+
+        if (!$user) {
+            return response()->json(['message' => 'Usuario no encontrado'], 404);
+        }
+
+       
+        if ($user->rol && $user->rol->nombre === 'admin' && $user->rol->is_master) {
+            return response()->json([
+                'message' => 'No se puede eliminar el usuario admin master.'
+            ], 403);
+        }
+
+        $authUser = request()->user();
+        if (
+            $user->rol && $user->rol->nombre === 'admin' && !$user->rol->is_master &&
+            (!$authUser->rol || !$authUser->rol->is_master)
+        ) {
+            return response()->json([
+                'message' => 'Solo el admin master puede eliminar a otros admins.'
+            ], 403);
+        }
+
+        $user->delete();
+        return response()->json(['message' => 'Usuario eliminado correctamente']);
     }
 }

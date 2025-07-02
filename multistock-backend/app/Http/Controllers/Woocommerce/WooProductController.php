@@ -344,6 +344,10 @@ public function listVariations($storeId, $productId)
                 'attributes.*.option' => 'required|string',
                 'sku' => 'sometimes|string|max:100',
                 'stock_quantity' => 'sometimes|integer|min:0',
+                'weight' => 'sometimes|numeric|min:0',
+                'dimensions.length' => 'sometimes|numeric|min:0',
+                'dimensions.width' => 'sometimes|numeric|min:0',
+                'dimensions.height' => 'sometimes|numeric|min:0',
             ]);
 
             if ($validator->fails()) {

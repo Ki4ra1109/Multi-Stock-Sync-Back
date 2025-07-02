@@ -12,6 +12,7 @@ class Rol extends Model
 
     protected $fillable = [
         'nombre',
+        'is_master',
     ];
 
     // Relación con Users
