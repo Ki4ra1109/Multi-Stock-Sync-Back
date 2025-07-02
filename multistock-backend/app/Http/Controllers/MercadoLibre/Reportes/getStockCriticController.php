@@ -212,7 +212,7 @@ class getStockCriticController
                             'retry_count' => $retryCount
                         ]);
                         $retryCount++;
-                        usleep(100000); // 100ms pause before retry
+                        usleep(50000); // Reducido de 100ms a 50ms
                         continue;
                     }
 
@@ -249,7 +249,7 @@ class getStockCriticController
                                     }
                                 }
                             }
-                            usleep(100000); // 100ms pause
+                            usleep(50000); // Reducido de 100ms a 50ms
                             continue;
                         }
                         break; // Si ya procesamos todo, salir del loop
@@ -314,7 +314,7 @@ class getStockCriticController
                         'empty_batches' => $emptyBatchCount
                     ]);
 
-                    usleep(100000); // 100ms pause between batches
+                    usleep(250000); // Reducido de 500ms a 250ms entre lotes
 
                 } catch (\Exception $e) {
                     Log::error("Error en el procesamiento del lote", [
@@ -323,7 +323,7 @@ class getStockCriticController
                         'empty_batches' => $emptyBatchCount
                     ]);
                     $retryCount++;
-                    usleep(100000); // 100ms pause before retry
+                    usleep(50000); // Reducido de 100ms a 50ms antes de reintentar
                 }
             }
 
