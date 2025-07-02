@@ -55,6 +55,7 @@ use App\Http\Controllers\MercadoLibre\Reportes\getCancelledCompaniesController;
 
 // Bodegas //
 use App\Http\Controllers\Warehouses\warehouseListAllController;
+use App\Http\Controllers\Warehouses\warehouseCompanyListController;
 use App\Http\Controllers\Warehouses\warehouseNewCompanyController;
 use App\Http\Controllers\Warehouses\warehouseNewWarehouseStoreController;
 use App\Http\Controllers\Warehouses\warehouseShowByIdController;
@@ -189,7 +190,7 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::delete('/clientes/{id}', [ClientesController::class, 'destroy']); // Eliminar cliente
 */
     // BODEGAS (CRUD completo)
-        Route::get("/warehouses-list", [warehouseListAllController::class, 'warehouse_list_all']);// Listar todas las bodegas
+    Route::get("/warehouses-list", [warehouseCompanyListController::class, 'company_list_all']); // Listar todas las empresas con sus bodegas
     Route::get('/warehouses/{id}', [warehouseShowByIdController::class, 'warehouse_show']); // Ver bodega específica
     Route::post('/warehouses', [warehouseNewWarehouseStoreController::class, 'warehouse_store']); // Crear bodega
     Route::patch('/warehouses/{id}', [warehouseUpdateDetailsController::class, 'warehouse_update']); // Actualizar bodega
@@ -317,6 +318,9 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     // WooCommerce
     Route::get('/woocommerce/woo/{storeId}/products', [WooStoreController::class, 'getProductsWooCommerce']); // Obtener productos de WooCommerce
     Route::post('/woocommerce/woo-stores', [WooStoreController::class, 'storeWoocommerce']); // Registrar tienda WooCommerce
+    Route::get('/woocommerce/woo-stores', [WooStoreController::class, 'getStores']); // Listar tiendas WooCommerce
+    
+
     Route::put('/woocommerce/woo/{storeId}/product/{productId}', [WooProductController::class, 'updateProduct']);// Modificar producto en WooCommerce
     Route::post('/woocommerce/woo/{storeId}/product', [WooProductController::class, 'createProduct']);// Crear producto en WooCommerce
     Route::delete('/woocommerce/woo/{storeId}/product/{productId}', [WooProductController::class, 'deleteProduct']);// Eliminar producto en WooCommerce
@@ -331,4 +335,4 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::get('/woocommerce/woo/{storeId}/product/{productId}/variation-list', [WooProductController::class, 'listVariations']);// Listar variaciones de producto
     Route::post('/woocommerce/woo/{storeId}/product/{productId}/variation', [WooProductController::class, 'createVariation']);// Crear variación de producto
     Route::delete('/woocommerce/woo/{storeId}/product/{productId}/variation/{variationId}', [WooProductController::class, 'deleteVariation']);// Eliminar variación de producto
-    Route::get('/woocommerce/woo-stores', [WooStoreController::class, 'getStores']); // Listar tiendas WooCommerce
+    
