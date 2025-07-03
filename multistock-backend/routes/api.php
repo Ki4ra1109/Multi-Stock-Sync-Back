@@ -50,6 +50,7 @@ use App\Http\Controllers\MercadoLibre\Reportes\getCancelledOrdersController;
 use App\Http\Controllers\MercadoLibre\Reportes\getProductSellerController;
 use App\Http\Controllers\MercadoLibre\Reportes\getCompaniesProductsController;
 use App\Http\Controllers\MercadoLibre\Reportes\getCancelledCompaniesController;
+use App\Http\Controllers\MercadoLibre\Reportes\getChinaCarrier;
 
 
 
@@ -209,6 +210,7 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::get('/price-neto-stock/{idCompany}', [getPriceNetoStockController::class, 'getPriceNetoStock']);// Obtener precio neto de stock por empresa
 
     // EMPRESAS
+    Route::get('/companies', [warehouseCompanyListController::class, 'company_list_all']);
     Route::post('/companies/{name}/{client_id}', [warehouseNewCompanyController::class, 'company_store_by_url']); // Crear empresa
     Route::get('/companies/{id}', [warehouseCompanyShowController::class, 'company_show']); // Obtener empresa
     Route::patch('/companies/{id}', [warehouseUpdateCompanyNameController::class, 'company_update']); // Actualizar empresa
@@ -237,6 +239,9 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::get('/mercadolibre/save-products/{client_id}', [saveProductsController::class, 'saveProducts']); // Guardar productos
     Route::get('/mercadolibre/products/search/{client_id}', [searchProductsController::class, 'searchProducts']); // Buscar productos
     Route::get('/mercadolibre/categorias/{client_id}',[CreateProductsMasiveController::class,'ListCategory']);//lista de categorias por compañia
+    Route::get('/mercadolibre/china-products', [getChinaCarrier::class, 'chinaProductsAllCompanies']); // Obtener productos de China Carrier
+    Route::get('/mercadolibre/companies-products', [getCompaniesProductsController::class, 'getPublishedProductsAllCompanies']);
+    
 
     // CREACIÓN Y MODIFICACIÓN DE PRODUCTOS
     Route::post('/mercadolibre/Products/{client_id}/crear-producto', [CreateProductController::class, 'create']); // Crear producto
