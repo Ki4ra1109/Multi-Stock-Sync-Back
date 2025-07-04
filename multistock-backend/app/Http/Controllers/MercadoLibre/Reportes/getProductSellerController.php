@@ -121,6 +121,8 @@ class getProductSellerController extends Controller
             if ($productResponse->ok()) {
                 $productData = $productResponse->json();
 
+                $sku = $productData['seller_custom_field'] ?? 'No disponible';
+
                 $allProducts[] = [
                     'id' => $productData['id'],
                     'title' => $productData['title'],
@@ -130,8 +132,9 @@ class getProductSellerController extends Controller
                     'condition' => $productData['condition'],
                     'status' => $productData['status'],
                     'pictures' => $productData['pictures'],
-                    'atributes' => $productData['attributes'],
+                    'attributes' => $productData['attributes'], 
                     'permalink' => $productData['permalink'],
+                    'sku' => $sku, 
                 ];
             }
         }
@@ -150,5 +153,52 @@ class getProductSellerController extends Controller
             'offset' => $offset,
             'products' => $allProducts,
         ], 200);
+    }
+
+    public function updateSku(Request $request, $client_id, $item_id)
+    {
+        $credentials = MercadoLibreCredential::where('client_id', $client_id)->first();
+        if (!$credentials) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No se encontraron credenciales válidas para el client_id proporcionado.',
+            ], 404);
+        }
+
+        $sku = $request->input('sku');
+        if (!$sku) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Debe enviar el campo sku.',
+            ], 400);
+        }
+
+        $url = "https://api.mercadolibre.com/items/{$item_id}";
+        $payload = [
+            'seller_custom_field' => $sku
+        ];
+
+        $response = Http::withToken($credentials->access_token)
+            ->withHeaders(['Accept' => 'application/json'])
+            ->put($url, $payload);
+
+        if ($response->successful()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'SKU actualizado correctamente.',
+                'company_id' => $client_id,
+                'item_id' => $item_id,
+                'sku' => $sku,
+            ]);
+        } else {
+            $error = $response->json();
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Error al actualizar SKU.',
+                'company_id' => $client_id,
+                'item_id' => $item_id,
+                'error' => $error['message'] ?? 'Error desconocido',
+            ], $response->status());
+        }
     }
 }

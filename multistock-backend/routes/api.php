@@ -295,6 +295,7 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::get('/mercadolibre/review/{clientId}', [ReviewController::class, 'getReviewsByClientId']); // Reseñas por cliente
     //Route::get('/mercadolibre/products/reviews/{product_id}', [getProductReviewsController::class, 'getProductReviews']); // Reseñas por producto
     Route::get('/mercadolibre/all-products/{client_id}', [getProductSellerController::class, 'getProductSeller']); // Obtener todos los productos por client_id
+    Route::put('/products/{client_id}/{item_id}/sku', [getProductSellerController::class, 'updateSku']); // Actualizar SKU de producto
     Route::get('/mercadolibre/cancelled-products', [getCancelledCompaniesController::class, 'getCancelledProductsAllCompanies']); // Obtener productos cancelados de las 4 empresas
     Route::get('/mercadolibre/get-total-sales-all-companies', [getCompaniesProductsController::class, 'getTotalSalesAllCompanies']);//Obtener total de todos los productos vendidos
 
