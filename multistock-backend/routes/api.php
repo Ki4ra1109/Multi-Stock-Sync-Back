@@ -231,7 +231,6 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
 
     // PRODUCTOS MERCADO LIBRE
     Route::get('/mercadolibre/products/{client_id}', [listProductByClientIdController::class, 'listProductsByClientId']); // Listar productos por client_id
-    Route::get('/mercadolibre/products/{client_id}/china', [listProductsFromChinaController::class, 'listProductsFromChina']); // Listar productos internacionales de China
     Route::get('mercadolibre/categoria/{id}/atributos', [getAtributosCategoriaController::class, 'getAtributos']); // Obtener atributos por categoría
     Route::get('/mercadolibre/products/{client_id}/catalogo', [getCatalogProductController::class, 'getCatalogProducts']); // Obtener productos del catálogo
     Route::get('mercadolibre/categoria/{id}', [getCategoriaController::class, 'getCategoria']); // Obtener categoría
