@@ -109,6 +109,7 @@ use App\Http\Controllers\MercadoLibre\Credentials\getCredentialsByClientIdContro
 //  Productos  //
 
 use App\Http\Controllers\MercadoLibre\Products\listProductByClientIdController;
+use App\Http\Controllers\MercadoLibre\Products\listProductsFromChinaController;
 use App\Http\Controllers\MercadoLibre\Products\searchProductsController;
 //use App\Http\Controllers\MercadoLibre\Products\getProductReviewsController;
 use App\Http\Controllers\MercadoLibre\Products\saveProductsController;
@@ -229,6 +230,7 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
 
     // PRODUCTOS MERCADO LIBRE
     Route::get('/mercadolibre/products/{client_id}', [listProductByClientIdController::class, 'listProductsByClientId']); // Listar productos por client_id
+    Route::get('/mercadolibre/products/{client_id}/china', [listProductsFromChinaController::class, 'listProductsFromChina']); // Listar productos internacionales de China
     Route::get('mercadolibre/categoria/{id}/atributos', [getAtributosCategoriaController::class, 'getAtributos']); // Obtener atributos por categoría
     Route::get('/mercadolibre/products/{client_id}/catalogo', [getCatalogProductController::class, 'getCatalogProducts']); // Obtener productos del catálogo
     Route::get('mercadolibre/categoria/{id}', [getCategoriaController::class, 'getCategoria']); // Obtener categoría
