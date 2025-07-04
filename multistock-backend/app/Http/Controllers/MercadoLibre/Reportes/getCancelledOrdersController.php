@@ -10,9 +10,9 @@ use Illuminate\Http\Request;
 use GuzzleHttp\Client;
 use GuzzleHttp\Promise;
 
-class getCancelledCompaniesController extends Controller
+class getCancelledOrdersController extends Controller
 {
-    public function getCancelledProductsAllCompanies(Request $request)
+    public function getCancelledOrders(Request $request)
     {
         // Obtén todos los client_id de la tabla companies
         $clientIds = Company::whereNotNull('client_id')->pluck('client_id')->toArray();
