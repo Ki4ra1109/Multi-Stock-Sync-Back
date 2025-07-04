@@ -261,6 +261,8 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::put('/mercadolibre/sizeGrids/{client_id}/{sizeGridId}', [SizeGridController::class, 'updateSizeGrid']); // Actualizar talla
     Route::get('/mercadolibre/domainID/{client_id}',[SizeGridController::class, 'getAvailableDomains']);//lista de dominios
     Route::get('/mercadolibre/domainID/{domain_id}/{client_id}',[SizeGridController::class, 'getDomain']);
+    
+    
     // REPORTES MERCADO LIBRE
     Route::get('/mercadolibre/annual-sales/{client_id}', [getAnnualSalesController::class, 'getAnnualSales']); // Ventas anuales
     Route::get('/mercadolibre/available-for-reception/{client_id}', [getAvailableForReceptionController::class, 'getAvailableForReception']); // Disponible para recepción

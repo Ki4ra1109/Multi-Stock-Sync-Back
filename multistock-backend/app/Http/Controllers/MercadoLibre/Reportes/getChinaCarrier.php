@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Log;
 use GuzzleHttp\Client;
 use GuzzleHttp\Promise;
 
+
 class getChinaCarrier extends Controller
 {
     public function chinaProductsAllCompanies(Request $request)
