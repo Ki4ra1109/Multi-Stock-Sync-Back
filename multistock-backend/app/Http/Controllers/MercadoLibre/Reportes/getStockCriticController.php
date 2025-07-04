@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\MercadoLibre\Products;
+namespace App\Http\Controllers\MercadoLibre\Reportes;
 
 use App\Models\MercadoLibreCredential;
 use Illuminate\Support\Facades\Http;
@@ -10,9 +10,9 @@ use GuzzleHttp\Promise;
 
 use function Laravel\Prompts\error;
 
-class getStockController
+class getStockCriticController
 {
-    public function getStock($clientId)
+    public function getStockCritic($clientId)
     {
         $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
 

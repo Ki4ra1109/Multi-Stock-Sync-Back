@@ -283,7 +283,7 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::get('/mercadolibre/sales-by-date-range/{client_id}', [getSalesByDateRangeController::class, 'getSalesByDateRange']); // Ventas por rango de fecha
     Route::get('/mercadolibre/sales-by-month/{client_id}', [getSalesByMonthController::class, 'getSalesByMonth']); // Ventas mensuales
     Route::get('/mercadolibre/sales-by-week/{client_id}', [getSalesByWeekController::class, 'getSalesByWeek']); // Ventas por semana
-    Route::get('/mercadolibre/stock-critic/{client_id}', [getStockCriticController::class, 'getStockCritic']); // Stock crítico
+    Route::get('/mercadolibre/stock-critic/{client_id}', [getStockCriticController::class, 'getStockCriticController']); // Stock crítico
     Route::get('/mercadolibre/stock-reception/{client_id}', [getStockReceptionController::class, 'getStockReception']); // Recepción de stock
     Route::get('/mercadolibre/stock-rotation/{client_id}', [getStockRotationController::class, 'getStockRotation']); // Rotación de stock
     Route::get('/mercadolibre/stock-sales-history/{clientId}/{productId}', [getStockSalesHistoryController::class, 'getStockSalesHistory']); // Historial de ventas por producto
