@@ -50,6 +50,7 @@ use App\Http\Controllers\MercadoLibre\Reportes\getCancelledOrdersController;
 use App\Http\Controllers\MercadoLibre\Reportes\getProductSellerController;
 use App\Http\Controllers\MercadoLibre\Reportes\getCompaniesProductsController;
 use App\Http\Controllers\MercadoLibre\Reportes\getCancelledCompaniesController;
+use App\Http\Controllers\MercadoLibre\Reportes\getChinaCarrier;
 
 
 
@@ -109,7 +110,6 @@ use App\Http\Controllers\MercadoLibre\Credentials\getCredentialsByClientIdContro
 //  Productos  //
 
 use App\Http\Controllers\MercadoLibre\Products\listProductByClientIdController;
-use App\Http\Controllers\MercadoLibre\Products\listProductsFromChinaController;
 use App\Http\Controllers\MercadoLibre\Products\searchProductsController;
 //use App\Http\Controllers\MercadoLibre\Products\getProductReviewsController;
 use App\Http\Controllers\MercadoLibre\Products\saveProductsController;
@@ -210,6 +210,7 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::get('/price-neto-stock/{idCompany}', [getPriceNetoStockController::class, 'getPriceNetoStock']);// Obtener precio neto de stock por empresa
 
     // EMPRESAS
+    Route::get('/companies', [warehouseCompanyListController::class, 'company_list_all']);
     Route::post('/companies/{name}/{client_id}', [warehouseNewCompanyController::class, 'company_store_by_url']); // Crear empresa
     Route::get('/companies/{id}', [warehouseCompanyShowController::class, 'company_show']); // Obtener empresa
     Route::patch('/companies/{id}', [warehouseUpdateCompanyNameController::class, 'company_update']); // Actualizar empresa
@@ -230,7 +231,6 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
 
     // PRODUCTOS MERCADO LIBRE
     Route::get('/mercadolibre/products/{client_id}', [listProductByClientIdController::class, 'listProductsByClientId']); // Listar productos por client_id
-    Route::get('/mercadolibre/products/{client_id}/china', [listProductsFromChinaController::class, 'listProductsFromChina']); // Listar productos internacionales de China
     Route::get('mercadolibre/categoria/{id}/atributos', [getAtributosCategoriaController::class, 'getAtributos']); // Obtener atributos por categoría
     Route::get('/mercadolibre/products/{client_id}/catalogo', [getCatalogProductController::class, 'getCatalogProducts']); // Obtener productos del catálogo
     Route::get('mercadolibre/categoria/{id}', [getCategoriaController::class, 'getCategoria']); // Obtener categoría
@@ -239,6 +239,9 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::get('/mercadolibre/save-products/{client_id}', [saveProductsController::class, 'saveProducts']); // Guardar productos
     Route::get('/mercadolibre/products/search/{client_id}', [searchProductsController::class, 'searchProducts']); // Buscar productos
     Route::get('/mercadolibre/categorias/{client_id}',[CreateProductsMasiveController::class,'ListCategory']);//lista de categorias por compañia
+    Route::get('/mercadolibre/china-products', [getChinaCarrier::class, 'chinaProductsAllCompanies']); // Obtener productos de China Carrier
+    Route::get('/mercadolibre/companies-products', [getCompaniesProductsController::class, 'getPublishedProductsAllCompanies']);
+    
 
     // CREACIÓN Y MODIFICACIÓN DE PRODUCTOS
     Route::post('/mercadolibre/Products/{client_id}/crear-producto', [CreateProductController::class, 'create']); // Crear producto
@@ -258,6 +261,8 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::put('/mercadolibre/sizeGrids/{client_id}/{sizeGridId}', [SizeGridController::class, 'updateSizeGrid']); // Actualizar talla
     Route::get('/mercadolibre/domainID/{client_id}',[SizeGridController::class, 'getAvailableDomains']);//lista de dominios
     Route::get('/mercadolibre/domainID/{domain_id}/{client_id}',[SizeGridController::class, 'getDomain']);
+    
+    
     // REPORTES MERCADO LIBRE
     Route::get('/mercadolibre/annual-sales/{client_id}', [getAnnualSalesController::class, 'getAnnualSales']); // Ventas anuales
     Route::get('/mercadolibre/available-for-reception/{client_id}', [getAvailableForReceptionController::class, 'getAvailableForReception']); // Disponible para recepción
@@ -290,6 +295,7 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::get('/mercadolibre/review/{clientId}', [ReviewController::class, 'getReviewsByClientId']); // Reseñas por cliente
     //Route::get('/mercadolibre/products/reviews/{product_id}', [getProductReviewsController::class, 'getProductReviews']); // Reseñas por producto
     Route::get('/mercadolibre/all-products/{client_id}', [getProductSellerController::class, 'getProductSeller']); // Obtener todos los productos por client_id
+    Route::put('/products/{client_id}/{item_id}/sku', [getProductSellerController::class, 'updateSku']); // Actualizar SKU de producto
     Route::get('/mercadolibre/cancelled-products', [getCancelledCompaniesController::class, 'getCancelledProductsAllCompanies']); // Obtener productos cancelados de las 4 empresas
     Route::get('/mercadolibre/get-total-sales-all-companies', [getCompaniesProductsController::class, 'getTotalSalesAllCompanies']);//Obtener total de todos los productos vendidos
 
