@@ -251,7 +251,7 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::get('/mercadolibre/carga-masiva', [getProductosExcelController::class, 'redirigir']); // Redirigir a carga masiva
     Route::post('/mercadolibre/carga-masiva/leer-excel', [getProductosExcelController::class, 'leerExcel']); // Leer carga masiva
     Route::put('/mercadolibre/update/{client_id}/{productId}', [putProductoByUpdateController::class, 'putProductoByUpdate']); // Actualizar stock
-    Route::get('/mercadolibre/carga-masiva/descargar-platilla/{client_id}/{categoryId}', [CreateProductsMasiveController::class, 'downloadTemplate']); // Leer carga masiva
+    Route::get('/mercadolibre/carga-masiva/descargar-plantilla/{client_id}/{categoryId}', [CreateProductsMasiveController::class, 'downloadTemplate']); // Leer carga masiva
     Route::get('/mercadolibre/size-guides/{client_id}', [CreateProductController::class, 'getSizeGuides']);
     // CREACION, MODIFICACION Y LISTADO DE TALLAS MERCADO LIBRE
     Route::get('/mercadolibre/sizeGrids/{client_id}', [SizeGridController::class, 'listSizeGrids']); // listar tallas
