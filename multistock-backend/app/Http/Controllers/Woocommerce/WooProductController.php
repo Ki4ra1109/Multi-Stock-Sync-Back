@@ -20,27 +20,58 @@ class WooProductController extends Controller
 
     private function connect($storeId)
     {
-        $store = WooStore::findOrFail($storeId);
+        try {
+            $store = WooStore::findOrFail($storeId);
+            
+            Log::info('Tienda WooCommerce encontrada', [
+                'storeId' => $storeId,
+                'store_url' => $store->store_url,
+                'active' => $store->active
+            ]);
 
-        if (!$store->active) {
-            throw new \Exception('Tienda desactivada');
+            if (!$store->active) {
+                Log::warning('Intento de conexión a tienda desactivada', [
+                    'storeId' => $storeId,
+                    'store_url' => $store->store_url
+                ]);
+                throw new \Exception('Tienda desactivada');
+            }
+
+            return new Client(
+                $store->store_url,
+                $store->consumer_key,
+                $store->consumer_secret,
+                [
+                    'version' => 'wc/v3',
+                    'verify_ssl' => false
+                ]
+            );
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            Log::error('Tienda WooCommerce no encontrada', [
+                'storeId' => $storeId,
+                'message' => $e->getMessage()
+            ]);
+            throw new \Exception("Tienda WooCommerce con ID {$storeId} no encontrada");
+        } catch (\Exception $e) {
+            Log::error('Error al conectar con WooCommerce', [
+                'storeId' => $storeId,
+                'message' => $e->getMessage()
+            ]);
+            throw $e;
         }
-
-        return new Client(
-            $store->store_url,
-            $store->consumer_key,
-            $store->consumer_secret,
-            [
-                'version' => 'wc/v3',
-                'verify_ssl' => false
-            ]
-        );
     }
 
     public function createProduct(Request $request, $storeId)
     {
+        Log::info('Iniciando creación de producto', [
+            'storeId' => $storeId,
+            'request_data' => $request->all(),
+            'user_id' => auth()->id() ?? 'no_authenticated'
+        ]);
+
         try {
             $woocommerce = $this->connect($storeId);
+            Log::info('Conexión a WooCommerce establecida correctamente', ['storeId' => $storeId]);
 
             // Validación de datos de entrada
             $validator = Validator::make($request->all(), [
@@ -80,6 +111,11 @@ class WooProductController extends Controller
             ]);
 
             if ($validator->fails()) {
+                Log::warning('Validación fallida al crear producto', [
+                    'errors' => $validator->errors(),
+                    'request_data' => $request->all(),
+                    'storeId' => $storeId
+                ]);
                 return response()->json([
                     'message' => 'Error de validación.',
                     'errors' => $validator->errors(),
@@ -106,6 +142,11 @@ class WooProductController extends Controller
             // Validaciones adicionales basadas en el tipo de producto
             $validationErrors = $this->validateProductType($productData);
             if (!empty($validationErrors)) {
+                Log::warning('Validación específica de tipo de producto fallida', [
+                    'errors' => $validationErrors,
+                    'productData' => $productData,
+                    'storeId' => $storeId
+                ]);
                 return response()->json([
                     'message' => 'Error de validación específica del tipo de producto.',
                     'errors' => $validationErrors,
@@ -114,7 +155,16 @@ class WooProductController extends Controller
             }
 
             // Crear el producto en WooCommerce
+            Log::info('Enviando datos a WooCommerce para crear producto', [
+                'productData' => $productData,
+                'storeId' => $storeId
+            ]);
             $created = $woocommerce->post("products", $productData);
+
+            Log::info('Producto creado exitosamente en WooCommerce', [
+                'created_product' => $created,
+                'storeId' => $storeId
+            ]);
 
             // Respuesta filtrada con información relevante
             $filtered = $this->filterProductResponse($created, $woocommerce);
@@ -126,12 +176,26 @@ class WooProductController extends Controller
             ], 201);
 
         } catch (\Automattic\WooCommerce\HttpClient\HttpClientException $e) {
+            Log::error('Error de WooCommerce API al crear producto', [
+                'message' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'storeId' => $storeId,
+                'request_data' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'message' => 'Error de WooCommerce API.',
                 'error' => $e->getMessage(),
                 'status' => 'error'
             ], 400);
         } catch (\Exception $e) {
+            Log::error('Error general al crear producto', [
+                'message' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'storeId' => $storeId,
+                'request_data' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'message' => 'Error al crear el producto.',
                 'error' => $e->getMessage(),
