@@ -115,7 +115,6 @@ use App\Http\Controllers\MercadoLibre\Products\searchProductsController;
 use App\Http\Controllers\MercadoLibre\Products\saveProductsController;
 use App\Http\Controllers\MercadoLibre\Products\itemController;
 use App\Http\Controllers\MercadoLibre\Products\getStockController;
-use App\Http\Controllers\MercadoLibre\Products\putProductoController;
 use App\Http\Controllers\MercadoLibre\Products\putProductoByUpdateController;
 use App\Http\Controllers\MercadoLibre\Products\CreateProductController;
 use App\Http\Controllers\MercadoLibre\Products\CreateProductsMasiveController;
