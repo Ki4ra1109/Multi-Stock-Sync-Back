@@ -330,13 +330,18 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
 
     Route::put('/woocommerce/woo/{storeId}/product/{productId}', [WooProductController::class, 'updateProduct']);// Modificar producto en WooCommerce
     Route::post('/woocommerce/woo/{storeId}/product', [WooProductController::class, 'createProduct']);// Crear producto en WooCommerce
+    Route::post('/woocommerce/woo/{storeId}/variable-product', [WooProductController::class, 'createVariableProduct']);// Crear producto variable en WooCommerce
     Route::delete('/woocommerce/woo/{storeId}/product/{productId}', [WooProductController::class, 'deleteProduct']);// Eliminar producto en WooCommerce
     Route::get('/woocommerce/woo/{storeId}/product/{productId}', [WooProductController::class, 'getProduct']);
     Route::get('/woocommerce/woo/{storeId}/productc-list', [WooProductController::class, 'listProducts']);//listar productos de WooCommerce
+    Route::get('/woocommerce/woo/{storeId}/variable-products', [WooProductController::class, 'listVariableProducts']);//listar solo productos variables
     //categorias wooComerce
     Route::Get('/woocommerce/woo/{storeId}/categories', [WooCategoryController::class, 'listCategories']);
     Route::Get('/woocommerce/woo/{storeId}/category/{categoryId}',[WooCategoryController::class, 'getCategory']);
     Route::Post('/woocomerce/{storeId}/category', [WooCategoryController::class, 'createCategory']);
+    Route::Put('/woocommerce/woo/{storeId}/category/{categoryId}', [WooCategoryController::class, 'updateCategory']);
+    Route::Delete('/woocommerce/woo/{storeId}/category/{categoryId}', [WooCategoryController::class, 'deleteCategory']);
+    Route::Get('/woocommerce/woo/{storeId}/category/{categoryId}/can-delete', [WooCategoryController::class, 'canDeleteCategory']);
    });
    
     Route::get('/woocommerce/woo/{storeId}/product/{productId}/variation-list', [WooProductController::class, 'listVariations']);// Listar variaciones de producto
