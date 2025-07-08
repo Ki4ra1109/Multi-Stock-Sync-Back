@@ -207,12 +207,6 @@ class WooCategoryController extends Controller
      */
     public function updateCategory(Request $request, $storeId, $categoryId)
     {
-        \Log::info('Iniciando actualización de categoría', [
-            'storeId' => $storeId,
-            'categoryId' => $categoryId,
-            'request_data' => $request->all()
-        ]);
-
         try {
             $woocommerce = $this->connect($storeId);
 
@@ -229,12 +223,6 @@ class WooCategoryController extends Controller
             ]);
 
             if ($validator->fails()) {
-                \Log::warning('Validación fallida al actualizar categoría', [
-                    'errors' => $validator->errors(),
-                    'request_data' => $request->all(),
-                    'storeId' => $storeId,
-                    'categoryId' => $categoryId
-                ]);
                 return response()->json([
                     'message' => 'Error de validación.',
                     'errors' => $validator->errors(),
@@ -245,30 +233,13 @@ class WooCategoryController extends Controller
             $data = $validator->validated();
 
             if (empty($data)) {
-                \Log::warning('No se enviaron datos para actualizar categoría', [
-                    'storeId' => $storeId,
-                    'categoryId' => $categoryId,
-                    'request_data' => $request->all()
-                ]);
                 return response()->json([
                     'message' => 'Debes enviar al menos un campo a modificar.',
                     'status' => 'error'
                 ], 422);
             }
 
-            \Log::info('Enviando datos a WooCommerce para actualizar categoría', [
-                'data' => $data,
-                'storeId' => $storeId,
-                'categoryId' => $categoryId
-            ]);
-
             $updated = $woocommerce->put("products/categories/{$categoryId}", $data);
-
-            \Log::info('Categoría actualizada exitosamente en WooCommerce', [
-                'updated_category' => $updated,
-                'storeId' => $storeId,
-                'categoryId' => $categoryId
-            ]);
 
             return response()->json([
                 'message' => 'Categoría actualizada correctamente.',
@@ -277,89 +248,14 @@ class WooCategoryController extends Controller
             ]);
 
         } catch (\Automattic\WooCommerce\HttpClient\HttpClientException $e) {
-            \Log::error('Error de WooCommerce API al actualizar categoría', [
-                'message' => $e->getMessage(),
-                'code' => $e->getCode(),
-                'storeId' => $storeId,
-                'categoryId' => $categoryId,
-                'request_data' => $request->all(),
-                'trace' => $e->getTraceAsString()
-            ]);
             return response()->json([
                 'message' => 'Error de WooCommerce API.',
                 'error' => $e->getMessage(),
                 'status' => 'error'
             ], 400);
         } catch (\Exception $e) {
-            \Log::error('Error general al actualizar categoría', [
-                'message' => $e->getMessage(),
-                'code' => $e->getCode(),
-                'storeId' => $storeId,
-                'categoryId' => $categoryId,
-                'request_data' => $request->all(),
-                'trace' => $e->getTraceAsString()
-            ]);
             return response()->json([
                 'message' => 'Error al actualizar la categoría.',
-                'error' => $e->getMessage(),
-                'status' => 'error'
-            ], 500);
-        }
-    }
-
-    /**
-     * Verificar si una categoría se puede eliminar
-     */
-    public function canDeleteCategory($storeId, $categoryId)
-    {
-        \Log::info('Verificando si la categoría se puede eliminar', [
-            'storeId' => $storeId,
-            'categoryId' => $categoryId
-        ]);
-
-        try {
-            $woocommerce = $this->connect($storeId);
-            
-            $category = $woocommerce->get("products/categories/{$categoryId}");
-            
-            $canDelete = $category->count === 0;
-            
-            \Log::info('Resultado de verificación de eliminación', [
-                'categoryId' => $categoryId,
-                'productCount' => $category->count,
-                'canDelete' => $canDelete,
-                'storeId' => $storeId
-            ]);
-
-            return response()->json([
-                'can_delete' => $canDelete,
-                'product_count' => $category->count,
-                'category_info' => $this->filterCategoryResponse($category),
-                'message' => $canDelete ? 'La categoría se puede eliminar' : 'La categoría no se puede eliminar porque tiene productos asociados',
-                'status' => 'success'
-            ]);
-
-        } catch (\Automattic\WooCommerce\HttpClient\HttpClientException $e) {
-            \Log::error('Error al verificar eliminación de categoría', [
-                'message' => $e->getMessage(),
-                'storeId' => $storeId,
-                'categoryId' => $categoryId
-            ]);
-            
-            return response()->json([
-                'message' => 'Error al verificar la categoría.',
-                'error' => $e->getMessage(),
-                'status' => 'error'
-            ], 400);
-        } catch (\Exception $e) {
-            \Log::error('Error general al verificar eliminación de categoría', [
-                'message' => $e->getMessage(),
-                'storeId' => $storeId,
-                'categoryId' => $categoryId
-            ]);
-            
-            return response()->json([
-                'message' => 'Error al verificar la categoría.',
                 'error' => $e->getMessage(),
                 'status' => 'error'
             ], 500);
@@ -371,56 +267,14 @@ class WooCategoryController extends Controller
      */
     public function deleteCategory($storeId, $categoryId, Request $request)
     {
-        \Log::info('Iniciando eliminación de categoría', [
-            'storeId' => $storeId,
-            'categoryId' => $categoryId,
-            'force' => $request->get('force', false)
-        ]);
-
         try {
             $woocommerce = $this->connect($storeId);
 
-            // Primero, obtener información de la categoría para verificar si tiene productos
-            $category = $woocommerce->get("products/categories/{$categoryId}");
-            
-            \Log::info('Información de la categoría a eliminar', [
-                'category' => $category,
-                'storeId' => $storeId,
-                'categoryId' => $categoryId
-            ]);
-
-            // Si la categoría tiene productos, no se puede eliminar
-            if ($category->count > 0) {
-                \Log::warning('No se puede eliminar categoría con productos', [
-                    'categoryId' => $categoryId,
-                    'productCount' => $category->count,
-                    'storeId' => $storeId
-                ]);
-                
-                return response()->json([
-                    'message' => 'No se puede eliminar la categoría porque tiene productos asociados.',
-                    'product_count' => $category->count,
-                    'status' => 'error'
-                ], 400);
-            }
-
             $params = [
-                'force' => $request->get('force', true) // Forzar eliminación permanente
+                'force' => $request->get('force', false)
             ];
 
-            \Log::info('Enviando petición de eliminación a WooCommerce', [
-                'params' => $params,
-                'storeId' => $storeId,
-                'categoryId' => $categoryId
-            ]);
-
             $deleted = $woocommerce->delete("products/categories/{$categoryId}", $params);
-
-            \Log::info('Categoría eliminada exitosamente', [
-                'deleted_category' => $deleted,
-                'storeId' => $storeId,
-                'categoryId' => $categoryId
-            ]);
 
             return response()->json([
                 'message' => 'Categoría eliminada correctamente.',
@@ -429,37 +283,12 @@ class WooCategoryController extends Controller
             ]);
 
         } catch (\Automattic\WooCommerce\HttpClient\HttpClientException $e) {
-            \Log::error('Error de WooCommerce API al eliminar categoría', [
-                'message' => $e->getMessage(),
-                'code' => $e->getCode(),
-                'storeId' => $storeId,
-                'categoryId' => $categoryId,
-                'force' => $request->get('force', false),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            // Manejar errores específicos
-            if (strpos($e->getMessage(), 'woocommerce_rest_trash_not_supported') !== false) {
-                return response()->json([
-                    'message' => 'No se puede eliminar esta categoría. Puede ser una categoría del sistema o tener productos asociados.',
-                    'error' => 'La categoría no soporta eliminación',
-                    'status' => 'error'
-                ], 400);
-            }
-
             return response()->json([
                 'message' => 'Error de WooCommerce API.',
                 'error' => $e->getMessage(),
                 'status' => 'error'
             ], 400);
         } catch (\Exception $e) {
-            \Log::error('Error general al eliminar categoría', [
-                'message' => $e->getMessage(),
-                'code' => $e->getCode(),
-                'storeId' => $storeId,
-                'categoryId' => $categoryId,
-                'trace' => $e->getTraceAsString()
-            ]);
             return response()->json([
                 'message' => 'Error al eliminar la categoría.',
                 'error' => $e->getMessage(),
