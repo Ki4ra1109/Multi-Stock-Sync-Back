@@ -354,6 +354,74 @@ class WooProductController extends Controller
         }
     }
 
+    /**
+     * Listar solo productos variables
+     */
+    public function listVariableProducts($storeId, Request $request)
+    {
+        try {
+            $woocommerce = $this->connect($storeId);
+
+            // Parámetros de consulta específicos para productos variables
+            $params = [
+                'type' => 'variable', // Solo productos variables
+                'per_page' => $request->get('per_page', 10),
+                'page' => $request->get('page', 1),
+                'search' => $request->get('search'),
+                'status' => $request->get('status', 'publish'),
+                'featured' => $request->get('featured'),
+                'category' => $request->get('category'),
+                'tag' => $request->get('tag'),
+                'sku' => $request->get('sku'),
+                'orderby' => $request->get('orderby', 'date'),
+                'order' => $request->get('order', 'desc'),
+            ];
+
+            // Filtrar parámetros vacíos
+            $params = array_filter($params, function($value) {
+                return $value !== null && $value !== '';
+            });
+
+            Log::info('Listando productos variables', [
+                'storeId' => $storeId,
+                'params' => $params
+            ]);
+
+            $products = $woocommerce->get('products', $params);
+
+            if (!is_array($products)) {
+                $products = [$products];
+            }
+
+            $filtered = array_map(function($product) use ($woocommerce) {
+                return $this->filterProductResponse($product, $woocommerce);
+            }, $products);
+
+            Log::info('Productos variables listados exitosamente', [
+                'storeId' => $storeId,
+                'count' => count($filtered)
+            ]);
+
+            return response()->json([
+                'products' => $filtered,
+                'total_count' => count($filtered),
+                'status' => 'success'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error al listar productos variables', [
+                'message' => $e->getMessage(),
+                'storeId' => $storeId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Error al listar productos variables.',
+                'error' => $e->getMessage(),
+                'status' => 'error'
+            ], 500);
+        }
+    }
+
     public function deleteProduct($storeId, $productId)
     {
         try {
@@ -375,7 +443,8 @@ class WooProductController extends Controller
             ], 500);
         }
     }
-public function listVariations($storeId, $productId)
+
+    public function listVariations($storeId, $productId)
     {
         try {
             $woocommerce = $this->connect($storeId);
@@ -594,5 +663,186 @@ public function listVariations($storeId, $productId)
             'date_created' => $product->date_created,
             'date_modified' => $product->date_modified,
         ];
+    }
+
+    /**
+     * Crear un producto variable con sus variaciones
+     */
+    public function createVariableProduct(Request $request, $storeId)
+    {
+        Log::info('Iniciando creación de producto variable', [
+            'storeId' => $storeId,
+            'request_data' => $request->all(),
+            'user_id' => auth()->id() ?? 'no_authenticated'
+        ]);
+
+        try {
+            $woocommerce = $this->connect($storeId);
+            Log::info('Conexión a WooCommerce establecida correctamente', ['storeId' => $storeId]);
+
+            // Validación de datos de entrada para producto variable
+            $validator = Validator::make($request->all(), [
+                'name' => 'required|string|max:255',
+                'description' => 'sometimes|string',
+                'short_description' => 'sometimes|string',
+                'sku' => 'sometimes|string|max:100',
+                'status' => 'sometimes|in:draft,pending,private,publish',
+                'featured' => 'sometimes|boolean',
+                'catalog_visibility' => 'sometimes|in:visible,catalog,search,hidden',
+                'categories' => 'sometimes|array',
+                'categories.*.id' => 'required_with:categories|integer',
+                'tags' => 'sometimes|array',
+                'tags.*.id' => 'required_with:tags|integer',
+                'images' => 'sometimes|array',
+                'images.*.src' => 'required_with:images|url',
+                'attributes' => 'required|array',
+                'attributes.*.name' => 'required|string',
+                'attributes.*.position' => 'sometimes|integer',
+                'attributes.*.visible' => 'sometimes|boolean',
+                'attributes.*.variation' => 'sometimes|boolean',
+                'attributes.*.options' => 'required|array',
+                'attributes.*.options.*' => 'required|string',
+                'variations' => 'required|array',
+                'variations.*.regular_price' => 'required|numeric|min:0',
+                'variations.*.sale_price' => 'sometimes|numeric|min:0',
+                'variations.*.attributes' => 'required|array',
+                'variations.*.attributes.*.name' => 'required|string',
+                'variations.*.attributes.*.option' => 'required|string',
+                'variations.*.sku' => 'sometimes|string|max:100',
+                'variations.*.stock_quantity' => 'sometimes|integer|min:0',
+                'variations.*.manage_stock' => 'sometimes|boolean',
+                'variations.*.stock_status' => 'sometimes|in:instock,outofstock,onbackorder',
+                'variations.*.weight' => 'sometimes|numeric|min:0',
+                'variations.*.dimensions.length' => 'sometimes|numeric|min:0',
+                'variations.*.dimensions.width' => 'sometimes|numeric|min:0',
+                'variations.*.dimensions.height' => 'sometimes|numeric|min:0',
+                'variations.*.images' => 'sometimes|array',
+                'variations.*.images.*.src' => 'required_with:variations.*.images|url',
+            ]);
+
+            if ($validator->fails()) {
+                Log::warning('Validación fallida al crear producto variable', [
+                    'errors' => $validator->errors(),
+                    'request_data' => $request->all(),
+                    'storeId' => $storeId
+                ]);
+                return response()->json([
+                    'message' => 'Error de validación.',
+                    'errors' => $validator->errors(),
+                    'status' => 'error'
+                ], 422);
+            }
+
+            $data = $validator->validated();
+            $variations = $data['variations'];
+            unset($data['variations']); // Remover variaciones del array principal
+
+            // Campos por defecto para un producto variable
+            $productData = array_merge([
+                'type' => 'variable',
+                'status' => 'publish',
+                'featured' => false,
+                'catalog_visibility' => 'visible',
+                'manage_stock' => false,
+                'stock_status' => 'instock',
+                'virtual' => false,
+                'downloadable' => false,
+                'reviews_allowed' => true,
+                'tax_status' => 'taxable',
+            ], $data);
+
+            // Configurar atributos para variaciones
+            foreach ($productData['attributes'] as &$attribute) {
+                $attribute['variation'] = true; // Habilitar variaciones para todos los atributos
+                $attribute['visible'] = true;
+            }
+
+            Log::info('Enviando datos a WooCommerce para crear producto variable', [
+                'productData' => $productData,
+                'variations_count' => count($variations),
+                'storeId' => $storeId
+            ]);
+
+            // Crear el producto variable en WooCommerce
+            $created = $woocommerce->post("products", $productData);
+
+            Log::info('Producto variable creado exitosamente', [
+                'product_id' => $created->id,
+                'storeId' => $storeId
+            ]);
+
+            // Crear las variaciones
+            $createdVariations = [];
+            foreach ($variations as $variationData) {
+                try {
+                    Log::info('Creando variación', [
+                        'product_id' => $created->id,
+                        'variation_data' => $variationData,
+                        'storeId' => $storeId
+                    ]);
+
+                    $variation = $woocommerce->post("products/{$created->id}/variations", $variationData);
+                    $createdVariations[] = $variation;
+
+                    Log::info('Variación creada exitosamente', [
+                        'variation_id' => $variation->id,
+                        'product_id' => $created->id,
+                        'storeId' => $storeId
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('Error al crear variación', [
+                        'message' => $e->getMessage(),
+                        'variation_data' => $variationData,
+                        'product_id' => $created->id,
+                        'storeId' => $storeId
+                    ]);
+                    // Continuar con las siguientes variaciones
+                }
+            }
+
+            // Obtener el producto completo con todas las variaciones
+            $completeProduct = $woocommerce->get("products/{$created->id}");
+            $filtered = $this->filterProductResponse($completeProduct, $woocommerce);
+
+            Log::info('Producto variable completado', [
+                'product_id' => $created->id,
+                'variations_created' => count($createdVariations),
+                'storeId' => $storeId
+            ]);
+
+            return response()->json([
+                'message' => 'Producto variable creado correctamente.',
+                'created_product' => $filtered,
+                'variations_created' => count($createdVariations),
+                'status' => 'success'
+            ], 201);
+
+        } catch (\Automattic\WooCommerce\HttpClient\HttpClientException $e) {
+            Log::error('Error de WooCommerce API al crear producto variable', [
+                'message' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'storeId' => $storeId,
+                'request_data' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Error de WooCommerce API.',
+                'error' => $e->getMessage(),
+                'status' => 'error'
+            ], 400);
+        } catch (\Exception $e) {
+            Log::error('Error general al crear producto variable', [
+                'message' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'storeId' => $storeId,
+                'request_data' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Error al crear el producto variable.',
+                'error' => $e->getMessage(),
+                'status' => 'error'
+            ], 500);
+        }
     }
 }
