@@ -12,9 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('product_attributes', function (Blueprint $table) {
-            $table->renameColumn('producto_id', 'product_id');
-            $table->renameColumn('atributo_id', 'attribute_id');
-            $table->string('value')->nullable()->change();
+            //$table->renameColumn('producto_id', 'product_id');
+            //$table->renameColumn('atributo_id', 'attribute_id');
+            //$table->renameColumn('valor', 'value'); // Solo si quieres cambiar 'valor' a 'value'
+            $table->string('valor')->nullable()->change();
         });
 
         Schema::table('attributes', function (Blueprint $table) {
@@ -35,9 +36,11 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('product_attributes', function (Blueprint $table) {
-            $table->renameColumn('product_id', 'producto_id');
-            $table->renameColumn('attribute_id', 'atributo_id');
-            $table->string('valor')->nullable(false)->change();
+            //$table->renameColumn('product_id', 'producto_id');
+            //$table->renameColumn('attribute_id', 'atributo_id');
+            //$table->renameColumn('value', 'valor');
+            $table->string('valor')->nullable()->change();
+            
         });
 
         Schema::table('attributes', function (Blueprint $table) {
