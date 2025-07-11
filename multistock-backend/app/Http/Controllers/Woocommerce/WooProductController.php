@@ -531,4 +531,569 @@ public function listVariations($storeId, $productId)
             'date_modified' => $product->date_modified,
         ];
     }
+
+    /**
+     * Crear un producto variable con sus variaciones
+     */
+    public function createVariableProduct(Request $request, $storeId)
+    {
+        Log::info('Iniciando creación de producto variable', [
+            'storeId' => $storeId,
+            'request_data' => $request->all(),
+            'user_id' => auth()->id() ?? 'no_authenticated'
+        ]);
+
+        try {
+            $woocommerce = $this->connect($storeId);
+            Log::info('Conexión a WooCommerce establecida correctamente', ['storeId' => $storeId]);
+
+            // Validación de datos de entrada para producto variable
+            $validator = Validator::make($request->all(), [
+                'name' => 'required|string|max:255',
+                'description' => 'sometimes|string',
+                'short_description' => 'sometimes|string',
+                'sku' => 'sometimes|string|max:100',
+                'status' => 'sometimes|in:draft,pending,private,publish',
+                'featured' => 'sometimes|boolean',
+                'catalog_visibility' => 'sometimes|in:visible,catalog,search,hidden',
+                'categories' => 'sometimes|array',
+                'categories.*.id' => 'required_with:categories|integer',
+                'tags' => 'sometimes|array',
+                'tags.*.id' => 'required_with:tags|integer',
+                'images' => 'sometimes|array',
+                'images.*.src' => 'required_with:images|url',
+                'attributes' => 'required|array',
+                'attributes.*.name' => 'required|string',
+                'attributes.*.position' => 'sometimes|integer',
+                'attributes.*.visible' => 'sometimes|boolean',
+                'attributes.*.variation' => 'sometimes|boolean',
+                'attributes.*.options' => 'required|array',
+                'attributes.*.options.*' => 'required|string',
+                'variations' => 'required|array',
+                'variations.*.regular_price' => 'required|numeric|min:0',
+                'variations.*.sale_price' => 'sometimes|numeric|min:0',
+                'variations.*.attributes' => 'required|array',
+                'variations.*.attributes.*.name' => 'required|string',
+                'variations.*.attributes.*.option' => 'required|string',
+                'variations.*.sku' => 'sometimes|string|max:100',
+                'variations.*.stock_quantity' => 'sometimes|integer|min:0',
+                'variations.*.manage_stock' => 'sometimes|boolean',
+                'variations.*.stock_status' => 'sometimes|in:instock,outofstock,onbackorder',
+                'variations.*.weight' => 'sometimes|numeric|min:0',
+                'variations.*.dimensions.length' => 'sometimes|numeric|min:0',
+                'variations.*.dimensions.width' => 'sometimes|numeric|min:0',
+                'variations.*.dimensions.height' => 'sometimes|numeric|min:0',
+                'variations.*.images' => 'sometimes|array',
+                'variations.*.images.*.src' => 'required_with:variations.*.images|url',
+            ]);
+
+            if ($validator->fails()) {
+                Log::warning('Validación fallida al crear producto variable', [
+                    'errors' => $validator->errors(),
+                    'request_data' => $request->all(),
+                    'storeId' => $storeId
+                ]);
+                return response()->json([
+                    'message' => 'Error de validación.',
+                    'errors' => $validator->errors(),
+                    'status' => 'error'
+                ], 422);
+            }
+
+            $data = $validator->validated();
+            $variations = $data['variations'];
+            unset($data['variations']); // Remover variaciones del array principal
+
+            // Campos por defecto para un producto variable
+            $productData = array_merge([
+                'type' => 'variable',
+                'status' => 'publish',
+                'featured' => false,
+                'catalog_visibility' => 'visible',
+                'manage_stock' => false,
+                'stock_status' => 'instock',
+                'virtual' => false,
+                'downloadable' => false,
+                'reviews_allowed' => true,
+                'tax_status' => 'taxable',
+            ], $data);
+
+            // Configurar atributos para variaciones
+            foreach ($productData['attributes'] as &$attribute) {
+                $attribute['variation'] = true; // Habilitar variaciones para todos los atributos
+                $attribute['visible'] = true;
+            }
+
+            Log::info('Enviando datos a WooCommerce para crear producto variable', [
+                'productData' => $productData,
+                'variations_count' => count($variations),
+                'storeId' => $storeId
+            ]);
+
+            // Crear el producto variable en WooCommerce
+            $created = $woocommerce->post("products", $productData);
+
+            Log::info('Producto variable creado exitosamente', [
+                'product_id' => $created->id,
+                'storeId' => $storeId
+            ]);
+
+            // Crear las variaciones
+            $createdVariations = [];
+            foreach ($variations as $variationData) {
+                try {
+                    Log::info('Creando variación', [
+                        'product_id' => $created->id,
+                        'variation_data' => $variationData,
+                        'storeId' => $storeId
+                    ]);
+
+                    $variation = $woocommerce->post("products/{$created->id}/variations", $variationData);
+                    $createdVariations[] = $variation;
+
+                    Log::info('Variación creada exitosamente', [
+                        'variation_id' => $variation->id,
+                        'product_id' => $created->id,
+                        'storeId' => $storeId
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('Error al crear variación', [
+                        'message' => $e->getMessage(),
+                        'variation_data' => $variationData,
+                        'product_id' => $created->id,
+                        'storeId' => $storeId
+                    ]);
+                    // Continuar con las siguientes variaciones
+                }
+            }
+
+            // Obtener el producto completo con todas las variaciones
+            $completeProduct = $woocommerce->get("products/{$created->id}");
+            $filtered = $this->filterProductResponse($completeProduct, $woocommerce);
+
+            Log::info('Producto variable completado', [
+                'product_id' => $created->id,
+                'variations_created' => count($createdVariations),
+                'storeId' => $storeId
+            ]);
+
+            return response()->json([
+                'message' => 'Producto variable creado correctamente.',
+                'created_product' => $filtered,
+                'variations_created' => count($createdVariations),
+                'status' => 'success'
+            ], 201);
+
+        } catch (\Automattic\WooCommerce\HttpClient\HttpClientException $e) {
+            Log::error('Error de WooCommerce API al crear producto variable', [
+                'message' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'storeId' => $storeId,
+                'request_data' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Error de WooCommerce API.',
+                'error' => $e->getMessage(),
+                'status' => 'error'
+            ], 400);
+        } catch (\Exception $e) {
+            Log::error('Error general al crear producto variable', [
+                'message' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'storeId' => $storeId,
+                'request_data' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Error al crear el producto variable.',
+                'error' => $e->getMessage(),
+                'status' => 'error'
+            ], 500);
+        }
+    }
+
+    /**
+     * Asignar un producto de WooCommerce a una bodega
+     */
+    public function assignProductToWarehouse(Request $request, $storeId, $productId)
+    {
+        Log::info('Iniciando asignación de producto a bodega', [
+            'storeId' => $storeId,
+            'productId' => $productId,
+            'request_data' => $request->all(),
+            'user_id' => auth()->id() ?? 'no_authenticated'
+        ]);
+
+        try {
+            $woocommerce = $this->connect($storeId);
+            
+            // Validar datos de entrada
+            $validator = Validator::make($request->all(), [
+                'warehouse_id' => 'required|integer|exists:warehouses,id',
+                'available_quantity' => 'required|integer|min:0',
+                'price' => 'required|numeric|min:0',
+                'condicion' => 'required|string|max:255',
+                'currency_id' => 'required|string|max:255',
+                'listing_type_id' => 'required|string|max:255',
+                'category_id' => 'nullable|string|max:255',
+                'attribute' => 'nullable|array',
+                'pictures' => 'nullable|array',
+                'sale_terms' => 'nullable|array',
+                'shipping' => 'nullable|array',
+                'description' => 'nullable|string'
+            ]);
+
+            if ($validator->fails()) {
+                Log::warning('Validación fallida al asignar producto a bodega', [
+                    'errors' => $validator->errors(),
+                    'request_data' => $request->all(),
+                    'storeId' => $storeId,
+                    'productId' => $productId
+                ]);
+                return response()->json([
+                    'message' => 'Error de validación.',
+                    'errors' => $validator->errors(),
+                    'status' => 'error'
+                ], 422);
+            }
+
+            // Obtener el producto de WooCommerce
+            $wooProduct = $woocommerce->get("products/{$productId}");
+            
+            if (!$wooProduct) {
+                return response()->json([
+                    'message' => 'Producto de WooCommerce no encontrado.',
+                    'status' => 'error'
+                ], 404);
+            }
+
+            $data = $validator->validated();
+
+            // Crear registro en stock_warehouses
+            $stockWarehouse = \App\Models\StockWarehouse::create([
+                'id_mlc' => $wooProduct->id, // Usar el ID de WooCommerce como id_mlc
+                'warehouse_id' => $data['warehouse_id'],
+                'title' => $wooProduct->name,
+                'price' => $data['price'],
+                'condicion' => $data['condicion'],
+                'currency_id' => $data['currency_id'],
+                'listing_type_id' => $data['listing_type_id'],
+                'available_quantity' => $data['available_quantity'],
+                'category_id' => $data['category_id'] ?? null,
+                'attribute' => isset($data['attribute']) ? json_encode($data['attribute']) : json_encode([]),
+                'pictures' => isset($data['pictures']) ? json_encode($data['pictures']) : json_encode($wooProduct->images ?? []),
+                'sale_terms' => isset($data['sale_terms']) ? json_encode($data['sale_terms']) : json_encode([]),
+                'shipping' => isset($data['shipping']) ? json_encode($data['shipping']) : json_encode([]),
+                'description' => $data['description'] ?? $wooProduct->description ?? '',
+            ]);
+
+            Log::info('Producto asignado exitosamente a bodega', [
+                'stock_warehouse_id' => $stockWarehouse->id,
+                'warehouse_id' => $data['warehouse_id'],
+                'woo_product_id' => $productId,
+                'storeId' => $storeId
+            ]);
+
+            return response()->json([
+                'message' => 'Producto asignado correctamente a la bodega.',
+                'stock_warehouse' => $stockWarehouse,
+                'woo_product' => $this->filterProductResponse($wooProduct, $woocommerce),
+                'status' => 'success'
+            ], 201);
+
+        } catch (\Automattic\WooCommerce\HttpClient\HttpClientException $e) {
+            Log::error('Error de WooCommerce API al asignar producto a bodega', [
+                'message' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'storeId' => $storeId,
+                'productId' => $productId,
+                'request_data' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Error de WooCommerce API.',
+                'error' => $e->getMessage(),
+                'status' => 'error'
+            ], 400);
+        } catch (\Exception $e) {
+            Log::error('Error general al asignar producto a bodega', [
+                'message' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'storeId' => $storeId,
+                'productId' => $productId,
+                'request_data' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Error al asignar el producto a la bodega.',
+                'error' => $e->getMessage(),
+                'status' => 'error'
+            ], 500);
+        }
+    }
+
+    /**
+     * Crear producto en WooCommerce y asignarlo a una bodega en una sola operación
+     */
+    public function createProductAndAssignToWarehouse(Request $request, $storeId)
+    {
+        Log::info('Iniciando creación de producto y asignación a bodega', [
+            'storeId' => $storeId,
+            'request_data' => $request->all(),
+            'user_id' => auth()->id() ?? 'no_authenticated'
+        ]);
+
+        try {
+            $woocommerce = $this->connect($storeId);
+
+            // Validación de datos de entrada
+            $validator = Validator::make($request->all(), [
+                // Datos del producto WooCommerce
+                'name' => 'required|string|max:255',
+                'type' => 'sometimes|in:simple,grouped,external,variable',
+                'regular_price' => 'sometimes|numeric|min:0',
+                'sale_price' => 'sometimes|numeric|min:0',
+                'description' => 'sometimes|string',
+                'short_description' => 'sometimes|string',
+                'sku' => 'sometimes|string|max:100',
+                'manage_stock' => 'sometimes|boolean',
+                'stock_quantity' => 'sometimes|integer|min:0',
+                'stock_status' => 'sometimes|in:instock,outofstock,onbackorder',
+                'weight' => 'sometimes|numeric|min:0',
+                'dimensions.length' => 'sometimes|numeric|min:0',
+                'dimensions.width' => 'sometimes|numeric|min:0',
+                'dimensions.height' => 'sometimes|numeric|min:0',
+                'categories' => 'sometimes|array',
+                'categories.*.id' => 'required_with:categories|integer',
+                'tags' => 'sometimes|array',
+                'tags.*.id' => 'required_with:tags|integer',
+                'images' => 'sometimes|array',
+                'images.*.src' => 'required_with:images|url',
+                'attributes' => 'sometimes|array',
+                'status' => 'sometimes|in:draft,pending,private,publish',
+                'featured' => 'sometimes|boolean',
+                'catalog_visibility' => 'sometimes|in:visible,catalog,search,hidden',
+                'virtual' => 'sometimes|boolean',
+                'downloadable' => 'sometimes|boolean',
+                'external_url' => 'sometimes|url',
+                'button_text' => 'sometimes|string|max:255',
+                'tax_status' => 'sometimes|in:taxable,shipping,none',
+                'tax_class' => 'sometimes|string',
+                'reviews_allowed' => 'sometimes|boolean',
+                'purchase_note' => 'sometimes|string',
+                'menu_order' => 'sometimes|integer',
+                
+                // Datos de asignación a bodega
+                'warehouse_id' => 'required|integer|exists:warehouses,id',
+                'warehouse_quantity' => 'required|integer|min:0',
+                'warehouse_price' => 'required|numeric|min:0',
+                'condicion' => 'required|string|max:255',
+                'currency_id' => 'required|string|max:255',
+                'listing_type_id' => 'required|string|max:255',
+                'category_id' => 'nullable|string|max:255',
+                'warehouse_attribute' => 'nullable|array',
+                'warehouse_pictures' => 'nullable|array',
+                'warehouse_sale_terms' => 'nullable|array',
+                'warehouse_shipping' => 'nullable|array',
+                'warehouse_description' => 'nullable|string'
+            ]);
+
+            if ($validator->fails()) {
+                Log::warning('Validación fallida al crear producto y asignar a bodega', [
+                    'errors' => $validator->errors(),
+                    'request_data' => $request->all(),
+                    'storeId' => $storeId
+                ]);
+                return response()->json([
+                    'message' => 'Error de validación.',
+                    'errors' => $validator->errors(),
+                    'status' => 'error'
+                ], 422);
+            }
+
+            $data = $validator->validated();
+
+            // Separar datos del producto WooCommerce
+            $wooProductData = array_intersect_key($data, array_flip([
+                'name', 'type', 'regular_price', 'sale_price', 'description', 'short_description',
+                'sku', 'manage_stock', 'stock_quantity', 'stock_status', 'weight', 'dimensions',
+                'categories', 'tags', 'images', 'attributes', 'status', 'featured',
+                'catalog_visibility', 'virtual', 'downloadable', 'external_url', 'button_text',
+                'tax_status', 'tax_class', 'reviews_allowed', 'purchase_note', 'menu_order'
+            ]));
+
+            // Campos por defecto para un nuevo producto
+            $productData = array_merge([
+                'type' => 'simple',
+                'status' => 'publish',
+                'featured' => false,
+                'catalog_visibility' => 'visible',
+                'manage_stock' => false,
+                'stock_status' => 'instock',
+                'virtual' => false,
+                'downloadable' => false,
+                'reviews_allowed' => true,
+                'tax_status' => 'taxable',
+            ], $wooProductData);
+
+            // Crear el producto en WooCommerce
+            Log::info('Creando producto en WooCommerce', [
+                'productData' => $productData,
+                'storeId' => $storeId
+            ]);
+            
+            $created = $woocommerce->post("products", $productData);
+
+            Log::info('Producto creado exitosamente en WooCommerce', [
+                'created_product' => $created,
+                'storeId' => $storeId
+            ]);
+
+            // Crear registro en stock_warehouses
+            $stockWarehouse = \App\Models\StockWarehouse::create([
+                'id_mlc' => $created->id, // Usar el ID de WooCommerce como id_mlc
+                'warehouse_id' => $data['warehouse_id'],
+                'title' => $created->name,
+                'price' => $data['warehouse_price'],
+                'condicion' => $data['condicion'],
+                'currency_id' => $data['currency_id'],
+                'listing_type_id' => $data['listing_type_id'],
+                'available_quantity' => $data['warehouse_quantity'],
+                'category_id' => $data['category_id'] ?? null,
+                'attribute' => isset($data['warehouse_attribute']) ? json_encode($data['warehouse_attribute']) : json_encode([]),
+                'pictures' => isset($data['warehouse_pictures']) ? json_encode($data['warehouse_pictures']) : json_encode($created->images ?? []),
+                'sale_terms' => isset($data['warehouse_sale_terms']) ? json_encode($data['warehouse_sale_terms']) : json_encode([]),
+                'shipping' => isset($data['warehouse_shipping']) ? json_encode($data['warehouse_shipping']) : json_encode([]),
+                'description' => $data['warehouse_description'] ?? $created->description ?? '',
+            ]);
+
+            Log::info('Producto asignado exitosamente a bodega', [
+                'stock_warehouse_id' => $stockWarehouse->id,
+                'warehouse_id' => $data['warehouse_id'],
+                'woo_product_id' => $created->id,
+                'storeId' => $storeId
+            ]);
+
+            // Respuesta filtrada con información relevante
+            $filtered = $this->filterProductResponse($created, $woocommerce);
+
+            return response()->json([
+                'message' => 'Producto creado y asignado correctamente a la bodega.',
+                'created_product' => $filtered,
+                'stock_warehouse' => $stockWarehouse,
+                'status' => 'success'
+            ], 201);
+
+        } catch (\Automattic\WooCommerce\HttpClient\HttpClientException $e) {
+            Log::error('Error de WooCommerce API al crear producto y asignar a bodega', [
+                'message' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'storeId' => $storeId,
+                'request_data' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Error de WooCommerce API.',
+                'error' => $e->getMessage(),
+                'status' => 'error'
+            ], 400);
+        } catch (\Exception $e) {
+            Log::error('Error general al crear producto y asignar a bodega', [
+                'message' => $e->getMessage(),
+                'code' => $e->getCode(),
+                'storeId' => $storeId,
+                'request_data' => $request->all(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Error al crear el producto y asignarlo a la bodega.',
+                'error' => $e->getMessage(),
+                'status' => 'error'
+            ], 500);
+        }
+    }
+
+    /**
+     * Obtener productos de WooCommerce asignados a una bodega específica
+     */
+    public function getProductsByWarehouse($storeId, $warehouseId)
+    {
+        Log::info('Obteniendo productos de WooCommerce por bodega', [
+            'storeId' => $storeId,
+            'warehouseId' => $warehouseId,
+            'user_id' => auth()->id() ?? 'no_authenticated'
+        ]);
+
+        try {
+            // Verificar que la bodega existe
+            $warehouse = \App\Models\Warehouse::findOrFail($warehouseId);
+            
+            // Obtener productos de la bodega
+            $stockWarehouses = \App\Models\StockWarehouse::where('warehouse_id', $warehouseId)->get();
+            
+            $woocommerce = $this->connect($storeId);
+            $products = [];
+
+            foreach ($stockWarehouses as $stockWarehouse) {
+                try {
+                    // Obtener producto de WooCommerce usando el id_mlc
+                    $wooProduct = $woocommerce->get("products/{$stockWarehouse->id_mlc}");
+                    $filteredProduct = $this->filterProductResponse($wooProduct, $woocommerce);
+                    
+                    // Combinar datos del producto WooCommerce con datos de stock
+                    $products[] = array_merge($filteredProduct, [
+                        'stock_warehouse_id' => $stockWarehouse->id,
+                        'warehouse_quantity' => $stockWarehouse->available_quantity,
+                        'warehouse_price' => $stockWarehouse->price,
+                        'warehouse_condicion' => $stockWarehouse->condicion,
+                        'warehouse_currency_id' => $stockWarehouse->currency_id,
+                        'warehouse_listing_type_id' => $stockWarehouse->listing_type_id,
+                    ]);
+                } catch (\Exception $e) {
+                    Log::warning('Error al obtener producto de WooCommerce', [
+                        'id_mlc' => $stockWarehouse->id_mlc,
+                        'error' => $e->getMessage()
+                    ]);
+                    // Continuar con el siguiente producto
+                }
+            }
+
+            Log::info('Productos obtenidos exitosamente', [
+                'warehouseId' => $warehouseId,
+                'products_count' => count($products),
+                'storeId' => $storeId
+            ]);
+
+            return response()->json([
+                'warehouse' => $warehouse,
+                'products' => $products,
+                'total_count' => count($products),
+                'status' => 'success'
+            ]);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            Log::error('Bodega no encontrada', [
+                'warehouseId' => $warehouseId,
+                'error' => $e->getMessage()
+            ]);
+            return response()->json([
+                'message' => 'Bodega no encontrada.',
+                'error' => $e->getMessage(),
+                'status' => 'error'
+            ], 404);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener productos por bodega', [
+                'message' => $e->getMessage(),
+                'warehouseId' => $warehouseId,
+                'storeId' => $storeId,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Error al obtener productos por bodega.',
+                'error' => $e->getMessage(),
+                'status' => 'error'
+            ], 500);
+        }
+    }
 }

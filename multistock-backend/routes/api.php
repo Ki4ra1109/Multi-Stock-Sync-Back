@@ -219,6 +219,14 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::delete('/warehouse-stock/{id}', [warehouseDeleteStockController::class, 'stock_delete']); // Eliminar stock
     Route::get('/warehouse/{warehouse_id}/stock', [warehouseGetStockByWarehouseController::class, 'getStockByWarehouse']); // Obtener stock por bodega
     Route::post('/warehouse-stock-masive/{warehouseId}', [warehouseCreateMasiveProductStockController::class, 'warehouseCreateMasiveProductStock']); // Crear stock masivo
+    
+    // STOCK CONTROLLER - GESTIÓN DE STOCK EN BODEGAS
+    Route::get('/stock/warehouse', [StockController::class, 'getWarehouseStock']); // Obtener todo el stock de bodegas
+    Route::get('/stock/warehouse/{warehouseId}', [StockController::class, 'getStockByWarehouse']); // Obtener stock de bodega específica
+    Route::post('/stock/warehouse', [StockController::class, 'createWarehouseStock']); // Crear stock en bodega
+    Route::put('/stock/warehouse/{stockId}', [StockController::class, 'updateWarehouseStock']); // Actualizar stock en bodega
+    Route::delete('/stock/warehouse/{stockId}', [StockController::class, 'deleteWarehouseStock']); // Eliminar stock de bodega
+    Route::get('/stock/company/{companyId}', [StockController::class, 'getStockByCompany']); // Obtener stock por empresa
 
     // COMPARACIÓN DE STOCK
     Route::get('/compare-stock/{id_mlc}/{idCompany}', [getCompareStockByProductiDController::class, 'getCompareStockByProductiD']);// Comparar stock por ID_MLC y empresa
@@ -351,6 +359,11 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::get('/woocommerce/woo/{storeId}/product/{productId}', [WooProductController::class, 'getProduct']);
     Route::get('/woocommerce/woo/{storeId}/productc-list', [WooProductController::class, 'listProducts']);//listar productos de WooCommerce
     Route::get('/woocommerce/woo/{storeId}/variable-products', [WooProductController::class, 'listVariableProducts']);//listar solo productos variables
+    
+    // ASIGNACIÓN DE PRODUCTOS A BODEGAS
+    Route::post('/woocommerce/woo/{storeId}/product/{productId}/assign-warehouse', [WooProductController::class, 'assignProductToWarehouse']);// Asignar producto existente a bodega
+    Route::post('/woocommerce/woo/{storeId}/product-create-assign-warehouse', [WooProductController::class, 'createProductAndAssignToWarehouse']);// Crear producto y asignar a bodega
+    Route::get('/woocommerce/woo/{storeId}/warehouse/{warehouseId}/products', [WooProductController::class, 'getProductsByWarehouse']);// Obtener productos por bodega
     //categorias wooComerce
     Route::Get('/woocommerce/woo/{storeId}/categories', [WooCategoryController::class, 'listCategories']);
     Route::Get('/woocommerce/woo/{storeId}/category/{categoryId}',[WooCategoryController::class, 'getCategory']);
