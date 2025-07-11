@@ -165,7 +165,7 @@ Route::put('/users/{id}/asignar-rol', [UserController::class, 'asignarRol'])->mi
 
 Route::get('/dashboard', function () {
   
-})->middleware(['auth', 'verified']);
+})->middleware('verified');
 
 
 
