@@ -11,12 +11,14 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('size_grids', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('value_name')->nullable();
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('size_grids')) {
+            Schema::create('size_grids', function (Blueprint $table) {
+                $table->id();
+                $table->string('name');
+                $table->string('value_name')->nullable();
+                $table->timestamps();
+            });
+        }
     }
 
     /**
@@ -24,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('_size__grid__id');
+        Schema::dropIfExists('size_grids');
     }
 };

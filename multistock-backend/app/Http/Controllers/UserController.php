@@ -82,15 +82,25 @@ class UserController extends Controller
                 'apellidos' => $validated['apellidos'],
                 'telefono' => $validated['telefono'],
                 'email' => $validated['email'],
-                'password' => Hash::make($validated['password']), // Password hashed
+                'password' => Hash::make($validated['password']),
                 'role_id' => $validated['role_id'] ?? null
             ]);
+
+            
+            $user->sendEmailVerificationNotification();
+
             Log::info('Usuario creado', ['user_id' => $user->id]);
             // Response with user data
             return response()->json(['user' => $user, 'message' => 'Usuario creado correctamente'], 201);
         } catch (\Exception $e) {
-            Log::error('Error al crear usuario', ['error' => $e->getMessage()]);
-            return response()->json(['message' => 'Error interno al crear el usuario'], 500);
+            Log::error('Error al crear usuario', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'message' => 'Error interno al crear el usuario',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 

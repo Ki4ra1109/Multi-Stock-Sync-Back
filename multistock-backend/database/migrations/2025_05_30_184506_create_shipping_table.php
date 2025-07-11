@@ -11,19 +11,20 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('shipping', function (Blueprint $table) {
-            $table->id();
-            $table->string('nombre');
-            $table->string('apellido');
-            $table->string('rut');
-            $table->string('direccion');
-            $table->string('telefono');
-            $table->string('email');
-            $table->unsignedBigInteger('venta_id');
-            $table->string('ciudad');
-            $table->unsignedBigInteger('warehouse_id');
-            $table->unsignedBigInteger('client_id');
-            $table->timestamps();
+        if (!Schema::hasTable('shipping')) {
+            Schema::create('shipping', function (Blueprint $table) {
+                $table->id();
+                $table->string('nombre');
+                $table->string('apellido');
+                $table->string('rut');
+                $table->string('direccion');
+                $table->string('telefono');
+                $table->string('email');
+                $table->unsignedInteger('venta_id');
+                $table->string('ciudad');
+                $table->unsignedBigInteger('warehouse_id');
+                $table->unsignedBigInteger('client_id');
+                $table->timestamps();
 
             // Clave foránea a sale (venta)
             $table->foreign('venta_id')
@@ -37,12 +38,14 @@ return new class extends Migration
                 ->onUpdate('restrict')
                 ->onDelete('restrict');
 
-            // Clave foránea a clientes
-            $table->foreign('client_id')
-                ->references('id')->on('clientes')
-                ->onUpdate('restrict')
-                ->onDelete('restrict');
+        // Clave foránea a clientes
+        $table->foreign('client_id')
+            ->references('id')->on('clientes')
+            ->onUpdate('restrict')
+            ->onDelete('restrict');
         });
+    }
+
     }
 
     /**

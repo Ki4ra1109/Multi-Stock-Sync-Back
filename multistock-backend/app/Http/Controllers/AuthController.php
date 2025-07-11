@@ -99,5 +99,41 @@ class AuthController extends Controller
 
         return response()->json(['message' => 'Contraseña actualizada correctamente.']);
     }
-}
 
+    
+    public function resendVerificationEmail(Request $request)
+    {
+        $request->validate(['email' => 'required|email']);
+
+        $user = \App\Models\User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return response()->json(['message' => 'La cuenta no está verificada.'], 404);
+        }
+
+        if ($user->hasVerifiedEmail()) {
+            return response()->json(['message' => 'El correo ya fue verificado.'], 409);
+        }
+
+        $user->sendEmailVerificationNotification();
+        return response()->json(['message' => 'Correo de verificación reenviado.']);
+    }
+
+  
+    public function emailVerifiedStatus(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Usuario no autenticado.'], 401);
+        }
+
+        return response()->json([
+            'email' => $user->email,
+            'verified' => $user->hasVerifiedEmail(),
+            'message' => $user->hasVerifiedEmail()
+                ? 'La cuenta ya está verificada.'
+                : 'La cuenta no está verificada.'
+        ]);
+    }
+}
