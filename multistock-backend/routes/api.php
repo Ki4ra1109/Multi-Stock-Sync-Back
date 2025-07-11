@@ -147,6 +147,9 @@ Route::post('/login', [AuthController::class, 'login']); // Iniciar sesión de u
 Route::post('/users', [UserController::class, 'store']); // Crear usuario
 Route::get('/users/{id}', [UserController::class, 'show']);
 
+//Reenvio Correo
+Route::post('/email/resend', [AuthController::class, 'resendVerificationEmail']);
+
 
 // Rutas protegidas
 Route::middleware('auth:sanctum')->group(function () {
@@ -157,10 +160,23 @@ Route::post('/user/change-password', [AuthController::class, 'changePassword'])-
 // Asignar roles
 Route::put('/users/{id}/asignar-rol', [UserController::class, 'asignarRol'])->middleware(['auth:sanctum', 'role:admin,RRHH']);
 
+
+//Verificar correo electrónico
+
+Route::get('/dashboard', function () {
+  
+})->middleware('verified');
+
+
+
+// Verificar estado del correo electrónico
+Route::middleware('auth:sanctum')->post('/email/verified-status', [AuthController::class, 'emailVerifiedStatus']);
+
 Route::middleware('auth:sanctum')->get('/user/profile', function (Request $request) {
     return response()->json(['user' => $request->user()]);
 });
 
+// Ruta protegida
 Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::get('/history-sale/{client_id}', [getHistorySaleController::class, 'getHistorySale']);
 });
@@ -355,9 +371,10 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::Put('/woocommerce/woo/{storeId}/category/{categoryId}', [WooCategoryController::class, 'updateCategory']);
     Route::Delete('/woocommerce/woo/{storeId}/category/{categoryId}', [WooCategoryController::class, 'deleteCategory']);
     Route::Get('/woocommerce/woo/{storeId}/category/{categoryId}/can-delete', [WooCategoryController::class, 'canDeleteCategory']);
-   });
+
    
     Route::get('/woocommerce/woo/{storeId}/product/{productId}/variation-list', [WooProductController::class, 'listVariations']);// Listar variaciones de producto
     Route::post('/woocommerce/woo/{storeId}/product/{productId}/variation', [WooProductController::class, 'createVariation']);// Crear variación de producto
     Route::delete('/woocommerce/woo/{storeId}/product/{productId}/variation/{variationId}', [WooProductController::class, 'deleteVariation']);// Eliminar variación de producto
     
+});

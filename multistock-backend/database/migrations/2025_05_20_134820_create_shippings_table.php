@@ -11,18 +11,20 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('direccion', function (Blueprint $table) {
-            $table->id();
-            $table->string('nombre');
-            $table->string('apellido');
-            $table->string('rut');
-            $table->string('direccion');
-            $table->string('telefono');
-            $table->string('email');
-            $table->string('ciudad');
-            $table->foreignId('venta_id')->unique()->constrained('sale');
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('direccion')) {
+            Schema::create('direccion', function (Blueprint $table) {
+                $table->id();
+                $table->string('nombre');
+                $table->string('apellido');
+                $table->string('rut');
+                $table->string('direccion');
+                $table->string('telefono');
+                $table->string('email');
+                $table->string('ciudad');
+                $table->foreignId('venta_id')->unique()->constrained('sale');
+                $table->timestamps();
+            });
+        }
     }
 
     /**
