@@ -713,6 +713,7 @@ public function listVariations($storeId, $productId)
         }
     }
 
+
     /**
      * Asignar un producto de WooCommerce a una bodega
      */
@@ -1096,4 +1097,4 @@ public function listVariations($storeId, $productId)
             ], 500);
         }
     }
-}
+
