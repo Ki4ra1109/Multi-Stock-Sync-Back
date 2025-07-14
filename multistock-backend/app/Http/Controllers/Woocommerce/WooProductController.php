@@ -1098,3 +1098,4 @@ public function listVariations($storeId, $productId)
         }
     }
 
+}
