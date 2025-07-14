@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 
 class WooProductController extends Controller
 {
@@ -540,8 +541,7 @@ public function listVariations($storeId, $productId)
         Log::info('Iniciando creación de producto variable', [
             'storeId' => $storeId,
             'request_data' => $request->all(),
-            'user_id' => auth()->id() ?? 'no_authenticated'
-        ]);
+            'user_id' => optional(Auth::user())->id        ]);
 
         try {
             $woocommerce = $this->connect($storeId);
@@ -723,7 +723,7 @@ public function listVariations($storeId, $productId)
             'storeId' => $storeId,
             'productId' => $productId,
             'request_data' => $request->all(),
-            'user_id' => auth()->id() ?? 'no_authenticated'
+            'user_id' => optional(Auth::user())->id
         ]);
 
         try {
@@ -842,7 +842,7 @@ public function listVariations($storeId, $productId)
         Log::info('Iniciando creación de producto y asignación a bodega', [
             'storeId' => $storeId,
             'request_data' => $request->all(),
-            'user_id' => auth()->id() ?? 'no_authenticated'
+            'user_id' => optional(Auth::user())->id
         ]);
 
         try {
@@ -1023,7 +1023,7 @@ public function listVariations($storeId, $productId)
         Log::info('Obteniendo productos de WooCommerce por bodega', [
             'storeId' => $storeId,
             'warehouseId' => $warehouseId,
-            'user_id' => auth()->id() ?? 'no_authenticated'
+            'user_id' => optional(Auth::user())->id 
         ]);
 
         try {
@@ -1098,3 +1098,4 @@ public function listVariations($storeId, $productId)
         }
     }
 
+}
