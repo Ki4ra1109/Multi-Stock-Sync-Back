@@ -41,9 +41,7 @@ Route::get('/email/verify/{id}/{hash}', function ($id, $hash, Request $request) 
         $user->markEmailAsVerified();
     }
 
-    // Auth::login($user);
-
-    return redirect('/?verified=1');
+    return view('email-confirmed');
 })->middleware(['signed'])->name('verification.verify');
 
 
