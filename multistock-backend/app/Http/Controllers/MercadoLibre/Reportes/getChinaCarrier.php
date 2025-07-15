@@ -28,9 +28,17 @@ class getChinaCarrier extends Controller
             ], 400);
         }
 
-        $company = \App\Models\Company::find($request->input('company_id'));
+        $companyId = $request->input('company_id');
+        $cacheKey = 'china_carrier_products_' . $companyId;
+        $cachedResult = \Illuminate\Support\Facades\Cache::get($cacheKey);
+        if ($cachedResult) {
+            Log::info('Respuesta obtenida desde caché', ['company_id' => $companyId]);
+            return response()->json($cachedResult);
+        }
+
+        $company = \App\Models\Company::find($companyId);
         if (!$company || !$company->client_id) {
-            Log::error('No se encontró la compañía o no tiene client_id', ['company_id' => $request->input('company_id')]);
+            Log::error('No se encontró la compañía o no tiene client_id', ['company_id' => $companyId]);
             return response()->json([
                 'status' => 'error',
                 'message' => 'No se encontró la compañía o no tiene client_id asociado.'
@@ -242,7 +250,7 @@ class getChinaCarrier extends Controller
 
         Log::info('Total de productos internacionales encontrados', ['cantidad' => count($internacionales)]);
 
-        return response()->json([
+        $result = [
             'status' => 'success',
             'message' => 'Productos internacionales obtenidos correctamente.',
             'total_activos' => $totalItems,
@@ -252,6 +260,10 @@ class getChinaCarrier extends Controller
             'products' => $internacionales,
             'success_count' => $successCount,
             'error_count' => $errorCount,
-        ]);
+        ];
+        // Guardar en caché por 10 minutos
+        \Illuminate\Support\Facades\Cache::put($cacheKey, $result, now()->addMinutes(10));
+
+        return response()->json($result);
     }
 }
