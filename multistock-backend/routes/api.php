@@ -42,7 +42,7 @@ use App\Http\Controllers\MercadoLibre\Reportes\getAvailableForReceptionControlle
 use App\Http\Controllers\MercadoLibre\Reportes\getProductsToDispatchController;
 use App\Http\Controllers\MercadoLibre\Reportes\getStockSalesHistoryController;
 use App\Http\Controllers\MercadoLibre\Reportes\getHistoryDispatchController;
-use App\Http\Controllers\MercadoLibre\Reportes\getStockCriticController;// trae mil ml
+use App\Http\Controllers\MercadoLibre\Reportes\getStockCriticController; // trae mil ml
 use App\Http\Controllers\MercadoLibre\Reportes\getUpcomingShipmentsController;
 use App\Http\Controllers\MercadoLibre\Reportes\getDispatchEstimedLimitController;
 use App\Http\Controllers\MercadoLibre\Reportes\getInformationDispatchDeliveredController;
@@ -52,7 +52,7 @@ use App\Http\Controllers\MercadoLibre\Reportes\getCompaniesProductsController;
 use App\Http\Controllers\MercadoLibre\Reportes\getCancelledCompaniesController;
 use App\Http\Controllers\MercadoLibre\Reportes\getChinaCarrier;
 
-
+use App\Http\Controllers\MercadoLibre\Reportes\getTestproductoMLController;
 
 // Bodegas //
 use App\Http\Controllers\Warehouses\warehouseListAllController;
@@ -153,38 +153,37 @@ Route::post('/email/resend', [AuthController::class, 'resendVerificationEmail'])
 
 // Rutas protegidas
 Route::middleware('auth:sanctum')->group(function () {
-Route::post('/logout', [AuthController::class, 'logout']); // Cerrar sesión
+    Route::post('/logout', [AuthController::class, 'logout']); // Cerrar sesión
 
-Route::post('/user/change-password', [AuthController::class, 'changePassword'])->middleware('auth:sanctum');//cambiar contraseña
+    Route::post('/user/change-password', [AuthController::class, 'changePassword'])->middleware('auth:sanctum'); //cambiar contraseña
 
-// Asignar roles
-Route::put('/users/{id}/asignar-rol', [UserController::class, 'asignarRol'])->middleware(['auth:sanctum', 'role:admin,RRHH']);
-
-
-//Verificar correo electrónico
-
-Route::get('/dashboard', function () {
-  
-})->middleware('verified');
+    // Asignar roles
+    Route::put('/users/{id}/asignar-rol', [UserController::class, 'asignarRol'])->middleware(['auth:sanctum', 'role:admin,RRHH']);
 
 
+    //Verificar correo electrónico
 
-// Verificar estado del correo electrónico
-Route::middleware('auth:sanctum')->post('/email/verified-status', [AuthController::class, 'emailVerifiedStatus']);
+    Route::get('/dashboard', function () {})->middleware('verified');
 
-Route::middleware('auth:sanctum')->get('/user/profile', function (Request $request) {
-    return response()->json(['user' => $request->user()]);
-});
+    Route::middleware(['token.cached'])->group(function () {
 
-// Ruta protegida
-Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
-    Route::get('/history-sale/{client_id}', [getHistorySaleController::class, 'getHistorySale']);
-});
+        // Verificar estado del correo electrónico
+        Route::middleware('auth:sanctum')->post('/email/verified-status', [AuthController::class, 'emailVerifiedStatus']);
+
+        Route::middleware('auth:sanctum')->get('/user/profile', function (Request $request) {
+            return response()->json(['user' => $request->user()]);
+        });
+
+        // Ruta protegida
+        Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
+            Route::get('/history-sale/{client_id}', [getHistorySaleController::class, 'getHistorySale']);
+        });
+    });
     // USUARIOS
     Route::get('/users', [UserController::class, 'usersList']); // Obtener lista de usuarios
-    Route::get('/users/{id}', [UserController::class,'show']); // Obtener usuario específico
-    Route::patch('/users/{id}', [UserController::class,'update']); // Actualizar usuario
-    Route::delete('/users/{id}', [UserController::class,'delete']); // Eliminar usuario
+    Route::get('/users/{id}', [UserController::class, 'show']); // Obtener usuario específico
+    Route::patch('/users/{id}', [UserController::class, 'update']); // Actualizar usuario
+    Route::delete('/users/{id}', [UserController::class, 'delete']); // Eliminar usuario
 
 
 
@@ -193,11 +192,11 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::post('/roles/nuevo', [RolController::class, 'store']); // Crear rol
     Route::delete('/roles/{id}', [RolController::class, 'destroy']); // Eliminar rol
     Route::put('/roles/{id}', [RolController::class, 'update']); // Actualizar rol
-    
+
     // SINCRONIZACIÓN
     Route::post('/sincronizar', [SyncStatusController::class, 'iniciarSincronizacion']); // Iniciar sincronización
     Route::get('/estado-sincronizacion', [SyncStatusController::class, 'estadoSincronizacion']); // Estado de sincronización
-/*
+    /*
     // CRUD Clientes
     Route::get('/clientes', [ClientesController::class, 'index']); // Obtener todos los clientes
     Route::post('/clientes', [ClientesController::class, 'store']); // Crear cliente
@@ -219,7 +218,7 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::delete('/warehouse-stock/{id}', [warehouseDeleteStockController::class, 'stock_delete']); // Eliminar stock
     Route::get('/warehouse/{warehouse_id}/stock', [warehouseGetStockByWarehouseController::class, 'getStockByWarehouse']); // Obtener stock por bodega
     Route::post('/warehouse-stock-masive/{warehouseId}', [warehouseCreateMasiveProductStockController::class, 'warehouseCreateMasiveProductStock']); // Crear stock masivo
-    
+
     // STOCK CONTROLLER - GESTIÓN DE STOCK EN BODEGAS
     Route::get('/stock/warehouse', [StockController::class, 'getWarehouseStock']); // Obtener todo el stock de bodegas
     Route::get('/stock/warehouse/{warehouseId}', [StockController::class, 'getStockByWarehouse']); // Obtener stock de bodega específica
@@ -229,8 +228,8 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::get('/stock/company/{companyId}', [StockController::class, 'getStockByCompany']); // Obtener stock por empresa
 
     // COMPARACIÓN DE STOCK
-    Route::get('/compare-stock/{id_mlc}/{idCompany}', [getCompareStockByProductiDController::class, 'getCompareStockByProductiD']);// Comparar stock por ID_MLC y empresa
-    Route::get('/price-neto-stock/{idCompany}', [getPriceNetoStockController::class, 'getPriceNetoStock']);// Obtener precio neto de stock por empresa
+    Route::get('/compare-stock/{id_mlc}/{idCompany}', [getCompareStockByProductiDController::class, 'getCompareStockByProductiD']); // Comparar stock por ID_MLC y empresa
+    Route::get('/price-neto-stock/{idCompany}', [getPriceNetoStockController::class, 'getPriceNetoStock']); // Obtener precio neto de stock por empresa
 
     // EMPRESAS
     Route::get('/companies', [warehouseCompanyListController::class, 'company_list_all']);
@@ -261,10 +260,11 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::get('/mercadolibre/stock/{client_id}', [getStockController::class, 'getStock']); // Obtener stock de productos
     Route::get('/mercadolibre/save-products/{client_id}', [saveProductsController::class, 'saveProducts']); // Guardar productos
     Route::get('/mercadolibre/products/search/{client_id}', [searchProductsController::class, 'searchProducts']); // Buscar productos
-    Route::get('/mercadolibre/categorias/{client_id}',[CreateProductsMasiveController::class,'ListCategory']);//lista de categorias por compañia
+    Route::get('/mercadolibre/categorias/{client_id}', [CreateProductsMasiveController::class, 'ListCategory']); //lista de categorias por compañia
     Route::get('/mercadolibre/china-products', [getChinaCarrier::class, 'chinaProductsAllCompanies']); // Obtener productos de China Carrier
     Route::get('/mercadolibre/companies-products', [getCompaniesProductsController::class, 'getPublishedProductsAllCompanies']);
-    
+    Route::get('/mercadolibre/item-full/{client_id}/{item_id?}', [getTestproductoMLController::class, 'getItemFull']); // Obtener información completa del ítem
+
 
     // CREACIÓN Y MODIFICACIÓN DE PRODUCTOS
     Route::post('/mercadolibre/Products/{client_id}/crear-producto', [CreateProductController::class, 'create']); // Crear producto
@@ -282,10 +282,10 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::get('/mercadolibre/sizeGrids/{client_id}/{sizeGridId}', [SizeGridController::class, 'showSizeGrid']); // Mostrar talla
     Route::delete('/mercadolibre/sizeGrids/{client_id}/{sizeGridId}', [SizeGridController::class, 'deleteSizeGrid']); // Eliminar talla
     Route::put('/mercadolibre/sizeGrids/{client_id}/{sizeGridId}', [SizeGridController::class, 'updateSizeGrid']); // Actualizar talla
-    Route::get('/mercadolibre/domainID/{client_id}',[SizeGridController::class, 'getAvailableDomains']);//lista de dominios
-    Route::get('/mercadolibre/domainID/{domain_id}/{client_id}',[SizeGridController::class, 'getDomain']);
-    
-    
+    Route::get('/mercadolibre/domainID/{client_id}', [SizeGridController::class, 'getAvailableDomains']); //lista de dominios
+    Route::get('/mercadolibre/domainID/{domain_id}/{client_id}', [SizeGridController::class, 'getDomain']);
+
+
     // REPORTES MERCADO LIBRE
     Route::get('/mercadolibre/annual-sales/{client_id}', [getAnnualSalesController::class, 'getAnnualSales']); // Ventas anuales
     Route::get('/mercadolibre/available-for-reception/{client_id}', [getAvailableForReceptionController::class, 'getAvailableForReception']); // Disponible para recepción
@@ -295,7 +295,7 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::get('/mercadolibre/daily-sales/{client_id}', [getDailySalesController::class, 'getDailySales']); // Ventas diarias
     Route::get('/mercadolibre/dispatch-estimated-limit/{client_id}', [getDispatchEstimedLimitController::class, 'getDispatchEstimedLimit']); // Límite estimado de despacho
 
-    Route::get('/mercadolibre/delivered-shipments/{client_id}',[getDeliveredShipmentsController::class, 'getDeliveredShipments']);
+    Route::get('/mercadolibre/delivered-shipments/{client_id}', [getDeliveredShipmentsController::class, 'getDeliveredShipments']);
     Route::get('/mercadolibre/history-dispatch/{client_id}/{skuSearch}', [getHistoryDispatchController::class, 'getHistoryDispatch']); // Historial de despachos
     Route::get('/mercadolibre/information-dispatch-delivered/{client_id}/{deliveredId}', [getInformationDispatchDeliveredController::class, 'getInformationDispatchDelivered']); // Información de despacho entregado
     Route::get('/mercadolibre/invoices/{client_id}', [getInvoiceReportController::class, 'getInvoiceReport']); // Reporte de facturas
@@ -320,7 +320,7 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::get('/mercadolibre/all-products/{client_id}', [getProductSellerController::class, 'getProductSeller']); // Obtener todos los productos por client_id
     Route::put('/products/{client_id}/{item_id}/sku', [getProductSellerController::class, 'updateSku']); // Actualizar SKU de producto
     Route::get('/mercadolibre/cancelled-products', [getCancelledCompaniesController::class, 'getCancelledProductsAllCompanies']); // Obtener productos cancelados de las 4 empresas
-    Route::get('/mercadolibre/get-total-sales-all-companies', [getCompaniesProductsController::class, 'getTotalSalesAllCompanies']);//Obtener total de todos los productos vendidos
+    Route::get('/mercadolibre/get-total-sales-all-companies', [getCompaniesProductsController::class, 'getTotalSalesAllCompanies']); //Obtener total de todos los productos vendidos
 
     // Refrescar token de MercadoLibre
     //Route::post('/mercadolibre/refresh-token', [refreshAccessTokenController::class, 'refreshToken']);
@@ -345,36 +345,36 @@ Route::middleware(['auth:sanctum', 'role:admin,finanzas'])->group(function () {
     Route::put('/sale-note/{companyId}/{folio}', [putSaleNoteByFolioController::class, 'putSaleNoteByFolio']); // Actualizar nota de venta por folio
     //test
     Route::get('/test/{clientId}', [testingController::class, 'testingGet']); //para probar endpoint de mercadolibre de forma directa
-    Route::post('/test/{clientId}', [testingController::class, 'testingPost']);//test cn post
+    Route::post('/test/{clientId}', [testingController::class, 'testingPost']); //test controller post 
     // WooCommerce
     Route::get('/woocommerce/woo/{storeId}/products', [WooStoreController::class, 'getProductsWooCommerce']); // Obtener productos de WooCommerce
     Route::post('/woocommerce/woo-stores', [WooStoreController::class, 'storeWoocommerce']); // Registrar tienda WooCommerce
     Route::get('/woocommerce/woo-stores', [WooStoreController::class, 'getStores']); // Listar tiendas WooCommerce
-    
 
-    Route::put('/woocommerce/woo/{storeId}/product/{productId}', [WooProductController::class, 'updateProduct']);// Modificar producto en WooCommerce
-    Route::post('/woocommerce/woo/{storeId}/product', [WooProductController::class, 'createProduct']);// Crear producto en WooCommerce
-    Route::post('/woocommerce/woo/{storeId}/variable-product', [WooProductController::class, 'createVariableProduct']);// Crear producto variable en WooCommerce
-    Route::delete('/woocommerce/woo/{storeId}/product/{productId}', [WooProductController::class, 'deleteProduct']);// Eliminar producto en WooCommerce
+
+    Route::put('/woocommerce/woo/{storeId}/product/{productId}', [WooProductController::class, 'updateProduct']); // Modificar producto en WooCommerce
+    Route::post('/woocommerce/woo/{storeId}/product', [WooProductController::class, 'createProduct']); // Crear producto en WooCommerce
+    Route::post('/woocommerce/woo/{storeId}/variable-product', [WooProductController::class, 'createVariableProduct']); // Crear producto variable en WooCommerce
+    Route::delete('/woocommerce/woo/{storeId}/product/{productId}', [WooProductController::class, 'deleteProduct']); // Eliminar producto en WooCommerce
     Route::get('/woocommerce/woo/{storeId}/product/{productId}', [WooProductController::class, 'getProduct']);
-    Route::get('/woocommerce/woo/{storeId}/productc-list', [WooProductController::class, 'listProducts']);//listar productos de WooCommerce
-    Route::get('/woocommerce/woo/{storeId}/variable-products', [WooProductController::class, 'listVariableProducts']);//listar solo productos variables
-    
+    Route::get('/woocommerce/woo/{storeId}/productc-list', [WooProductController::class, 'listProducts']); //listar productos de WooCommerce
+    Route::get('/woocommerce/woo/{storeId}/variable-products', [WooProductController::class, 'listVariableProducts']); //listar solo productos variables
+
     // ASIGNACIÓN DE PRODUCTOS A BODEGAS
-    Route::post('/woocommerce/woo/{storeId}/product/{productId}/assign-warehouse', [WooProductController::class, 'assignProductToWarehouse']);// Asignar producto existente a bodega
-    Route::post('/woocommerce/woo/{storeId}/product-create-assign-warehouse', [WooProductController::class, 'createProductAndAssignToWarehouse']);// Crear producto y asignar a bodega
-    Route::get('/woocommerce/woo/{storeId}/warehouse/{warehouseId}/products', [WooProductController::class, 'getProductsByWarehouse']);// Obtener productos por bodega
+    Route::post('/woocommerce/woo/{storeId}/product/{productId}/assign-warehouse', [WooProductController::class, 'assignProductToWarehouse']); // Asignar producto existente a bodega
+    Route::post('/woocommerce/woo/{storeId}/product-create-assign-warehouse', [WooProductController::class, 'createProductAndAssignToWarehouse']); // Crear producto y asignar a bodega
+    Route::get('/woocommerce/woo/{storeId}/warehouse/{warehouseId}/products', [WooProductController::class, 'getProductsByWarehouse']); // Obtener productos por bodega
     //categorias wooComerce
     Route::Get('/woocommerce/woo/{storeId}/categories', [WooCategoryController::class, 'listCategories']);
-    Route::Get('/woocommerce/woo/{storeId}/category/{categoryId}',[WooCategoryController::class, 'getCategory']);
+    Route::Get('/woocommerce/woo/{storeId}/category/{categoryId}', [WooCategoryController::class, 'getCategory']);
     Route::Post('/woocomerce/{storeId}/category', [WooCategoryController::class, 'createCategory']);
     Route::Put('/woocommerce/woo/{storeId}/category/{categoryId}', [WooCategoryController::class, 'updateCategory']);
     Route::Delete('/woocommerce/woo/{storeId}/category/{categoryId}', [WooCategoryController::class, 'deleteCategory']);
     Route::Get('/woocommerce/woo/{storeId}/category/{categoryId}/can-delete', [WooCategoryController::class, 'canDeleteCategory']);
 
-   
-    Route::get('/woocommerce/woo/{storeId}/product/{productId}/variation-list', [WooProductController::class, 'listVariations']);// Listar variaciones de producto
-    Route::post('/woocommerce/woo/{storeId}/product/{productId}/variation', [WooProductController::class, 'createVariation']);// Crear variación de producto
-    Route::delete('/woocommerce/woo/{storeId}/product/{productId}/variation/{variationId}', [WooProductController::class, 'deleteVariation']);// Eliminar variación de producto
-    
+
+    Route::get('/woocommerce/woo/{storeId}/product/{productId}/variation-list', [WooProductController::class, 'listVariations']); // Listar variaciones de producto
+    Route::post('/woocommerce/woo/{storeId}/product/{productId}/variation', [WooProductController::class, 'createVariation']); // Crear variación de producto
+    Route::delete('/woocommerce/woo/{storeId}/product/{productId}/variation/{variationId}', [WooProductController::class, 'deleteVariation']); // Eliminar variación de producto
+
 });

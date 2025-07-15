@@ -125,7 +125,6 @@ class WooProductController extends Controller
                 'created_product' => $filtered,
                 'status' => 'success'
             ], 201);
-
         } catch (\Automattic\WooCommerce\HttpClient\HttpClientException $e) {
             return response()->json([
                 'message' => 'Error de WooCommerce API.',
@@ -205,7 +204,6 @@ class WooProductController extends Controller
                 'updated_product' => $filtered,
                 'status' => 'success'
             ]);
-
         } catch (\Automattic\WooCommerce\HttpClient\HttpClientException $e) {
             return response()->json([
                 'message' => 'Error de WooCommerce API.',
@@ -232,7 +230,6 @@ class WooProductController extends Controller
                 'product' => $this->filterProductResponse($product, $woocommerce),
                 'status' => 'success'
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error al obtener el producto.',
@@ -262,18 +259,18 @@ class WooProductController extends Controller
             ];
 
             // Filtrar parámetros vacíos
-            $params = array_filter($params, function($value) {
+            $params = array_filter($params, function ($value) {
                 return $value !== null && $value !== '';
             });
 
             $products = $woocommerce->get('products', $params);
 
-            
+
             if (!is_array($products)) {
                 $products = [$products];
             }
 
-            $filtered = array_map(function($product) use ($woocommerce) {
+            $filtered = array_map(function ($product) use ($woocommerce) {
                 return $this->filterProductResponse($product, $woocommerce);
             }, $products);
 
@@ -281,7 +278,6 @@ class WooProductController extends Controller
                 'products' => $filtered,
                 'status' => 'success'
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error al listar productos.',
@@ -303,7 +299,6 @@ class WooProductController extends Controller
                 'deleted_product' => $this->filterProductResponse($deleted, $woocommerce),
                 'status' => 'success'
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Error al eliminar el producto.',
@@ -312,7 +307,7 @@ class WooProductController extends Controller
             ], 500);
         }
     }
-public function listVariations($storeId, $productId)
+    public function listVariations($storeId, $productId)
     {
         try {
             $woocommerce = $this->connect($storeId);
@@ -541,7 +536,8 @@ public function listVariations($storeId, $productId)
         Log::info('Iniciando creación de producto variable', [
             'storeId' => $storeId,
             'request_data' => $request->all(),
-            'user_id' => optional(Auth::user())->id        ]);
+            'user_id' => optional(Auth::user())->id
+        ]);
 
         try {
             $woocommerce = $this->connect($storeId);
@@ -683,7 +679,6 @@ public function listVariations($storeId, $productId)
                 'variations_created' => count($createdVariations),
                 'status' => 'success'
             ], 201);
-
         } catch (\Automattic\WooCommerce\HttpClient\HttpClientException $e) {
             Log::error('Error de WooCommerce API al crear producto variable', [
                 'message' => $e->getMessage(),
@@ -728,7 +723,7 @@ public function listVariations($storeId, $productId)
 
         try {
             $woocommerce = $this->connect($storeId);
-            
+
             // Validar datos de entrada
             $validator = Validator::make($request->all(), [
                 'warehouse_id' => 'required|integer|exists:warehouses,id',
@@ -761,7 +756,7 @@ public function listVariations($storeId, $productId)
 
             // Obtener el producto de WooCommerce
             $wooProduct = $woocommerce->get("products/{$productId}");
-            
+
             if (!$wooProduct) {
                 return response()->json([
                     'message' => 'Producto de WooCommerce no encontrado.',
@@ -802,7 +797,6 @@ public function listVariations($storeId, $productId)
                 'woo_product' => $this->filterProductResponse($wooProduct, $woocommerce),
                 'status' => 'success'
             ], 201);
-
         } catch (\Automattic\WooCommerce\HttpClient\HttpClientException $e) {
             Log::error('Error de WooCommerce API al asignar producto a bodega', [
                 'message' => $e->getMessage(),
@@ -884,7 +878,7 @@ public function listVariations($storeId, $productId)
                 'reviews_allowed' => 'sometimes|boolean',
                 'purchase_note' => 'sometimes|string',
                 'menu_order' => 'sometimes|integer',
-                
+
                 // Datos de asignación a bodega
                 'warehouse_id' => 'required|integer|exists:warehouses,id',
                 'warehouse_quantity' => 'required|integer|min:0',
@@ -917,11 +911,34 @@ public function listVariations($storeId, $productId)
 
             // Separar datos del producto WooCommerce
             $wooProductData = array_intersect_key($data, array_flip([
-                'name', 'type', 'regular_price', 'sale_price', 'description', 'short_description',
-                'sku', 'manage_stock', 'stock_quantity', 'stock_status', 'weight', 'dimensions',
-                'categories', 'tags', 'images', 'attributes', 'status', 'featured',
-                'catalog_visibility', 'virtual', 'downloadable', 'external_url', 'button_text',
-                'tax_status', 'tax_class', 'reviews_allowed', 'purchase_note', 'menu_order'
+                'name',
+                'type',
+                'regular_price',
+                'sale_price',
+                'description',
+                'short_description',
+                'sku',
+                'manage_stock',
+                'stock_quantity',
+                'stock_status',
+                'weight',
+                'dimensions',
+                'categories',
+                'tags',
+                'images',
+                'attributes',
+                'status',
+                'featured',
+                'catalog_visibility',
+                'virtual',
+                'downloadable',
+                'external_url',
+                'button_text',
+                'tax_status',
+                'tax_class',
+                'reviews_allowed',
+                'purchase_note',
+                'menu_order'
             ]));
 
             // Campos por defecto para un nuevo producto
@@ -943,7 +960,7 @@ public function listVariations($storeId, $productId)
                 'productData' => $productData,
                 'storeId' => $storeId
             ]);
-            
+
             $created = $woocommerce->post("products", $productData);
 
             Log::info('Producto creado exitosamente en WooCommerce', [
@@ -985,7 +1002,6 @@ public function listVariations($storeId, $productId)
                 'stock_warehouse' => $stockWarehouse,
                 'status' => 'success'
             ], 201);
-
         } catch (\Automattic\WooCommerce\HttpClient\HttpClientException $e) {
             Log::error('Error de WooCommerce API al crear producto y asignar a bodega', [
                 'message' => $e->getMessage(),
@@ -1023,16 +1039,16 @@ public function listVariations($storeId, $productId)
         Log::info('Obteniendo productos de WooCommerce por bodega', [
             'storeId' => $storeId,
             'warehouseId' => $warehouseId,
-            'user_id' => optional(Auth::user())->id 
+            'user_id' => optional(Auth::user())->id
         ]);
 
         try {
             // Verificar que la bodega existe
             $warehouse = \App\Models\Warehouse::findOrFail($warehouseId);
-            
+
             // Obtener productos de la bodega
             $stockWarehouses = \App\Models\StockWarehouse::where('warehouse_id', $warehouseId)->get();
-            
+
             $woocommerce = $this->connect($storeId);
             $products = [];
 
@@ -1041,7 +1057,7 @@ public function listVariations($storeId, $productId)
                     // Obtener producto de WooCommerce usando el id_mlc
                     $wooProduct = $woocommerce->get("products/{$stockWarehouse->id_mlc}");
                     $filteredProduct = $this->filterProductResponse($wooProduct, $woocommerce);
-                    
+
                     // Combinar datos del producto WooCommerce con datos de stock
                     $products[] = array_merge($filteredProduct, [
                         'stock_warehouse_id' => $stockWarehouse->id,
@@ -1072,7 +1088,6 @@ public function listVariations($storeId, $productId)
                 'total_count' => count($products),
                 'status' => 'success'
             ]);
-
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             Log::error('Bodega no encontrada', [
                 'warehouseId' => $warehouseId,
@@ -1097,5 +1112,4 @@ public function listVariations($storeId, $productId)
             ], 500);
         }
     }
-
 }
