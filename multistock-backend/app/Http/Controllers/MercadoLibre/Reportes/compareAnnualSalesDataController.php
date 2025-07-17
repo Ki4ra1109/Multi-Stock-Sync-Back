@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
 use GuzzleHttp\Client;
 use GuzzleHttp\Promise;
+use Illuminate\Support\Facades\Cache;
 
 class compareAnnualSalesDataController
 {
@@ -16,8 +17,18 @@ class compareAnnualSalesDataController
      */
     public function compareAnnualSalesData($clientId)
     {
-        // Get credentials by client_id
-        $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
+        // Cachear credenciales por 10 minutos
+        $cacheKey = 'ml_credentials_' . $clientId;
+        $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($clientId) {
+            Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $clientId");
+            return MercadoLibreCredential::where('client_id', $clientId)->first();
+        });
+
+        if (Cache::has($cacheKey)) {
+            Log::info("Credenciales Mercado Libre obtenidas desde cache para client_id: $clientId");
+        } else {
+            Log::info("Credenciales Mercado Libre cacheadas por primera vez para client_id: $clientId");
+        }
 
         // Check if credentials exist
         if (!$credentials) {
