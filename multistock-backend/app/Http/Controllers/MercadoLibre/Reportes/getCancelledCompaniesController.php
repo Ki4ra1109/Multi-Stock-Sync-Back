@@ -7,6 +7,7 @@ use App\Models\Company;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 
 class getCancelledCompaniesController extends Controller
@@ -33,7 +34,13 @@ class getCancelledCompaniesController extends Controller
         foreach ($clientIds as $clientId) {
             Log::info("Procesando empresa", ['client_id' => $clientId]);
 
-            $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
+            // Cachear credenciales por 10 minutos
+            $cacheKey = 'ml_credentials_' . $clientId;
+            $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($clientId) {
+                Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $clientId");
+                return MercadoLibreCredential::where('client_id', $clientId)->first();
+            });
+
             if (!$credentials) {
                 Log::warning("No credentials found for client_id: $clientId");
                 continue;

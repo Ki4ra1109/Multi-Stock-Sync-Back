@@ -4,7 +4,10 @@ namespace App\Http\Controllers\MercadoLibre\Reportes;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use App\Models\MercadoLibreCredential;
+use App\Http\Controllers\Controller;
 
 class productRotationController extends Controller
 {
@@ -13,8 +16,12 @@ class productRotationController extends Controller
      */
     public function getProductRotation(Request $request, $clientId)
     {
-        // Get credentials by client_id
-        $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
+        // Cachear credenciales por 10 minutos
+        $cacheKey = 'ml_credentials_' . $clientId;
+        $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($clientId) {
+            Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $clientId");
+            return MercadoLibreCredential::where('client_id', $clientId)->first();
+        });
 
         // Check if credentials exist
         if (!$credentials) {
@@ -97,12 +104,15 @@ class productRotationController extends Controller
         }
 
         // Sort products by rotation (highest to lowest)
-        usort($productRotations, function($a, $b) {
+        usort($productRotations, function ($a, $b) {
             return $b['rotation'] <=> $a['rotation']; // Sorting in descending order
         });
 
         // Get the top 5 products with highest rotation
         $highestRotation = array_slice($productRotations, 0, 5);
+
+        // Get the bottom 5 products with lowest rotation
+        $lowestRotation = array_slice($productRotations, -5);
 
         // Return the data in the response
         return response()->json([

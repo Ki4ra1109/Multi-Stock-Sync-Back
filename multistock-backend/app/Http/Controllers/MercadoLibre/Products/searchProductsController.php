@@ -29,7 +29,11 @@ class searchProductsController extends Controller
 
 
         // Obtener credenciales
-        $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
+        $cacheKey = 'ml_credentials_' . $clientId;
+        $credentials = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addMinutes(10), function () use ($clientId) {
+            \Illuminate\Support\Facades\Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $clientId");
+            return \App\Models\MercadoLibreCredential::where('client_id', $clientId)->first();
+        });
 
         if (!$credentials) {
             return response()->json([

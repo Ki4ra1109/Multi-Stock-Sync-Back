@@ -6,14 +6,32 @@ use App\Models\MercadoLibreCredential;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+use App\Models\Company;
 
 class getDispatchEstimedLimitController
 {
-    public function getDispatchEstimedLimit($clientId)
+    public function getDispatchEstimedLimit($companyId)
     {
         set_time_limit(300);
 
-        $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
+        // 1. Buscar la compañía y obtener el client_id
+        $company = Company::find($companyId);
+        if (!$company || !$company->client_id) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No se encontró la compañía o no tiene client_id asociado.',
+            ], 404);
+        }
+        $clientId = $company->client_id;
+
+        // 2. Cachear credenciales por 10 minutos
+        $cacheKey = 'ml_credentials_' . $clientId;
+        $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($clientId) {
+            Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $clientId");
+            return MercadoLibreCredential::where('client_id', $clientId)->first();
+        });
 
         if (!$credentials) {
             return response()->json([

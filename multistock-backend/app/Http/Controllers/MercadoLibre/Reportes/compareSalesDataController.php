@@ -5,22 +5,37 @@ namespace App\Http\Controllers\MercadoLibre\Reportes;
 use App\Models\MercadoLibreCredential;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class compareSalesDataController
 {
 
     public function compareSalesData($clientId)
     {
-        // Get credentials by client_id
-        $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
+        // Cachear credenciales por 10 minutos
+        $cacheKey = 'ml_credentials_' . $clientId;
+        $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($clientId) {
+            Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $clientId");
+            return MercadoLibreCredential::where('client_id', $clientId)->first();
+        });
 
+        if (Cache::has($cacheKey)) {
+            Log::info("Credenciales Mercado Libre obtenidas desde cache para client_id: $clientId");
+        } else {
+            Log::info("Credenciales Mercado Libre cacheadas por primera vez para client_id: $clientId");
+        }
+
+        // Check if credentials exist
         if (!$credentials) {
+            Log::error("No credentials found for client_id: $clientId");
             return response()->json([
                 'status' => 'error',
                 'message' => 'No se encontraron credenciales válidas para el client_id proporcionado.',
             ], 404);
         }
 
+        // Refresh token if expired
         if ($credentials->isTokenExpired()) {
 
             $refreshResponse = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
@@ -29,27 +44,30 @@ class compareSalesDataController
                 'client_secret' => $credentials->client_secret,
                 'refresh_token' => $credentials->refresh_token,
             ]);
+            if ($refreshResponse->failed()) {
+                Log::error("Token refresh failed for client_id: $clientId");
+                return response()->json(['error' => 'No se pudo refrescar el token'], 401);
+            }
+            $data = $refreshResponse->json();
+            $credentials->update([
+                'access_token' => $data['access_token'],
+                'refresh_token' => $data['refresh_token'],
+                'expires_at' => now()->addSeconds($data['expires_in']),
+            ]);
         }
 
-        if ($credentials->isTokenExpired()) {
-                 return response()->json([
-                'status' => 'error',
-                'message' => 'El token ha expirado. Por favor, renueve su token.',
-            ], 401);
-        }
         // Get user id from token
-        $response = Http::withToken($credentials->access_token)
+        $Response = Http::withToken($credentials->access_token)
             ->get('https://api.mercadolibre.com/users/me');
-
-        if ($response->failed()) {
+        if ($Response->failed()) {
+            Log::error("Failed to get user ID for client_id: $clientId. URL: " . request()->fullUrl());
             return response()->json([
                 'status' => 'error',
-                'message' => 'No se pudo obtener el ID del usuario. Por favor, valide su token.',
-                'error' => $response->json(),
+                'message' => 'No se pudo obtener el ID del usuario. Valide su token.',
+                'error' => $Response->json(),
             ], 500);
         }
-
-        $userId = $response->json()['id'];
+        $userId = $Response->json()['id'];
 
         // Get query parameters
         $month1 = request()->query('month1');

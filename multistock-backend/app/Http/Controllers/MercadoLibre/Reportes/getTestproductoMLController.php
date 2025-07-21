@@ -6,6 +6,7 @@ namespace App\Http\Controllers\MercadoLibre\Reportes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 use App\Http\Controllers\Controller;
 
 class getTestproductoMLController extends Controller
@@ -17,15 +18,22 @@ class getTestproductoMLController extends Controller
      */
     public function getItemFull(Request $request, $client_id, $item_id = null)
     {
-        $seller_sku = $request->query('seller_sku');
-        $q = $request->query('q'); // texto de búsqueda
+        // Cachear credenciales por 10 minutos
+        $cacheKey = 'ml_credentials_' . $client_id;
+        $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($client_id) {
+            Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $client_id");
+            return \App\Models\MercadoLibreCredential::where('client_id', $client_id)->first();
+        });
 
-        $credentials = \App\Models\MercadoLibreCredential::where('client_id', $client_id)->first();
         if (!$credentials) {
             return response()->json(['error' => 'Credenciales no encontradas'], 404);
         }
+
         $accessToken = $credentials->access_token;
         $userId = $credentials->user_id;
+
+        $seller_sku = $request->query('seller_sku');
+        $q = $request->query('q'); // texto de búsqueda
 
         // 1. Buscar por seller_sku
         if ($seller_sku) {
@@ -169,11 +177,18 @@ class getTestproductoMLController extends Controller
                     'value_name' => $sku_compuesto
                 ];
             }
-        }
 
+            // Eliminar catalog_product_id si existe, aunque sea null
+            if (array_key_exists('catalog_product_id', $variation)) {
+                unset($variation['catalog_product_id']);
+            }
+        }
+        unset($variation); // Limpia la referencia
+
+        Log::info('Variations antes de PUT', $item['variations']);
         // 3. Enviar el array completo de variaciones actualizado
         $updateResponse = Http::withToken($accessToken)
-            ->put("https://api.mercadolibre.com/global/items/{$item_id}", [
+            ->put("https://api.mercadolibre.com/items/{$item_id}", [
                 'variations' => $item['variations']
             ]);
 
@@ -181,6 +196,10 @@ class getTestproductoMLController extends Controller
             return response()->json(['error' => 'Error al actualizar variaciones', 'details' => $updateResponse->json()], 400);
         }
 
-        return response()->json(['message' => 'Variaciones actualizadas correctamente']);
+        // Devuelve el producto con sus variaciones actualizadas
+        return response()->json([
+            'item' => $item,
+            'variantes_agrupadas' => $variantes // Opcional: agrupaciones por color/diseño/talla
+        ]);
     }
 }

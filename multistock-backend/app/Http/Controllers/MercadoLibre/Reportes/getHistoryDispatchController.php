@@ -6,17 +6,41 @@ use App\Models\MercadoLibreCredential;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
 use Exception;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+use App\Models\Company;
 
 class getHistoryDispatchController
 {
-    public function getHistoryDispatch($clientId, $skuSearch)
+    public function getHistoryDispatch($companyId, $skuSearch)
     {
         try {
             set_time_limit(1000);
             $startTime = microtime(true);
 
-            $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
-            if (!$credentials) return response()->json(['status' => 'error', 'message' => 'No se encontraron credenciales válidas.'], 404);
+            // 1. Buscar la compañía y obtener el client_id
+            $company = Company::find($companyId);
+            if (!$company || !$company->client_id) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'No se encontró la compañía o no tiene client_id asociado.',
+                ], 404);
+            }
+            $clientId = $company->client_id;
+
+            // 2. Cachear credenciales por 10 minutos
+            $cacheKey = 'ml_credentials_' . $clientId;
+            $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($clientId) {
+                Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $clientId");
+                return MercadoLibreCredential::where('client_id', $clientId)->first();
+            });
+
+            if (!$credentials) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'No se encontraron credenciales válidas para el client_id proporcionado.',
+                ], 404);
+            }
             if ($credentials->isTokenExpired()) return response()->json(['status' => 'error', 'message' => 'El token ha expirado.'], 401);
 
             $response = Http::withToken($credentials->access_token)->get('https://api.mercadolibre.com/users/me');

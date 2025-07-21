@@ -6,6 +6,8 @@ use App\Models\MercadoLibreCredential;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class getOrderStatusesController
 {
@@ -14,7 +16,12 @@ class getOrderStatusesController
      */
     public function getOrderStatuses(Request $request, $clientId)
     {
-        $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
+        // Cachear credenciales por 10 minutos
+        $cacheKey = 'ml_credentials_' . $clientId;
+        $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($clientId) {
+            Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $clientId");
+            return MercadoLibreCredential::where('client_id', $clientId)->first();
+        });
 
         if (!$credentials) {
             return response()->json([
@@ -24,23 +31,23 @@ class getOrderStatusesController
         }
 
         if ($credentials->isTokenExpired()) {
-        $refreshResponse = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
-            'grant_type' => 'refresh_token',
-            'client_id' => $credentials->client_id,
-            'client_secret' => $credentials->client_secret,
-            'refresh_token' => $credentials->refresh_token,
-        ]);
+            $refreshResponse = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
+                'grant_type' => 'refresh_token',
+                'client_id' => $credentials->client_id,
+                'client_secret' => $credentials->client_secret,
+                'refresh_token' => $credentials->refresh_token,
+            ]);
 
-        if ($refreshResponse->failed()) {
-            return response()->json(['error' => 'No se pudo refrescar el token'], 401);
-        }
+            if ($refreshResponse->failed()) {
+                return response()->json(['error' => 'No se pudo refrescar el token'], 401);
+            }
 
-        $data = $refreshResponse->json();
-        $credentials->update([
-            'access_token' => $data['access_token'],
-            'refresh_token' => $data['refresh_token'],
-            'expires_at' => now()->addSeconds($data['expires_in']),
-        ]);
+            $data = $refreshResponse->json();
+            $credentials->update([
+                'access_token' => $data['access_token'],
+                'refresh_token' => $data['refresh_token'],
+                'expires_at' => now()->addSeconds($data['expires_in']),
+            ]);
         }
 
         $response = Http::withToken($credentials->access_token)
@@ -60,7 +67,7 @@ class getOrderStatusesController
         $year = $request->query('year', Carbon::now()->year);
 
         $response = Http::withToken($credentials->access_token)
-            ->get("https://api.mercadolibre.com/orders/search?seller={$userId}&order.date_created.from={$year}-{$month}-01T00:00:00.000-00:00&order.date_created.to={$year}-{$month}-".Carbon::now()->daysInMonth."T23:59:59.999-00:00");
+            ->get("https://api.mercadolibre.com/orders/search?seller={$userId}&order.date_created.from={$year}-{$month}-01T00:00:00.000-00:00&order.date_created.to={$year}-{$month}-" . Carbon::now()->daysInMonth . "T23:59:59.999-00:00");
 
         if ($response->failed()) {
             return response()->json([
@@ -86,7 +93,7 @@ class getOrderStatusesController
             foreach ($order['order_items'] as $item) {
                 $productId = $item['item']['id'];
                 $variationId = $item['item']['variation_id'] ?? null;
-                
+
                 // Obtener SKU de la misma manera que en getTopSellingProducts
                 $sku = $item['item']['seller_sku'] ?? null;
 
@@ -95,7 +102,7 @@ class getOrderStatusesController
 
                 if ($productDetailsResponse->successful()) {
                     $productData = $productDetailsResponse->json();
-                    
+
                     // Si no se encontró SKU en el ítem, intenta obtenerlo del producto
                     if (empty($sku)) {
                         if (isset($productData['seller_sku'])) {
@@ -106,8 +113,10 @@ class getOrderStatusesController
                     // 4. Si aún no se encontró, buscar en los atributos del producto
                     if (empty($sku) && isset($productData['attributes'])) {
                         foreach ($productData['attributes'] as $attribute) {
-                            if (in_array(strtolower($attribute['id']), ['seller_sku', 'sku', 'codigo', 'reference', 'product_code']) || 
-                                in_array(strtolower($attribute['name']), ['sku', 'código', 'referencia', 'codigo', 'código de producto'])) {
+                            if (
+                                in_array(strtolower($attribute['id']), ['seller_sku', 'sku', 'codigo', 'reference', 'product_code']) ||
+                                in_array(strtolower($attribute['name']), ['sku', 'código', 'referencia', 'codigo', 'código de producto'])
+                            ) {
                                 $sku = $attribute['value_name'];
                                 break;
                             }
@@ -117,8 +126,10 @@ class getOrderStatusesController
                     // 5. Si sigue sin encontrarse, intentar con el modelo como último recurso
                     if (empty($sku) && isset($productData['attributes'])) {
                         foreach ($productData['attributes'] as $attribute) {
-                            if (strtolower($attribute['id']) === 'model' || 
-                                strtolower($attribute['name']) === 'modelo') {
+                            if (
+                                strtolower($attribute['id']) === 'model' ||
+                                strtolower($attribute['name']) === 'modelo'
+                            ) {
                                 $sku = $attribute['value_name'];
                                 break;
                             }
@@ -184,7 +195,7 @@ class getOrderStatusesController
         $year = $request->query('year', Carbon::now()->year);
 
         $response = Http::withToken($credentials->access_token)
-            ->get("https://api.mercadolibre.com/orders/search?seller={$userId}&order.date_created.from={$year}-{$month}-01T00:00:00.000-00:00&order.date_created.to={$year}-{$month}-".Carbon::now()->daysInMonth."T23:59:59.999-00:00");
+            ->get("https://api.mercadolibre.com/orders/search?seller={$userId}&order.date_created.from={$year}-{$month}-01T00:00:00.000-00:00&order.date_created.to={$year}-{$month}-" . Carbon::now()->daysInMonth . "T23:59:59.999-00:00");
 
         if ($response->failed()) {
             return response()->json([
@@ -211,7 +222,7 @@ class getOrderStatusesController
                 $productId = $item['item']['id'];
                 $variationId = $item['item']['variation_id'] ?? null;
                 $skuSource = 'not_found';
-                
+
                 // Obtener SKU de la misma manera que en getTopSellingProducts
                 $sku = $item['item']['seller_sku'] ?? null;
 
@@ -220,7 +231,7 @@ class getOrderStatusesController
 
                 if ($productDetailsResponse->successful()) {
                     $productData = $productDetailsResponse->json();
-                    
+
                     // Si no se encontró SKU en el ítem, intenta obtenerlo del producto
                     if (empty($sku)) {
                         if (isset($productData['seller_sku'])) {
@@ -231,8 +242,10 @@ class getOrderStatusesController
                     // 4. Si aún no se encontró, buscar en los atributos del producto
                     if (empty($sku) && isset($productData['attributes'])) {
                         foreach ($productData['attributes'] as $attribute) {
-                            if (in_array(strtolower($attribute['id']), ['seller_sku', 'sku', 'codigo', 'reference', 'product_code']) || 
-                                in_array(strtolower($attribute['name']), ['sku', 'código', 'referencia', 'codigo', 'código de producto'])) {
+                            if (
+                                in_array(strtolower($attribute['id']), ['seller_sku', 'sku', 'codigo', 'reference', 'product_code']) ||
+                                in_array(strtolower($attribute['name']), ['sku', 'código', 'referencia', 'codigo', 'código de producto'])
+                            ) {
                                 $sku = $attribute['value_name'];
                                 break;
                             }
@@ -242,8 +255,10 @@ class getOrderStatusesController
                     // 5. Si sigue sin encontrarse, intentar con el modelo como último recurso
                     if (empty($sku) && isset($productData['attributes'])) {
                         foreach ($productData['attributes'] as $attribute) {
-                            if (strtolower($attribute['id']) === 'model' || 
-                                strtolower($attribute['name']) === 'modelo') {
+                            if (
+                                strtolower($attribute['id']) === 'model' ||
+                                strtolower($attribute['name']) === 'modelo'
+                            ) {
                                 $sku = $attribute['value_name'];
                                 break;
                             }

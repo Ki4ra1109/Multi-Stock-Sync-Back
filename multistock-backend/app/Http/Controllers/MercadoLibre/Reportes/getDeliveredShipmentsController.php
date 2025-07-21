@@ -10,6 +10,8 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Pool;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Exception\RequestException;
+use Illuminate\Support\Facades\Cache;
+use App\Models\Company;
 
 class getDeliveredShipmentsController
 {
@@ -23,9 +25,24 @@ class getDeliveredShipmentsController
         ]);
     }
 
-    public function getDeliveredShipments($clientId)
+    public function getDeliveredShipments($companyId)
     {
-        $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
+        // 1. Buscar la compañía y obtener el client_id
+        $company = Company::find($companyId);
+        if (!$company || !$company->client_id) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'No se encontró la compañía o no tiene client_id asociado.',
+            ], 404);
+        }
+        $clientId = $company->client_id;
+
+        // 2. Cachear credenciales por 10 minutos
+        $cacheKey = 'ml_credentials_' . $clientId;
+        $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($clientId) {
+            Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $clientId");
+            return MercadoLibreCredential::where('client_id', $clientId)->first();
+        });
 
         if (!$credentials) {
             return response()->json([
@@ -103,7 +120,7 @@ class getDeliveredShipmentsController
         return response()->json([
             'status' => 'success',
             'message' => 'Productos entregados obtenidos con éxito.',
-            'total_delivered' => count($deliveredProducts),
+            'total_delivered' => count($deliveredProducts ?? []),
             'data' => $deliveredProducts,
         ]);
     }

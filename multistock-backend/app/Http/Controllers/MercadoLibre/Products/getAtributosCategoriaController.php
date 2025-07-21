@@ -6,13 +6,21 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use App\Models\MercadoLibreCredential;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class getAtributosCategoriaController extends Controller
 {
     public function getAtributos(Request $request, $id)
     {
         $client_id = $request->query('client_id');
-        $cred = MercadoLibreCredential::where('client_id', $client_id)->first();
+
+        // Cachear credenciales por 10 minutos
+        $cacheKey = 'ml_credentials_' . $client_id;
+        $cred = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($client_id) {
+            Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $client_id");
+            return \App\Models\MercadoLibreCredential::where('client_id', $client_id)->first();
+        });
 
         if (!$cred) {
             return response()->json(['error' => 'Token inválido o expirado'], 401);

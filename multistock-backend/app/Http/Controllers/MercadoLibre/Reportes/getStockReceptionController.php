@@ -16,12 +16,16 @@ class getStockReceptionController
 
     public function getStockReception($clientId)
     {
-        // Get credentials by client_id
-        $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
+        // Cachear credenciales por 10 minutos
+        $cacheKey = 'ml_credentials_' . $clientId;
+        $credentials = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addMinutes(10), function () use ($clientId) {
+            \Illuminate\Support\Facades\Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $clientId");
+            return \App\Models\MercadoLibreCredential::where('client_id', $clientId)->first();
+        });
 
         // Check if credentials exist
         if (!$credentials) {
-            Log::error("No credentials found for client_id: $clientId");
+            \Illuminate\Support\Facades\Log::error("No credentials found for client_id: $clientId");
             return response()->json([
                 'status' => 'error',
                 'message' => 'No se encontraron credenciales válidas para el client_id proporcionado.',
@@ -190,4 +194,3 @@ class getStockReceptionController
         return ['No se encuentra disponible en mercado libre', 'not_found'];
     }
 }
-// 

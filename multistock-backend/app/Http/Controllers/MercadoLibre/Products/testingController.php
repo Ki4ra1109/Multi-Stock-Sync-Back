@@ -8,11 +8,19 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
 use GuzzleHttp\Client;
 use GuzzleHttp\Promise;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class testingController
 {
-    public function testingGet(Request $request,$clientId){
-        $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
+    public function testingGet(Request $request, $clientId)
+    {
+        // Cachear credenciales por 10 minutos
+        $cacheKey = 'ml_credentials_' . $clientId;
+        $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($clientId) {
+            Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $clientId");
+            return MercadoLibreCredential::where('client_id', $clientId)->first();
+        });
         error_log("credentials " . json_encode($credentials));
         if (!$credentials) {
             return response()->json([
@@ -62,17 +70,22 @@ class testingController
         error_log("userResponse " . json_encode($userResponse));
         $userId = $userResponse->json()['id'];
         // Obtener el ID del usuario
-        $validateData = $request->validate(['baseurl'=> 'sometimes | string']);
-        $baseUrl='https://api.mercadolibre.com/users/{$userId}/items/search?catalog_listing=true';
+        $validateData = $request->validate(['baseurl' => 'sometimes | string']);
+        $baseUrl = 'https://api.mercadolibre.com/users/{$userId}/items/search?catalog_listing=true';
 
-        if(isset($validateData['baseurl'])) $baseUrl =$validateData['baseurl'];
+        if (isset($validateData['baseurl'])) $baseUrl = $validateData['baseurl'];
         error_log($baseUrl);
-        $response =Http::timeout(30)->withToken($credentials->access_token)->get($baseUrl);
+        $response = Http::timeout(30)->withToken($credentials->access_token)->get($baseUrl);
         return response()->json($response->json(), $response->status());
-
     }
-    public function testingPost(Request $request,$clientId){
-        $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
+    public function testingPost(Request $request, $clientId)
+    {
+        // Cachear credenciales por 10 minutos
+        $cacheKey = 'ml_credentials_' . $clientId;
+        $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($clientId) {
+            Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $clientId");
+            return MercadoLibreCredential::where('client_id', $clientId)->first();
+        });
         error_log("credentials " . json_encode($credentials));
         if (!$credentials) {
             return response()->json([
@@ -145,13 +158,12 @@ class testingController
                 ]
             ]
         ];
-        $validateData = $request->validate(['baseurl'=> 'sometimes | string']);
-        $baseUrl='https://api.mercadolibre.com/users/{$userId}/items/search?catalog_listing=true';
+        $validateData = $request->validate(['baseurl' => 'sometimes | string']);
+        $baseUrl = 'https://api.mercadolibre.com/users/{$userId}/items/search?catalog_listing=true';
 
-        if(isset($validateData['baseurl'])) $baseUrl =$validateData['baseurl'];
+        if (isset($validateData['baseurl'])) $baseUrl = $validateData['baseurl'];
         error_log($baseUrl);
-        $response =Http::timeout(30)->withToken($credentials->access_token)->post($baseUrl, $body);
+        $response = Http::timeout(30)->withToken($credentials->access_token)->post($baseUrl, $body);
         return response()->json($response->json(), $response->status());
-
     }
 }

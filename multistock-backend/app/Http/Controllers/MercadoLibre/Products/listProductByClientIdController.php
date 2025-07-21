@@ -16,7 +16,6 @@ class listProductByClientIdController
 
     public function listProductsByClientId($clientId)
     {
-
         ini_set('max_execution_time', 240); // 4 minutos
 
 
@@ -45,8 +44,13 @@ class listProductByClientIdController
         }
 
         try {
-            // Obtener credenciales
-            $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
+            // Cachear credenciales por 10 minutos
+            $cacheKeyCred = 'ml_credentials_' . $clientId;
+            $credentials = Cache::remember($cacheKeyCred, now()->addMinutes(10), function () use ($clientId) {
+                Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $clientId");
+                return MercadoLibreCredential::where('client_id', $clientId)->first();
+            });
+
             if (!$credentials) {
                 return response()->json([
                     'status' => 'error',

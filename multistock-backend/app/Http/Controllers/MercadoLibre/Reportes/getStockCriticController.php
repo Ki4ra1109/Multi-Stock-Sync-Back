@@ -90,7 +90,11 @@ class getStockCriticController
             }
         }
         //Validar y obtener credenciales
-        $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
+        $cacheKey = 'ml_credentials_' . $clientId;
+        $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($clientId) {
+            Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $clientId");
+            return MercadoLibreCredential::where('client_id', $clientId)->first();
+        });
         error_log("credentials " . json_encode($credentials));
         if (!$credentials) {
             return response()->json([

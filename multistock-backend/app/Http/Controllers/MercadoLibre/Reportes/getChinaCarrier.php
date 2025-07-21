@@ -44,10 +44,18 @@ class getChinaCarrier extends Controller
                 'message' => 'No se encontró la compañía o no tiene client_id asociado.'
             ], 404);
         }
+        $clientId = $company->client_id;
 
-        $credentials = \App\Models\MercadoLibreCredential::where('client_id', $company->client_id)->first();
+        // Cachear credenciales por 10 minutos
+        $clientId = $company->client_id;
+        $cacheKey = 'ml_credentials_' . $clientId;
+        $credentials = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addMinutes(10), function () use ($clientId) {
+            \Illuminate\Support\Facades\Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $clientId");
+            return \App\Models\MercadoLibreCredential::where('client_id', $clientId)->first();
+        });
+
         if (!$credentials) {
-            Log::error('No se encontraron credenciales válidas', ['client_id' => $company->client_id]);
+            Log::error('No se encontraron credenciales válidas', ['client_id' => $clientId]);
             return response()->json([
                 'status' => 'error',
                 'message' => 'No se encontraron credenciales válidas para el client_id proporcionado.',
