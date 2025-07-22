@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
 use GuzzleHttp\Client;
 use GuzzleHttp\Promise;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 use function Laravel\Prompts\error;
 
@@ -14,7 +16,12 @@ class getStockController
 {
     public function getStock($clientId)
     {
-        $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
+        // Cachear credenciales por 10 minutos
+        $cacheKey = 'ml_credentials_' . $clientId;
+        $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($clientId) {
+            Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $clientId");
+            return \App\Models\MercadoLibreCredential::where('client_id', $clientId)->first();
+        });
 
         if (!$credentials) {
             return response()->json([

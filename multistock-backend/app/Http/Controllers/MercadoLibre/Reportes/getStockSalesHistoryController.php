@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
 use Exception;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class getStockSalesHistoryController
 {
@@ -15,8 +16,12 @@ class getStockSalesHistoryController
         try {
             set_time_limit(180); // Extender tiempo máximo de ejecución
 
-            // Get credentials by client_id
-            $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
+            // Cachear credenciales por 10 minutos
+            $cacheKey = 'ml_credentials_' . $clientId;
+            $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($clientId) {
+                Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $clientId");
+                return MercadoLibreCredential::where('client_id', $clientId)->first();
+            });
 
             // Check if credentials exist
             if (!$credentials) {

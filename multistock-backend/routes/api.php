@@ -105,7 +105,7 @@ use App\Http\Controllers\MercadoLibre\Connections\ConexionTokenController;
 use App\Http\Controllers\MercadoLibre\Credentials\deleteCredentialsController;
 use App\Http\Controllers\MercadoLibre\Credentials\getAllCredentialsDataController;
 use App\Http\Controllers\MercadoLibre\Credentials\getCredentialsByClientIdController;
-//use App\Http\Controllers\MercadoLibre\Credentials\refreshAccessTokenController;
+use App\Http\Controllers\MercadoLibre\Credentials\refreshAccessTokenController;
 
 //  Productos  //
 
@@ -124,6 +124,7 @@ use App\Http\Controllers\MercadoLibre\Products\getAtributosCategoriaController;
 use App\Http\Controllers\MercadoLibre\Products\getSpecsDomainController;
 //use App\Http\Controllers\MercadoLibre\Products\getExcelCargaMasivaMLController;
 use App\Http\Controllers\MercadoLibre\Products\getProductosExcelController;
+
 //Tallas mercado libre
 
 use App\Http\Controllers\MercadoLibre\Products\SizeGridController;
@@ -273,6 +274,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/mercadolibre/update-stock/{client_id}/{productId}', [putProductoByUpdateController::class, 'putProductoByUpdate']); // Actualizar stock
     Route::get('/mercadolibre/carga-masiva', [getProductosExcelController::class, 'redirigir']); // Redirigir a carga masiva
     Route::post('/mercadolibre/carga-masiva/leer-excel', [getProductosExcelController::class, 'leerExcel']); // Leer carga masiva
+
     Route::put('/mercadolibre/update/{client_id}/{productId}', [putProductoByUpdateController::class, 'putProductoByUpdate']); // Actualizar stock
     Route::get('/mercadolibre/carga-masiva/descargar-plantilla/{client_id}/{categoryId}', [CreateProductsMasiveController::class, 'downloadTemplate']); // Leer carga masiva
     Route::get('/mercadolibre/size-guides/{client_id}', [CreateProductController::class, 'getSizeGuides']);

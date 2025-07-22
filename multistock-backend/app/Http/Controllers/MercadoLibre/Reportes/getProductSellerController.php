@@ -6,12 +6,19 @@ use App\Http\Controllers\Controller;
 use App\Models\MercadoLibreCredential;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class getProductSellerController extends Controller
 {
     public function getProductSeller(Request $request, $client_id)
     {
-        $credentials = MercadoLibreCredential::where('client_id', $client_id)->first();
+        // Cachear credenciales por 10 minutos
+        $cacheKey = 'ml_credentials_' . $client_id;
+        $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($client_id) {
+            Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $client_id");
+            return MercadoLibreCredential::where('client_id', $client_id)->first();
+        });
 
         if (!$credentials) {
             return response()->json([

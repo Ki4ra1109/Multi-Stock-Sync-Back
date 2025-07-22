@@ -6,13 +6,22 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use App\Models\MercadoLibreCredential;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class getCategoriaController extends Controller
 {
     public function getCategoria(Request $request, $id)
     {
         $client_id = $request->query('client_id');
-        $credentials = MercadoLibreCredential::where('client_id', $client_id)->first();
+
+        // Cachear credenciales por 10 minutos
+        $cacheKey = 'ml_credentials_' . $client_id;
+        $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($client_id) {
+            Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $client_id");
+            return \App\Models\MercadoLibreCredential::where('client_id', $client_id)->first();
+        });
+
         error_log("credentials " . json_encode($credentials));
         if (!$credentials) {
             return response()->json([
@@ -20,9 +29,10 @@ class getCategoriaController extends Controller
                 'message' => 'No se encontraron credenciales válidas para el client_id proporcionado.',
             ], 404);
         }
+
         try {
             if ($credentials->isTokenExpired()) {
-                $refreshResponse = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
+                $refreshResponse = \Illuminate\Support\Facades\Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
                     'grant_type' => 'refresh_token',
                     'client_id' => $credentials->client_id,
                     'client_secret' => $credentials->client_secret,
@@ -47,7 +57,7 @@ class getCategoriaController extends Controller
             ], 500);
         }
 
-        $response = Http::withToken($credentials->access_token)
+        $response = \Illuminate\Support\Facades\Http::withToken($credentials->access_token)
             ->get("https://api.mercadolibre.com/categories/{$id}");
 
         return response()->json($response->json(), $response->status());

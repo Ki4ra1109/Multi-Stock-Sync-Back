@@ -1,6 +1,10 @@
 <?php
-
 namespace App\Http\Controllers\MercadoLibre\Products;
+
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+
+
 
 use App\Http\Controllers\Controller;
 use App\Models\MercadoLibreCredential;
@@ -15,7 +19,12 @@ class SizeGridController extends Controller
 {
     public function createSizeGrid(Request $request, $client_id)
     {
-        $credentials = MercadoLibreCredential::where('client_id', $client_id)->first();
+        // Cachear credenciales por 10 minutos
+        $cacheKey = 'ml_credentials_' . $client_id;
+        $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($client_id) {
+            Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $client_id");
+            return \App\Models\MercadoLibreCredential::where('client_id', $client_id)->first();
+        });
 
         if (!$credentials || $credentials->isTokenExpired()) {
             return response()->json(['status' => 'error', 'message' => 'Token no válido o expirado.'], 401);
@@ -239,7 +248,12 @@ class SizeGridController extends Controller
      */
     public function addRowToSizeGrid(Request $request, $id, $client_id)
     {
-        $credentials = MercadoLibreCredential::where('client_id', $client_id)->first();
+        // Cachear credenciales por 10 minutos
+        $cacheKey = 'ml_credentials_' . $client_id;
+        $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($client_id) {
+            Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $client_id");
+            return \App\Models\MercadoLibreCredential::where('client_id', $client_id)->first();
+        });
 
         if (!$credentials || $credentials->isTokenExpired()) {
             return response()->json(['status' => 'error', 'message' => 'Token no válido o expirado.'], 401);
@@ -293,7 +307,6 @@ class SizeGridController extends Controller
                 'message' => 'Fila agregada exitosamente',
                 'data' => $sizeGrid->load('sizes')
             ]);
-
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
@@ -339,7 +352,12 @@ class SizeGridController extends Controller
      */
     public function getMeliSizeChart($chartId, $client_id)
     {
-        $credentials = MercadoLibreCredential::where('client_id', $client_id)->first();
+        // Cachear credenciales por 10 minutos
+        $cacheKey = 'ml_credentials_' . $client_id;
+        $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($client_id) {
+            Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $client_id");
+            return \App\Models\MercadoLibreCredential::where('client_id', $client_id)->first();
+        });
 
         if (!$credentials || $credentials->isTokenExpired()) {
             return response()->json(['status' => 'error', 'message' => 'Token no válido o expirado.'], 401);
@@ -377,7 +395,12 @@ class SizeGridController extends Controller
      */
     public function getAvailableDomains($client_id)
     {
-        $credentials = MercadoLibreCredential::where('client_id', $client_id)->first();
+        // Cachear credenciales por 10 minutos
+        $cacheKey = 'ml_credentials_' . $client_id;
+        $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($client_id) {
+            Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $client_id");
+            return \App\Models\MercadoLibreCredential::where('client_id', $client_id)->first();
+        });
 
         if (!$credentials || $credentials->isTokenExpired()) {
             return response()->json(['status' => 'error', 'message' => 'Token no válido o expirado.'], 401);
@@ -411,7 +434,12 @@ class SizeGridController extends Controller
 
     public function getDomain($domain_id, $client_id)
     {
-        $credentials = MercadoLibreCredential::where('client_id', $client_id)->first();
+        // Cachear credenciales por 10 minutos
+        $cacheKey = 'ml_credentials_' . $client_id;
+        $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($client_id) {
+            Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $client_id");
+            return \App\Models\MercadoLibreCredential::where('client_id', $client_id)->first();
+        });
 
         if (!$credentials || $credentials->isTokenExpired()) {
             return response()->json(['status' => 'error', 'message' => 'Token no válido o expirado.'], 401);
@@ -479,8 +507,10 @@ class SizeGridController extends Controller
 
                                 // Atributos relacionados con medidas
                                 if (isset($attribute['tags']) && is_array($attribute['tags'])) {
-                                    if (in_array('CLOTHING_MEASURE', $attribute['tags']) ||
-                                        in_array('BODY_MEASURE', $attribute['tags'])) {
+                                    if (
+                                        in_array('CLOTHING_MEASURE', $attribute['tags']) ||
+                                        in_array('BODY_MEASURE', $attribute['tags'])
+                                    ) {
                                         $isRelevant = true;
                                         $measureTypes[] = in_array('CLOTHING_MEASURE', $attribute['tags']) ?
                                             'CLOTHING_MEASURE' : 'BODY_MEASURE';
