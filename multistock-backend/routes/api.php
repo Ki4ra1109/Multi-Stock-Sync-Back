@@ -366,6 +366,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/woocommerce/woo/{storeId}/product/{productId}/assign-warehouse', [WooProductController::class, 'assignProductToWarehouse']); // Asignar producto existente a bodega
     Route::post('/woocommerce/woo/{storeId}/product-create-assign-warehouse', [WooProductController::class, 'createProductAndAssignToWarehouse']); // Crear producto y asignar a bodega
     Route::get('/woocommerce/woo/{storeId}/warehouse/{warehouseId}/products', [WooProductController::class, 'getProductsByWarehouse']); // Obtener productos por bodega
+    Route::post('/woocommerce/woo/{storeId}/assign-warehouse-masive', [\App\Http\Controllers\Woocommerce\WooProductController::class, 'assignWarehouseMasive']);
     //categorias wooComerce
     Route::Get('/woocommerce/woo/{storeId}/categories', [WooCategoryController::class, 'listCategories']);
     Route::Get('/woocommerce/woo/{storeId}/category/{categoryId}', [WooCategoryController::class, 'getCategory']);
@@ -378,5 +379,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/woocommerce/woo/{storeId}/product/{productId}/variation-list', [WooProductController::class, 'listVariations']); // Listar variaciones de producto
     Route::post('/woocommerce/woo/{storeId}/product/{productId}/variation', [WooProductController::class, 'createVariation']); // Crear variación de producto
     Route::delete('/woocommerce/woo/{storeId}/product/{productId}/variation/{variationId}', [WooProductController::class, 'deleteVariation']); // Eliminar variación de producto
+    Route::get('/woocommerce/woo/{storeId}/products-not-in-warehouse/export', [\App\Http\Controllers\Woocommerce\WooProductController::class, 'exportProductsNotInWarehouse']);
 
 });

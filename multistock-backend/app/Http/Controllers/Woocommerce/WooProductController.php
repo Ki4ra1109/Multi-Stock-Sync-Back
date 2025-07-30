@@ -9,6 +9,12 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\UploadedFile;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class WooProductController extends Controller
 {
@@ -457,6 +463,149 @@ class WooProductController extends Controller
     /**
      * Filtrar la respuesta del producto para mostrar solo campos relevantes
      */
+    /**
+     * Mapear atributos del producto WooCommerce a campos de stock_warehouses
+     */
+    private function mapWooCommerceAttributesToStockWarehouse($wooProduct, $requestData)
+    {
+        $mappedData = [];
+        
+        // Mapear atributos específicos del producto WooCommerce
+        if (isset($wooProduct->attributes) && is_array($wooProduct->attributes)) {
+            foreach ($wooProduct->attributes as $attribute) {
+                $attributeName = strtolower($attribute->name ?? '');
+                $attributeValue = $attribute->options[0] ?? null;
+                
+                // Mapear atributos conocidos
+                switch ($attributeName) {
+                    case 'condition':
+                    case 'condicion':
+                    case 'estado':
+                        if (!isset($requestData['condicion'])) {
+                            $mappedData['condicion'] = $this->mapCondition($attributeValue);
+                        }
+                        break;
+                        
+                    case 'currency':
+                    case 'moneda':
+                        if (!isset($requestData['currency_id'])) {
+                            $mappedData['currency_id'] = $this->mapCurrency($attributeValue);
+                        }
+                        break;
+                        
+                    case 'listing_type':
+                    case 'tipo_listado':
+                        if (!isset($requestData['listing_type_id'])) {
+                            $mappedData['listing_type_id'] = $this->mapListingType($attributeValue);
+                        }
+                        break;
+                        
+                    case 'category':
+                    case 'categoria':
+                        if (!isset($requestData['category_id'])) {
+                            $mappedData['category_id'] = $attributeValue;
+                        }
+                        break;
+                        
+                    case 'sale_terms':
+                    case 'terminos_venta':
+                        if (!isset($requestData['sale_terms'])) {
+                            $mappedData['sale_terms'] = json_encode([$attribute]);
+                        }
+                        break;
+                        
+                    case 'shipping':
+                    case 'envio':
+                        if (!isset($requestData['shipping'])) {
+                            $mappedData['shipping'] = json_encode([$attribute]);
+                        }
+                        break;
+                }
+            }
+        }
+        
+        // Mapear campos directos del producto WooCommerce
+        if (!isset($requestData['description']) && !empty($wooProduct->description)) {
+            $mappedData['description'] = $wooProduct->description;
+        }
+        
+        // Mapear imagen del producto WooCommerce - campo pictures es longtext
+        if (!isset($requestData['pictures']) && !empty($wooProduct->images)) {
+            $mappedData['pictures'] = $wooProduct->images[0]->src ?? null;
+        }
+        
+        // Mapear categorías si no se especificó category_id
+        if (!isset($requestData['category_id']) && !empty($wooProduct->categories)) {
+            $mappedData['category_id'] = $wooProduct->categories[0]->id ?? null;
+        }
+        
+        return $mappedData;
+    }
+    
+    /**
+     * Mapear condición del producto
+     */
+    private function mapCondition($condition)
+    {
+        $condition = strtolower($condition ?? '');
+        
+        switch ($condition) {
+            case 'new':
+            case 'nuevo':
+            case 'new_item':
+                return 'new';
+            case 'used':
+            case 'usado':
+            case 'second_hand':
+                return 'used';
+            default:
+                return 'new';
+        }
+    }
+    
+    /**
+     * Mapear moneda
+     */
+    private function mapCurrency($currency)
+    {
+        $currency = strtoupper($currency ?? '');
+        
+        switch ($currency) {
+            case 'CLP':
+            case 'PESO':
+            case 'PESOS':
+                return 'CLP';
+            case 'USD':
+            case 'DOLAR':
+            case 'DOLARES':
+                return 'USD';
+            default:
+                return 'CLP';
+        }
+    }
+    
+    /**
+     * Mapear tipo de listado
+     */
+    private function mapListingType($listingType)
+    {
+        $listingType = strtolower($listingType ?? '');
+        
+        switch ($listingType) {
+            case 'gold_special':
+            case 'gold special':
+            case 'gold':
+                return 'gold_special';
+            case 'gold_pro':
+            case 'gold pro':
+                return 'gold_pro';
+            case 'gold':
+                return 'gold';
+            default:
+                return 'gold_special';
+        }
+    }
+
     private function filterProductResponse($product, $woocommerce)
     {
         if ($product->type === 'variable') {
@@ -708,6 +857,64 @@ class WooProductController extends Controller
         }
     }
 
+    /**
+     * Crear registro de StockWarehouse de manera segura
+     */
+    private function createStockWarehouseSafely($data)
+    {
+        try {
+            // Verificar si ya existe el producto en la bodega
+            $existing = \App\Models\StockWarehouse::where('id_mlc', $data['id_mlc'])
+                ->where('warehouse_id', $data['warehouse_id'])
+                ->first();
+
+            if ($existing) {
+                Log::warning('Producto ya existe en la bodega', [
+                    'id_mlc' => $data['id_mlc'],
+                    'warehouse_id' => $data['warehouse_id'],
+                    'existing_id' => $existing->id
+                ]);
+                return $existing;
+            }
+
+            // Validar datos antes de crear
+            $validData = array_intersect_key($data, array_flip([
+                'id_mlc', 'warehouse_id', 'title', 'price', 'available_quantity',
+                'pictures', 'category_id', 'attribute', 'condicion', 'currency_id',
+                'listing_type_id', 'sale_terms', 'shipping', 'description'
+            ]));
+
+            // Asegurar que los campos numéricos sean válidos
+            if (isset($validData['price'])) {
+                $validData['price'] = floatval($validData['price']);
+            }
+            if (isset($validData['available_quantity'])) {
+                $validData['available_quantity'] = intval($validData['available_quantity']);
+            }
+
+            // Limpiar campos de texto
+            if (isset($validData['title'])) {
+                $validData['title'] = substr(trim($validData['title']), 0, 255);
+            }
+            if (isset($validData['description'])) {
+                $validData['description'] = substr(trim($validData['description']), 0, 3500);
+            }
+
+            Log::info('Creando StockWarehouse con datos validados', [
+                'validData' => $validData
+            ]);
+
+            return \App\Models\StockWarehouse::create($validData);
+
+        } catch (\Exception $e) {
+            Log::error('Error al crear StockWarehouse', [
+                'data' => $data,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
+    }
 
     /**
      * Asignar un producto de WooCommerce a una bodega
@@ -724,20 +931,9 @@ class WooProductController extends Controller
         try {
             $woocommerce = $this->connect($storeId);
 
-            // Validar datos de entrada
+            // Validar que venga warehouse_id en el body
             $validator = Validator::make($request->all(), [
                 'warehouse_id' => 'required|integer|exists:warehouses,id',
-                'available_quantity' => 'required|integer|min:0',
-                'price' => 'required|numeric|min:0',
-                'condicion' => 'required|string|max:255',
-                'currency_id' => 'required|string|max:255',
-                'listing_type_id' => 'required|string|max:255',
-                'category_id' => 'nullable|string|max:255',
-                'attribute' => 'nullable|array',
-                'pictures' => 'nullable|array',
-                'sale_terms' => 'nullable|array',
-                'shipping' => 'nullable|array',
-                'description' => 'nullable|string'
             ]);
 
             if ($validator->fails()) {
@@ -754,6 +950,8 @@ class WooProductController extends Controller
                 ], 422);
             }
 
+            $data = $validator->validated();
+
             // Obtener el producto de WooCommerce
             $wooProduct = $woocommerce->get("products/{$productId}");
 
@@ -764,24 +962,49 @@ class WooProductController extends Controller
                 ], 404);
             }
 
-            $data = $validator->validated();
+            // Tomar datos del producto WooCommerce
+            $price = $wooProduct->price ?? $wooProduct->regular_price ?? 0;
+            $available_quantity = $wooProduct->stock_quantity ?? 0;
+            $title = $wooProduct->name ?? '';
+            $description = $wooProduct->description ?? '';
+            
+            // Extraer imágenes
+            $pictures = null;
+            if (!empty($wooProduct->images)) {
+                $pictures = json_encode($wooProduct->images);
+            }
+            
+            // Extraer categorías
+            $category_id = null;
+            if (!empty($wooProduct->categories)) {
+                $category_id = $wooProduct->categories[0]->id ?? null;
+            }
+            
+            // Extraer atributos
+            $attribute = null;
+            if (!empty($wooProduct->attributes)) {
+                $attribute = json_encode($wooProduct->attributes);
+            }
+            
+            // Configurar valores por defecto
+            $condicion = 'new'; // Por defecto nuevo
+            $currency_id = 'CLP'; // Por defecto pesos chilenos
+            $listing_type_id = 'gold_special'; // Por defecto
 
-            // Crear registro en stock_warehouses
-            $stockWarehouse = \App\Models\StockWarehouse::create([
-                'id_mlc' => $wooProduct->id, // Usar el ID de WooCommerce como id_mlc
+            // Crear registro en stock_warehouses usando el método seguro
+            $stockWarehouse = $this->createStockWarehouseSafely([
+                'id_mlc' => $wooProduct->id,
                 'warehouse_id' => $data['warehouse_id'],
-                'title' => $wooProduct->name,
-                'price' => $data['price'],
-                'condicion' => $data['condicion'],
-                'currency_id' => $data['currency_id'],
-                'listing_type_id' => $data['listing_type_id'],
-                'available_quantity' => $data['available_quantity'],
-                'category_id' => $data['category_id'] ?? null,
-                'attribute' => isset($data['attribute']) ? json_encode($data['attribute']) : json_encode([]),
-                'pictures' => isset($data['pictures']) ? json_encode($data['pictures']) : json_encode($wooProduct->images ?? []),
-                'sale_terms' => isset($data['sale_terms']) ? json_encode($data['sale_terms']) : json_encode([]),
-                'shipping' => isset($data['shipping']) ? json_encode($data['shipping']) : json_encode([]),
-                'description' => $data['description'] ?? $wooProduct->description ?? '',
+                'title' => $title,
+                'price' => $price,
+                'available_quantity' => $available_quantity,
+                'pictures' => $pictures,
+                'category_id' => $category_id,
+                'attribute' => $attribute,
+                'condicion' => $condicion,
+                'currency_id' => $currency_id,
+                'listing_type_id' => $listing_type_id,
+                'description' => $description,
             ]);
 
             Log::info('Producto asignado exitosamente a bodega', [
@@ -968,21 +1191,34 @@ class WooProductController extends Controller
                 'storeId' => $storeId
             ]);
 
-            // Crear registro en stock_warehouses
-            $stockWarehouse = \App\Models\StockWarehouse::create([
+            // Crear registro en stock_warehouses usando el método seguro
+            $pictures = null;
+            if (!empty($created->images)) {
+                $pictures = json_encode($created->images);
+            }
+            
+            $category_id = null;
+            if (!empty($created->categories)) {
+                $category_id = $created->categories[0]->id ?? null;
+            }
+            
+            $attribute = null;
+            if (!empty($created->attributes)) {
+                $attribute = json_encode($created->attributes);
+            }
+            
+            $stockWarehouse = $this->createStockWarehouseSafely([
                 'id_mlc' => $created->id, // Usar el ID de WooCommerce como id_mlc
                 'warehouse_id' => $data['warehouse_id'],
                 'title' => $created->name,
                 'price' => $data['warehouse_price'],
-                'condicion' => $data['condicion'],
-                'currency_id' => $data['currency_id'],
-                'listing_type_id' => $data['listing_type_id'],
                 'available_quantity' => $data['warehouse_quantity'],
-                'category_id' => $data['category_id'] ?? null,
-                'attribute' => isset($data['warehouse_attribute']) ? json_encode($data['warehouse_attribute']) : json_encode([]),
-                'pictures' => isset($data['warehouse_pictures']) ? json_encode($data['warehouse_pictures']) : json_encode($created->images ?? []),
-                'sale_terms' => isset($data['warehouse_sale_terms']) ? json_encode($data['warehouse_sale_terms']) : json_encode([]),
-                'shipping' => isset($data['warehouse_shipping']) ? json_encode($data['warehouse_shipping']) : json_encode([]),
+                'pictures' => $pictures,
+                'category_id' => $category_id,
+                'attribute' => $attribute,
+                'condicion' => $data['condicion'] ?? 'new',
+                'currency_id' => $data['currency_id'] ?? 'CLP',
+                'listing_type_id' => $data['listing_type_id'] ?? 'gold_special',
                 'description' => $data['warehouse_description'] ?? $created->description ?? '',
             ]);
 
@@ -1051,7 +1287,8 @@ class WooProductController extends Controller
 
             $woocommerce = $this->connect($storeId);
             $products = [];
-
+            $errores = [];
+            $erroresCount = 0;
             foreach ($stockWarehouses as $stockWarehouse) {
                 try {
                     // Obtener producto de WooCommerce usando el id_mlc
@@ -1061,17 +1298,22 @@ class WooProductController extends Controller
                     // Combinar datos del producto WooCommerce con datos de stock
                     $products[] = array_merge($filteredProduct, [
                         'stock_warehouse_id' => $stockWarehouse->id,
-                        'warehouse_quantity' => $stockWarehouse->available_quantity,
-                        'warehouse_price' => $stockWarehouse->price,
-                        'warehouse_condicion' => $stockWarehouse->condicion,
-                        'warehouse_currency_id' => $stockWarehouse->currency_id,
-                        'warehouse_listing_type_id' => $stockWarehouse->listing_type_id,
+                        'warehouse_quantity' => $stockWarehouse->warehouse_stock ?? $stockWarehouse->available_quantity ?? null,
+                        'warehouse_price' => $stockWarehouse->price_clp ?? $stockWarehouse->price ?? null,
+                        'warehouse_condicion' => $stockWarehouse->condicion ?? null,
+                        'warehouse_currency_id' => $stockWarehouse->currency_id ?? null,
+                        'warehouse_listing_type_id' => $stockWarehouse->listing_type_id ?? null,
                     ]);
                 } catch (\Exception $e) {
                     Log::warning('Error al obtener producto de WooCommerce', [
                         'id_mlc' => $stockWarehouse->id_mlc,
                         'error' => $e->getMessage()
                     ]);
+                    $errores[] = [
+                        'id_mlc' => $stockWarehouse->id_mlc,
+                        'error' => $e->getMessage()
+                    ];
+                    $erroresCount++;
                     // Continuar con el siguiente producto
                 }
             }
@@ -1079,14 +1321,19 @@ class WooProductController extends Controller
             Log::info('Productos obtenidos exitosamente', [
                 'warehouseId' => $warehouseId,
                 'products_count' => count($products),
+                'errores_count' => $erroresCount,
                 'storeId' => $storeId
             ]);
 
             return response()->json([
                 'warehouse' => $warehouse,
                 'products' => $products,
-                'total_count' => count($products),
-                'status' => 'success'
+                'errores' => $errores,
+                'total_ok' => count($products),
+                'total_errores' => $erroresCount,
+                'total_count' => count($products) + $erroresCount,
+                'status' => 'success',
+                'mensaje' => "{$erroresCount} productos no se pudieron obtener de WooCommerce, " . count($products) . " productos obtenidos correctamente."
             ]);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             Log::error('Bodega no encontrada', [
@@ -1111,5 +1358,160 @@ class WooProductController extends Controller
                 'status' => 'error'
             ], 500);
         }
+    }
+
+    /**
+     * Descargar un Excel con los IDs de productos WooCommerce que no están en ninguna bodega
+     */
+    public function exportProductsNotInWarehouse($storeId)
+    {
+        $woocommerce = $this->connect($storeId);
+        // Obtener todos los productos de WooCommerce
+        $products = $woocommerce->get('products', ['per_page' => 100]);
+        if (!is_array($products)) {
+            $products = [$products];
+        }
+        // Obtener IDs de productos ya asignados a bodegas
+        $idsEnBodega = \App\Models\StockWarehouse::pluck('id_mlc')->toArray();
+        // Filtrar productos que no están en ninguna bodega
+        $productosNoAsignados = array_filter($products, function($p) use ($idsEnBodega) {
+            return !in_array($p->id, $idsEnBodega);
+        });
+        // Crear Excel
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setCellValue('A1', 'product_id');
+        $sheet->setCellValue('B1', 'name');
+        $row = 2;
+        foreach ($productosNoAsignados as $p) {
+            $sheet->setCellValue('A'.$row, $p->id);
+            $sheet->setCellValue('B'.$row, $p->name);
+            $row++;
+        }
+        $writer = new Xlsx($spreadsheet);
+        $response = new StreamedResponse(function() use ($writer) {
+            $writer->save('php://output');
+        });
+        $response->headers->set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $response->headers->set('Content-Disposition', 'attachment;filename="productos_no_asignados.xlsx"');
+        $response->headers->set('Cache-Control','max-age=0');
+        return $response;
+    }
+
+    /**
+     * Asignar productos masivamente a una bodega desde un Excel
+     */
+    public function assignWarehouseMasive(Request $request, $storeId)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,xls,csv',
+        ]);
+        $file = $request->file('file');
+        $spreadsheet = IOFactory::load($file->getPathname());
+        $sheet = $spreadsheet->getActiveSheet();
+        $rows = $sheet->toArray(null, true, true, true);
+        // Buscar la primera fila no vacía como encabezado
+        $headerRow = null;
+        $headerIndex = null;
+        foreach ($rows as $i => $fila) {
+            if ($fila && array_filter($fila)) {
+                $headerRow = $fila;
+                $headerIndex = $i;
+                break;
+            }
+        }
+        Log::info('Excel header detectado', ['headerRow' => $headerRow, 'headerIndex' => $headerIndex]);
+        if (!$headerRow) {
+            return response()->json([
+                'message' => 'El archivo Excel está vacío o no tiene encabezado.',
+                'status' => 'error'
+            ], 422);
+        }
+        $colProductId = null;
+        $colWarehouseId = null;
+        foreach ($headerRow as $col => $name) {
+            if (strtolower(trim($name)) === 'product_id') {
+                $colProductId = $col;
+            }
+            if (strtolower(trim($name)) === 'warehouse_id') {
+                $colWarehouseId = $col;
+            }
+        }
+        if (!$colProductId || !$colWarehouseId) {
+            return response()->json([
+                'message' => 'El archivo debe tener encabezados product_id y warehouse_id.',
+                'status' => 'error',
+                'headerRow' => $headerRow
+            ], 422);
+        }
+        $asignados = [];
+        $errores = [];
+        foreach ($rows as $i => $row) {
+            if ($i <= $headerIndex) continue; // Saltar encabezado y filas previas
+            $productId = $row[$colProductId] ?? null;
+            $warehouseId = $row[$colWarehouseId] ?? null;
+            if (!$productId || !$warehouseId) {
+                $errores[] = ['row' => $row, 'error' => 'Faltan product_id o warehouse_id'];
+                continue;
+            }
+            try {
+                $woocommerce = $this->connect($storeId);
+                $wooProduct = $woocommerce->get("products/{$productId}");
+                if (!$wooProduct) {
+                    $errores[] = ['row' => $row, 'error' => 'Producto WooCommerce no encontrado'];
+                    continue;
+                }
+                $price = $wooProduct->price ?? $wooProduct->regular_price ?? 0;
+                $available_quantity = $wooProduct->stock_quantity ?? 0;
+                $title = $wooProduct->name ?? '';
+                $description = $wooProduct->description ?? '';
+                
+                // Extraer imágenes
+                $pictures = null;
+                if (!empty($wooProduct->images)) {
+                    $pictures = json_encode($wooProduct->images);
+                }
+                
+                // Extraer categorías
+                $category_id = null;
+                if (!empty($wooProduct->categories)) {
+                    $category_id = $wooProduct->categories[0]->id ?? null;
+                }
+                
+                // Extraer atributos
+                $attribute = null;
+                if (!empty($wooProduct->attributes)) {
+                    $attribute = json_encode($wooProduct->attributes);
+                }
+                
+                $stockWarehouse = $this->createStockWarehouseSafely([
+                    'id_mlc' => $wooProduct->id,
+                    'warehouse_id' => $warehouseId,
+                    'title' => $title,
+                    'price' => $price,
+                    'available_quantity' => $available_quantity,
+                    'pictures' => $pictures,
+                    'category_id' => $category_id,
+                    'attribute' => $attribute,
+                    'condicion' => 'new',
+                    'currency_id' => 'CLP',
+                    'listing_type_id' => 'gold_special',
+                    'description' => $description,
+                ]);
+                $asignados[] = [
+                    'product_id' => $wooProduct->id,
+                    'warehouse_id' => $warehouseId,
+                    'stock_warehouse_id' => $stockWarehouse->id
+                ];
+            } catch (\Exception $e) {
+                $errores[] = ['row' => $row, 'error' => $e->getMessage()];
+            }
+        }
+        return response()->json([
+            'asignados' => $asignados,
+            'errores' => $errores,
+            'total_asignados' => count($asignados),
+            'total_errores' => count($errores)
+        ]);
     }
 }
