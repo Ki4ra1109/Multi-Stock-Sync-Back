@@ -145,7 +145,7 @@ class getProductSellerController extends Controller
                 ];
             }
         }
-
+//
         // Ordenar por fecha descendente (más reciente primero)
         usort($allProducts, function ($a, $b) {
             return strtotime($b['date_created']) - strtotime($a['date_created']);

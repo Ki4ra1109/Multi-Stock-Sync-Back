@@ -58,7 +58,7 @@ class getStockController
         }
         // Comprobar si el token ha expirado y refrescarlo si es necesario
 
-
+//
         $userResponse = Http::withToken($credentials->access_token)
             ->get('https://api.mercadolibre.com/users/me');
 
