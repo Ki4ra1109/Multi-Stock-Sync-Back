@@ -6,19 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\MercadoLibreCredential;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
 
 class getProductSellerController extends Controller
 {
     public function getProductSeller(Request $request, $client_id)
     {
-        // Cachear credenciales por 10 minutos
-        $cacheKey = 'ml_credentials_' . $client_id;
-        $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($client_id) {
-            Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $client_id");
-            return MercadoLibreCredential::where('client_id', $client_id)->first();
-        });
+        $credentials = MercadoLibreCredential::where('client_id', $client_id)->first();
 
         if (!$credentials) {
             return response()->json([
@@ -123,7 +116,7 @@ class getProductSellerController extends Controller
 
         foreach ($productIds as $productId) {
             $productResponse = Http::withToken($credentials->access_token)
-                ->get("https://api.mercadolibre.com/items/{$productId}");
+                 ->get("https://api.mercadolibre.com/items/{$productId}?include_attributes=all");
 
             if ($productResponse->ok()) {
                 $productData = $productResponse->json();
@@ -141,11 +134,20 @@ class getProductSellerController extends Controller
                     'pictures' => $productData['pictures'],
                     'attributes' => $productData['attributes'], 
                     'permalink' => $productData['permalink'],
-                    'sku' => $sku, 
-                ];
+                    'sku' => $productData['seller_custom_field'] ?? 'No disponible', // SKU principal
+                    'variations' => collect($productData['variations'] ?? [])->map(function ($v) {
+                        return [
+                            'variation_id' => $v['id'],
+                            'seller_custom_field' => $v['seller_custom_field'] ?? 'No disponible',
+                            'available_quantity' => $v['available_quantity'],
+                            'pictures' => $v['picture_ids'] ?? [],
+                            'attribute_combinations' => $v['attribute_combinations'] ?? []
+                        ];
+                    })->toArray()
+                                ];
             }
         }
-//
+
         // Ordenar por fecha descendente (más reciente primero)
         usort($allProducts, function ($a, $b) {
             return strtotime($b['date_created']) - strtotime($a['date_created']);
