@@ -123,7 +123,7 @@ class getProductSellerController extends Controller
 
         foreach ($productIds as $productId) {
             $productResponse = Http::withToken($credentials->access_token)
-                ->get("https://api.mercadolibre.com/items/{$productId}");
+                 ->get("https://api.mercadolibre.com/items/{$productId}?include_attributes=all");
 
             if ($productResponse->ok()) {
                 $productData = $productResponse->json();
@@ -141,8 +141,17 @@ class getProductSellerController extends Controller
                     'pictures' => $productData['pictures'],
                     'attributes' => $productData['attributes'], 
                     'permalink' => $productData['permalink'],
-                    'sku' => $sku, 
-                ];
+                    'sku' => $productData['seller_custom_field'] ?? 'No disponible', // SKU principal
+                    'variations' => collect($productData['variations'] ?? [])->map(function ($v) {
+                        return [
+                            'variation_id' => $v['id'],
+                            'seller_custom_field' => $v['seller_custom_field'] ?? 'No disponible',
+                            'available_quantity' => $v['available_quantity'],
+                            'pictures' => $v['picture_ids'] ?? [],
+                            'attribute_combinations' => $v['attribute_combinations'] ?? []
+                        ];
+                    })->toArray()
+                                ];
             }
         }
 
