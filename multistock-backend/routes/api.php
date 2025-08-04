@@ -380,5 +380,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/woocommerce/woo/{storeId}/product/{productId}/variation', [WooProductController::class, 'createVariation']); // Crear variación de producto
     Route::delete('/woocommerce/woo/{storeId}/product/{productId}/variation/{variationId}', [WooProductController::class, 'deleteVariation']); // Eliminar variación de producto
     Route::get('/woocommerce/woo/{storeId}/products-not-in-warehouse/export', [\App\Http\Controllers\Woocommerce\WooProductController::class, 'exportProductsNotInWarehouse']);
+    Route::get('/woocommerce/woo/export-all-products-all-stores', [\App\Http\Controllers\Woocommerce\WooProductController::class, 'exportAllProductsFromAllStores']);
+    
+    // Endpoints para productos por SKU en todas las tiendas
+    Route::get('/woocommerce/woo/products-by-sku', [\App\Http\Controllers\Woocommerce\WooProductController::class, 'getProductsBySkuAllStores']);
+    Route::put('/woocommerce/woo/products-by-sku', [\App\Http\Controllers\Woocommerce\WooProductController::class, 'updateProductsBySkuAllStores']);
+    
+    // Endpoint de debugging para listar SKUs disponibles
+    Route::get('/woocommerce/woo/list-available-skus', [\App\Http\Controllers\Woocommerce\WooProductController::class, 'listAvailableSkus']);
 
 });

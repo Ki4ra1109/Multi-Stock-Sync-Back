@@ -1514,4 +1514,714 @@ class WooProductController extends Controller
             'total_errores' => count($errores)
         ]);
     }
+
+    /**
+     * Descargar un Excel con todos los productos de todas las tiendas y sus detalles
+     */
+    public function exportAllProductsFromAllStores()
+    {
+        try {
+            // Aumentar límites de tiempo y memoria para archivos grandes
+            set_time_limit(600); // 10 minutos
+            ini_set('max_execution_time', 600);
+            ini_set('memory_limit', '512M');
+            
+            // Obtener todas las tiendas (activas e inactivas)
+            $stores = WooStore::all();
+            
+            if ($stores->isEmpty()) {
+                return response()->json([
+                    'message' => 'No hay tiendas registradas para exportar productos.',
+                    'status' => 'error'
+                ], 404);
+            }
+
+            // Crear Excel
+            $spreadsheet = new Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            
+            // Configurar encabezados (optimizados sin descripción e imágenes)
+            $headers = [
+                'A1' => 'Tienda ID',
+                'B1' => 'Nombre Tienda',
+                'C1' => 'URL Tienda',
+                'D1' => 'Producto ID',
+                'E1' => 'Nombre Producto',
+                'F1' => 'Tipo',
+                'G1' => 'Estado',
+                'H1' => 'SKU',
+                'I1' => 'Precio',
+                'J1' => 'Precio Regular',
+                'K1' => 'Precio Oferta',
+                'L1' => 'En Oferta',
+                'M1' => 'Cantidad Stock',
+                'N1' => 'Estado Stock',
+                'O1' => 'Peso',
+                'P1' => 'Largo',
+                'Q1' => 'Ancho',
+                'R1' => 'Alto',
+                'S1' => 'Fecha Creación',
+                'T1' => 'Fecha Modificación',
+                'U1' => 'Categorías',
+                'V1' => 'Etiquetas',
+                'W1' => 'Permalink'
+            ];
+
+            // Aplicar encabezados
+            foreach ($headers as $cell => $value) {
+                $sheet->setCellValue($cell, $value);
+            }
+
+            // Estilo para encabezados
+            $headerStyle = [
+                'font' => [
+                    'bold' => true,
+                    'color' => ['rgb' => 'FFFFFF'],
+                ],
+                'fill' => [
+                    'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                    'startColor' => ['rgb' => '4472C4'],
+                ],
+                'alignment' => [
+                    'horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER,
+                ],
+            ];
+            $sheet->getStyle('A1:W1')->applyFromArray($headerStyle);
+
+            $row = 2;
+            $totalProducts = 0;
+            $errors = [];
+            $maxProducts = 5000; // Aumentar límite de productos
+            $storesProcessed = 0;
+
+            Log::info('Iniciando exportación de productos', [
+                'total_stores' => $stores->count(),
+                'max_products' => $maxProducts,
+                'user_id' => optional(Auth::user())->id
+            ]);
+
+            foreach ($stores as $store) {
+                try {
+                    Log::info('Procesando tienda', [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'store_active' => $store->active
+                    ]);
+                    
+                    $woocommerce = $this->connect($store->id);
+                    
+                    // Obtener todos los productos de la tienda
+                    $page = 1;
+                    $perPage = 100; // Aumentar productos por página
+                    
+                    do {
+                        $products = $woocommerce->get('products', [
+                            'per_page' => $perPage,
+                            'page' => $page
+                            // Remover filtro de status para traer todos los productos
+                        ]);
+                        
+                        if (!is_array($products)) {
+                            $products = [$products];
+                        }
+                        
+                        foreach ($products as $product) {
+                            // Verificar límite de productos
+                            if ($totalProducts >= $maxProducts) {
+                                break 3; // Salir de todos los bucles
+                            }
+                            
+                            // Usar datos del producto sin hacer llamada adicional
+                            $categories = '';
+                            if (!empty($product->categories)) {
+                                $categories = implode(', ', array_map(function($cat) {
+                                    return $cat->name;
+                                }, $product->categories));
+                            }
+                            
+                            $tags = '';
+                            if (!empty($product->tags)) {
+                                $tags = implode(', ', array_map(function($tag) {
+                                    return $tag->name;
+                                }, $product->tags));
+                            }
+                            
+
+                            
+                            // Llenar fila con datos del producto
+                            $sheet->setCellValue("A{$row}", $store->id);
+                            $sheet->setCellValue("B{$row}", $store->name);
+                            $sheet->setCellValue("C{$row}", $store->store_url);
+                            $sheet->setCellValue("D{$row}", $product->id);
+                            $sheet->setCellValue("E{$row}", $product->name);
+                            $sheet->setCellValue("F{$row}", $product->type);
+                            $sheet->setCellValue("G{$row}", $product->status);
+                            $sheet->setCellValue("H{$row}", $product->sku);
+                            $sheet->setCellValue("I{$row}", $product->price);
+                            $sheet->setCellValue("J{$row}", $product->regular_price);
+                            $sheet->setCellValue("K{$row}", $product->sale_price);
+                            $sheet->setCellValue("L{$row}", $product->on_sale ? 'Sí' : 'No');
+                            $sheet->setCellValue("M{$row}", $product->stock_quantity);
+                            $sheet->setCellValue("N{$row}", $product->stock_status);
+                            $sheet->setCellValue("O{$row}", $product->weight);
+                            $sheet->setCellValue("P{$row}", $product->dimensions->length ?? '');
+                            $sheet->setCellValue("Q{$row}", $product->dimensions->width ?? '');
+                            $sheet->setCellValue("R{$row}", $product->dimensions->height ?? '');
+                            $sheet->setCellValue("S{$row}", $product->date_created);
+                            $sheet->setCellValue("T{$row}", $product->date_modified);
+                            $sheet->setCellValue("U{$row}", $categories);
+                            $sheet->setCellValue("V{$row}", $tags);
+                            $sheet->setCellValue("W{$row}", $product->permalink);
+                            
+                            $row++;
+                            $totalProducts++;
+                        }
+                        
+                        $page++;
+                    } while (count($products) === $perPage && $totalProducts < $maxProducts);
+                    
+                    $storesProcessed++;
+                    Log::info('Tienda procesada exitosamente', [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'products_found' => $totalProducts,
+                        'stores_processed' => $storesProcessed
+                    ]);
+                    
+                } catch (\Exception $e) {
+                    $errors[] = [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'error' => $e->getMessage()
+                    ];
+                    
+                    Log::error('Error al obtener productos de tienda', [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            // Autoajustar columnas
+            foreach (range('A', 'W') as $column) {
+                $sheet->getColumnDimension($column)->setAutoSize(true);
+            }
+
+            // Crear respuesta de descarga
+            $writer = new Xlsx($spreadsheet);
+            $response = new StreamedResponse(function() use ($writer) {
+                $writer->save('php://output');
+            });
+            
+            $response->headers->set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            $response->headers->set('Content-Disposition', 'attachment;filename="productos_todas_tiendas_' . date('Y-m-d_H-i-s') . '.xlsx"');
+            $response->headers->set('Cache-Control', 'max-age=0');
+
+            Log::info('Exportación de productos completada', [
+                'total_stores' => $stores->count(),
+                'stores_processed' => $storesProcessed,
+                'total_products' => $totalProducts,
+                'errors_count' => count($errors),
+                'max_products_reached' => $totalProducts >= $maxProducts,
+                'user_id' => optional(Auth::user())->id
+            ]);
+
+            return $response;
+
+        } catch (\Exception $e) {
+            Log::error('Error general en exportación de productos', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => optional(Auth::user())->id
+            ]);
+            
+            return response()->json([
+                'message' => 'Error al exportar productos.',
+                'error' => $e->getMessage(),
+                'status' => 'error'
+            ], 500);
+        }
+    }
+
+    /**
+     * Consultar productos por SKU en todas las tiendas
+     */
+    public function getProductsBySkuAllStores(Request $request)
+    {
+        try {
+            // Validar SKU requerido
+            $validator = Validator::make($request->all(), [
+                'sku' => 'required|string|max:100',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => 'Error de validación.',
+                    'errors' => $validator->errors(),
+                    'status' => 'error'
+                ], 422);
+            }
+
+            $sku = $request->sku;
+            
+            // Obtener todas las tiendas
+            $stores = WooStore::all();
+            
+            if ($stores->isEmpty()) {
+                return response()->json([
+                    'message' => 'No hay tiendas registradas.',
+                    'status' => 'error'
+                ], 404);
+            }
+
+            $results = [];
+            $errors = [];
+            $storesProcessed = 0;
+
+            Log::info('Iniciando búsqueda de productos por SKU', [
+                'sku' => $sku,
+                'total_stores' => $stores->count(),
+                'user_id' => optional(Auth::user())->id
+            ]);
+
+            foreach ($stores as $store) {
+                try {
+                    Log::info('Buscando producto por SKU en tienda', [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'sku' => $sku
+                    ]);
+
+                    $woocommerce = $this->connect($store->id);
+                    
+                    // Buscar productos por SKU
+                    $products = $woocommerce->get('products', [
+                        'sku' => $sku,
+                        'per_page' => 100
+                    ]);
+                    
+                    if (!is_array($products)) {
+                        $products = [$products];
+                    }
+                    
+                    foreach ($products as $product) {
+                        $results[] = [
+                            'store_id' => $store->id,
+                            'store_name' => $store->name,
+                            'store_url' => $store->store_url,
+                            'product_id' => $product->id,
+                            'name' => $product->name,
+                            'sku' => $product->sku,
+                            'type' => $product->type,
+                            'status' => $product->status,
+                            'price' => $product->price,
+                            'regular_price' => $product->regular_price,
+                            'sale_price' => $product->sale_price,
+                            'stock_quantity' => $product->stock_quantity,
+                            'stock_status' => $product->stock_status,
+                            'manage_stock' => $product->manage_stock,
+                            'date_created' => $product->date_created,
+                            'date_modified' => $product->date_modified,
+                            'permalink' => $product->permalink
+                        ];
+                    }
+                    
+                    $storesProcessed++;
+                    Log::info('Búsqueda completada en tienda', [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'products_found' => count($products),
+                        'sku' => $sku
+                    ]);
+                    
+                } catch (\Exception $e) {
+                    $errors[] = [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'error' => $e->getMessage()
+                    ];
+                    
+                    Log::error('Error al buscar producto por SKU en tienda', [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'sku' => $sku,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            Log::info('Búsqueda de productos por SKU completada', [
+                'sku' => $sku,
+                'total_stores' => $stores->count(),
+                'stores_processed' => $storesProcessed,
+                'products_found' => count($results),
+                'errors_count' => count($errors),
+                'user_id' => optional(Auth::user())->id
+            ]);
+
+            return response()->json([
+                'message' => 'Búsqueda completada.',
+                'sku' => $sku,
+                'total_stores' => $stores->count(),
+                'stores_processed' => $storesProcessed,
+                'products_found' => count($results),
+                'products' => $results,
+                'errors' => $errors,
+                'status' => 'success'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error general en búsqueda de productos por SKU', [
+                'sku' => $request->sku ?? 'N/A',
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => optional(Auth::user())->id
+            ]);
+            
+            return response()->json([
+                'message' => 'Error al buscar productos por SKU.',
+                'error' => $e->getMessage(),
+                'status' => 'error'
+            ], 500);
+        }
+    }
+
+    /**
+     * Actualizar stock y precio de productos por SKU en todas las tiendas
+     */
+    public function updateProductsBySkuAllStores(Request $request)
+    {
+        try {
+            // Validar datos requeridos
+            $validator = Validator::make($request->all(), [
+                'sku' => 'required|string|max:100',
+                'stock_quantity' => 'sometimes|integer|min:0',
+                'regular_price' => 'sometimes|numeric|min:0',
+                'sale_price' => 'sometimes|numeric|min:0',
+                'stock_status' => 'sometimes|in:instock,outofstock,onbackorder',
+                'manage_stock' => 'sometimes|boolean',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => 'Error de validación.',
+                    'errors' => $validator->errors(),
+                    'status' => 'error'
+                ], 422);
+            }
+
+            $data = $validator->validated();
+            $sku = $data['sku'];
+            
+            // Verificar que al menos se envíe stock_quantity o regular_price
+            if (!isset($data['stock_quantity']) && !isset($data['regular_price']) && !isset($data['sale_price'])) {
+                return response()->json([
+                    'message' => 'Debes especificar al menos stock_quantity, regular_price o sale_price.',
+                    'status' => 'error'
+                ], 422);
+            }
+            
+            // Obtener todas las tiendas
+            $stores = WooStore::all();
+            
+            if ($stores->isEmpty()) {
+                return response()->json([
+                    'message' => 'No hay tiendas registradas.',
+                    'status' => 'error'
+                ], 404);
+            }
+
+            $updated = [];
+            $errors = [];
+            $storesProcessed = 0;
+            $totalProductsUpdated = 0;
+
+            Log::info('Iniciando actualización de productos por SKU', [
+                'sku' => $sku,
+                'update_data' => $data,
+                'total_stores' => $stores->count(),
+                'user_id' => optional(Auth::user())->id
+            ]);
+
+            foreach ($stores as $store) {
+                try {
+                    Log::info('Actualizando productos por SKU en tienda', [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'sku' => $sku,
+                        'update_data' => $data
+                    ]);
+
+                    $woocommerce = $this->connect($store->id);
+                    
+                    // Buscar productos por SKU
+                    $products = $woocommerce->get('products', [
+                        'sku' => $sku,
+                        'per_page' => 100
+                    ]);
+                    
+                    if (!is_array($products)) {
+                        $products = [$products];
+                    }
+                    
+                    Log::info('Productos encontrados para actualización', [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'sku' => $sku,
+                        'products_count' => count($products),
+                        'products_found' => count($products) > 0 ? 'Sí' : 'No'
+                    ]);
+                    
+                    foreach ($products as $product) {
+                        try {
+                            // Preparar datos de actualización
+                            $updateData = [];
+                            
+                            if (isset($data['stock_quantity'])) {
+                                $updateData['stock_quantity'] = $data['stock_quantity'];
+                                $updateData['manage_stock'] = true;
+                            }
+                            
+                            if (isset($data['regular_price'])) {
+                                $updateData['regular_price'] = $data['regular_price'];
+                            }
+                            
+                            if (isset($data['sale_price'])) {
+                                $updateData['sale_price'] = $data['sale_price'];
+                            }
+                            
+                            if (isset($data['stock_status'])) {
+                                $updateData['stock_status'] = $data['stock_status'];
+                            }
+                            
+                            if (isset($data['manage_stock'])) {
+                                $updateData['manage_stock'] = $data['manage_stock'];
+                            }
+                            
+                            // Actualizar producto
+                            $updatedProduct = $woocommerce->put("products/{$product->id}", $updateData);
+                            
+                            $updated[] = [
+                                'store_id' => $store->id,
+                                'store_name' => $store->name,
+                                'store_url' => $store->store_url,
+                                'product_id' => $product->id,
+                                'name' => $product->name,
+                                'sku' => $product->sku,
+                                'updated_data' => $updateData,
+                                'new_stock_quantity' => $updatedProduct->stock_quantity ?? null,
+                                'new_regular_price' => $updatedProduct->regular_price ?? null,
+                                'new_sale_price' => $updatedProduct->sale_price ?? null,
+                                'new_stock_status' => $updatedProduct->stock_status ?? null,
+                                'date_modified' => $updatedProduct->date_modified
+                            ];
+                            
+                            $totalProductsUpdated++;
+                            
+                            Log::info('Producto actualizado exitosamente', [
+                                'store_id' => $store->id,
+                                'store_name' => $store->name,
+                                'product_id' => $product->id,
+                                'sku' => $sku,
+                                'update_data' => $updateData
+                            ]);
+                            
+                        } catch (\Exception $e) {
+                            $errors[] = [
+                                'store_id' => $store->id,
+                                'store_name' => $store->name,
+                                'product_id' => $product->id ?? 'N/A',
+                                'sku' => $sku,
+                                'error' => $e->getMessage()
+                            ];
+                            
+                            Log::error('Error al actualizar producto específico', [
+                                'store_id' => $store->id,
+                                'store_name' => $store->name,
+                                'product_id' => $product->id ?? 'N/A',
+                                'sku' => $sku,
+                                'error' => $e->getMessage()
+                            ]);
+                        }
+                    }
+                    
+                    $storesProcessed++;
+                    Log::info('Actualización completada en tienda', [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'products_updated' => count($products),
+                        'sku' => $sku
+                    ]);
+                    
+                } catch (\Exception $e) {
+                    $errors[] = [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'error' => $e->getMessage()
+                    ];
+                    
+                    Log::error('Error al procesar tienda para actualización', [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'sku' => $sku,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            Log::info('Actualización de productos por SKU completada', [
+                'sku' => $sku,
+                'total_stores' => $stores->count(),
+                'stores_processed' => $storesProcessed,
+                'total_products_updated' => $totalProductsUpdated,
+                'errors_count' => count($errors),
+                'user_id' => optional(Auth::user())->id
+            ]);
+
+            return response()->json([
+                'message' => 'Actualización completada.',
+                'sku' => $sku,
+                'update_data' => $data,
+                'total_stores' => $stores->count(),
+                'stores_processed' => $storesProcessed,
+                'total_products_updated' => $totalProductsUpdated,
+                'updated_products' => $updated,
+                'errors' => $errors,
+                'status' => 'success'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error general en actualización de productos por SKU', [
+                'sku' => $request->sku ?? 'N/A',
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => optional(Auth::user())->id
+            ]);
+            
+            return response()->json([
+                'message' => 'Error al actualizar productos por SKU.',
+                'error' => $e->getMessage(),
+                'status' => 'error'
+            ], 500);
+        }
+    }
+
+    /**
+     * Listar algunos SKUs disponibles en todas las tiendas (para debugging)
+     */
+    public function listAvailableSkus(Request $request)
+    {
+        try {
+            // Obtener todas las tiendas
+            $stores = WooStore::all();
+            
+            if ($stores->isEmpty()) {
+                return response()->json([
+                    'message' => 'No hay tiendas registradas.',
+                    'status' => 'error'
+                ], 404);
+            }
+
+            $results = [];
+            $errors = [];
+
+            Log::info('Iniciando listado de SKUs disponibles', [
+                'total_stores' => $stores->count(),
+                'user_id' => optional(Auth::user())->id
+            ]);
+
+            foreach ($stores as $store) {
+                try {
+                    Log::info('Obteniendo SKUs de tienda', [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name
+                    ]);
+
+                    $woocommerce = $this->connect($store->id);
+                    
+                    // Obtener algunos productos para ver SKUs
+                    $products = $woocommerce->get('products', [
+                        'per_page' => 10, // Solo 10 productos para no sobrecargar
+                        'orderby' => 'date',
+                        'order' => 'desc'
+                    ]);
+                    
+                    if (!is_array($products)) {
+                        $products = [$products];
+                    }
+                    
+                    $storeSkus = [];
+                    foreach ($products as $product) {
+                        if (!empty($product->sku)) {
+                            $storeSkus[] = [
+                                'product_id' => $product->id,
+                                'name' => $product->name,
+                                'sku' => $product->sku,
+                                'price' => $product->price,
+                                'stock_quantity' => $product->stock_quantity,
+                                'status' => $product->status
+                            ];
+                        }
+                    }
+                    
+                    $results[] = [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'store_url' => $store->store_url,
+                        'skus_count' => count($storeSkus),
+                        'skus' => $storeSkus
+                    ];
+                    
+                    Log::info('SKUs obtenidos de tienda', [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'skus_found' => count($storeSkus)
+                    ]);
+                    
+                } catch (\Exception $e) {
+                    $errors[] = [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'error' => $e->getMessage()
+                    ];
+                    
+                    Log::error('Error al obtener SKUs de tienda', [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            Log::info('Listado de SKUs completado', [
+                'total_stores' => $stores->count(),
+                'stores_processed' => count($results),
+                'errors_count' => count($errors),
+                'user_id' => optional(Auth::user())->id
+            ]);
+
+            return response()->json([
+                'message' => 'Listado de SKUs completado.',
+                'total_stores' => $stores->count(),
+                'stores_processed' => count($results),
+                'stores_data' => $results,
+                'errors' => $errors,
+                'status' => 'success'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error general en listado de SKUs', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => optional(Auth::user())->id
+            ]);
+            
+            return response()->json([
+                'message' => 'Error al listar SKUs.',
+                'error' => $e->getMessage(),
+                'status' => 'error'
+            ], 500);
+        }
+    }
 }
