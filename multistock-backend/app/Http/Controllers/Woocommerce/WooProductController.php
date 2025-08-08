@@ -2224,4 +2224,369 @@ class WooProductController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Crear un producto en todas las tiendas WooCommerce
+     */
+    public function createProductAllStores(Request $request)
+    {
+        try {
+            // Validación de datos de entrada (exactamente igual que createProduct)
+            $validator = Validator::make($request->all(), [
+                'name' => 'required|string|max:255',
+                'type' => 'sometimes|in:simple,grouped,external,variable',
+                'regular_price' => 'sometimes|numeric|min:0',
+                'sale_price' => 'sometimes|numeric|min:0',
+                'description' => 'sometimes|string',
+                'short_description' => 'sometimes|string',
+                'sku' => 'sometimes|string|max:100',
+                'manage_stock' => 'sometimes|boolean',
+                'stock_quantity' => 'sometimes|integer|min:0',
+                'stock_status' => 'sometimes|in:instock,outofstock,onbackorder',
+                'weight' => 'sometimes|numeric|min:0',
+                'dimensions.length' => 'sometimes|numeric|min:0',
+                'dimensions.width' => 'sometimes|numeric|min:0',
+                'dimensions.height' => 'sometimes|numeric|min:0',
+                'categories' => 'sometimes|array',
+                'categories.*.id' => 'required_with:categories|integer',
+                'tags' => 'sometimes|array',
+                'tags.*.id' => 'required_with:tags|integer',
+                'images' => 'sometimes|array',
+                'images.*.src' => 'required_with:images|url',
+                'attributes' => 'sometimes|array',
+                'status' => 'sometimes|in:draft,pending,private,publish',
+                'featured' => 'sometimes|boolean',
+                'catalog_visibility' => 'sometimes|in:visible,catalog,search,hidden',
+                'virtual' => 'sometimes|boolean',
+                'downloadable' => 'sometimes|boolean',
+                'external_url' => 'sometimes|url',
+                'button_text' => 'sometimes|string|max:255',
+                'tax_status' => 'sometimes|in:taxable,shipping,none',
+                'tax_class' => 'sometimes|string',
+                'reviews_allowed' => 'sometimes|boolean',
+                'purchase_note' => 'sometimes|string',
+                'menu_order' => 'sometimes|integer',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => 'Error de validación.',
+                    'errors' => $validator->errors(),
+                    'status' => 'error'
+                ], 422);
+            }
+
+            $data = $validator->validated();
+
+            // Obtener todas las tiendas
+            $stores = WooStore::all();
+            
+            if ($stores->isEmpty()) {
+                return response()->json([
+                    'message' => 'No hay tiendas registradas.',
+                    'status' => 'error'
+                ], 404);
+            }
+
+            $created = [];
+            $errors = [];
+            $storesProcessed = 0;
+            $totalProductsCreated = 0;
+
+            Log::info('Iniciando creación de producto en todas las tiendas', [
+                'product_data' => $data,
+                'total_stores' => $stores->count(),
+                'user_id' => optional(Auth::user())->id
+            ]);
+
+            foreach ($stores as $store) {
+                try {
+                    Log::info('Creando producto en tienda', [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'product_name' => $data['name']
+                    ]);
+
+                    $woocommerce = $this->connect($store->id);
+
+                    // Campos por defecto para un nuevo producto
+                    $productData = array_merge([
+                        'type' => 'simple',
+                        'status' => 'publish',
+                        'featured' => false,
+                        'catalog_visibility' => 'visible',
+                        'manage_stock' => false,
+                        'stock_status' => 'instock',
+                        'virtual' => false,
+                        'downloadable' => false,
+                        'reviews_allowed' => true,
+                        'tax_status' => 'taxable',
+                    ], $data);
+
+                    // Validaciones adicionales basadas en el tipo de producto
+                    $validationErrors = $this->validateProductType($productData);
+                    if (!empty($validationErrors)) {
+                        $errors[] = [
+                            'store_id' => $store->id,
+                            'store_name' => $store->name,
+                            'error' => 'Error de validación específica del tipo de producto',
+                            'validation_errors' => $validationErrors
+                        ];
+                        continue;
+                    }
+
+                    // Crear el producto en WooCommerce
+                    $createdProduct = $woocommerce->post("products", $productData);
+
+                    // Respuesta filtrada con información relevante
+                    $filtered = $this->filterProductResponse($createdProduct, $woocommerce);
+
+                    $created[] = [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'store_url' => $store->store_url,
+                        'product' => $filtered
+                    ];
+
+                    $totalProductsCreated++;
+                    
+                    Log::info('Producto creado exitosamente en tienda', [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'product_id' => $createdProduct->id,
+                        'product_name' => $data['name']
+                    ]);
+
+                } catch (\Automattic\WooCommerce\HttpClient\HttpClientException $e) {
+                    $errors[] = [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'error' => 'Error de WooCommerce API: ' . $e->getMessage()
+                    ];
+                    
+                    Log::error('Error de WooCommerce API al crear producto', [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'error' => $e->getMessage()
+                    ]);
+                } catch (\Exception $e) {
+                    $errors[] = [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'error' => 'Error al crear el producto: ' . $e->getMessage()
+                    ];
+                    
+                    Log::error('Error general al crear producto', [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+                
+                $storesProcessed++;
+            }
+
+            Log::info('Creación de productos en todas las tiendas completada', [
+                'total_stores' => $stores->count(),
+                'stores_processed' => $storesProcessed,
+                'products_created' => $totalProductsCreated,
+                'errors_count' => count($errors),
+                'user_id' => optional(Auth::user())->id
+            ]);
+
+            return response()->json([
+                'message' => 'Proceso de creación de productos completado.',
+                'total_stores' => $stores->count(),
+                'stores_processed' => $storesProcessed,
+                'products_created' => $totalProductsCreated,
+                'created_products' => $created,
+                'errors' => $errors,
+                'status' => 'success'
+            ], 201);
+
+        } catch (\Exception $e) {
+            Log::error('Error general en creación de productos en todas las tiendas', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => optional(Auth::user())->id
+            ]);
+            
+            return response()->json([
+                'message' => 'Error al crear productos en todas las tiendas.',
+                'error' => $e->getMessage(),
+                'status' => 'error'
+            ], 500);
+        }
+    }
+
+    /**
+     * Eliminar productos por SKU en todas las tiendas WooCommerce
+     */
+    public function deleteProductBySkuAllStores(Request $request)
+    {
+        try {
+            // Validar datos requeridos
+            $validator = Validator::make($request->all(), [
+                'sku' => 'required|string|max:100',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => 'Error de validación.',
+                    'errors' => $validator->errors(),
+                    'status' => 'error'
+                ], 422);
+            }
+
+            $data = $validator->validated();
+            $sku = $data['sku'];
+            
+            // Obtener todas las tiendas
+            $stores = WooStore::all();
+            
+            if ($stores->isEmpty()) {
+                return response()->json([
+                    'message' => 'No hay tiendas registradas.',
+                    'status' => 'error'
+                ], 404);
+            }
+
+            $deleted = [];
+            $errors = [];
+            $storesProcessed = 0;
+            $totalProductsDeleted = 0;
+
+            Log::info('Iniciando eliminación de productos por SKU', [
+                'sku' => $sku,
+                'total_stores' => $stores->count(),
+                'user_id' => optional(Auth::user())->id
+            ]);
+
+            foreach ($stores as $store) {
+                try {
+                    Log::info('Eliminando productos por SKU en tienda', [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'sku' => $sku
+                    ]);
+
+                    $woocommerce = $this->connect($store->id);
+                    
+                    // Buscar productos por SKU
+                    $products = $woocommerce->get('products', [
+                        'sku' => $sku,
+                        'per_page' => 100
+                    ]);
+                    
+                    if (!is_array($products)) {
+                        $products = [$products];
+                    }
+                    
+                    Log::info('Productos encontrados para eliminación', [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'sku' => $sku,
+                        'products_count' => count($products),
+                        'products_found' => count($products) > 0 ? 'Sí' : 'No'
+                    ]);
+                    
+                    $storeDeleted = [];
+                    foreach ($products as $product) {
+                        try {
+                            // Eliminar el producto
+                            $deletedProduct = $woocommerce->delete("products/{$product->id}", ['force' => true]);
+                            
+                            $storeDeleted[] = [
+                                'product_id' => $product->id,
+                                'product_name' => $product->name,
+                                'deleted_product' => $this->filterProductResponse($deletedProduct, $woocommerce)
+                            ];
+                            
+                            $totalProductsDeleted++;
+                            
+                            Log::info('Producto eliminado exitosamente', [
+                                'store_id' => $store->id,
+                                'store_name' => $store->name,
+                                'product_id' => $product->id,
+                                'product_name' => $product->name,
+                                'sku' => $sku
+                            ]);
+                            
+                        } catch (\Exception $e) {
+                            $errors[] = [
+                                'store_id' => $store->id,
+                                'store_name' => $store->name,
+                                'product_id' => $product->id ?? 'N/A',
+                                'error' => 'Error al eliminar producto específico: ' . $e->getMessage()
+                            ];
+                            
+                            Log::error('Error al eliminar producto específico', [
+                                'store_id' => $store->id,
+                                'store_name' => $store->name,
+                                'product_id' => $product->id ?? 'N/A',
+                                'error' => $e->getMessage()
+                            ]);
+                        }
+                    }
+                    
+                    if (!empty($storeDeleted)) {
+                        $deleted[] = [
+                            'store_id' => $store->id,
+                            'store_name' => $store->name,
+                            'store_url' => $store->store_url,
+                            'deleted_products' => $storeDeleted
+                        ];
+                    }
+                    
+                } catch (\Exception $e) {
+                    $errors[] = [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'error' => 'Error al procesar tienda: ' . $e->getMessage()
+                    ];
+                    
+                    Log::error('Error al procesar tienda para eliminación', [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+                
+                $storesProcessed++;
+            }
+
+            Log::info('Eliminación de productos por SKU completada', [
+                'sku' => $sku,
+                'total_stores' => $stores->count(),
+                'stores_processed' => $storesProcessed,
+                'products_deleted' => $totalProductsDeleted,
+                'errors_count' => count($errors),
+                'user_id' => optional(Auth::user())->id
+            ]);
+
+            return response()->json([
+                'message' => 'Proceso de eliminación de productos por SKU completado.',
+                'sku' => $sku,
+                'total_stores' => $stores->count(),
+                'stores_processed' => $storesProcessed,
+                'products_deleted' => $totalProductsDeleted,
+                'deleted_products' => $deleted,
+                'errors' => $errors,
+                'status' => 'success'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error general en eliminación de productos por SKU', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => optional(Auth::user())->id
+            ]);
+            
+            return response()->json([
+                'message' => 'Error al eliminar productos por SKU.',
+                'error' => $e->getMessage(),
+                'status' => 'error'
+            ], 500);
+        }
+    }
 }
