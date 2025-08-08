@@ -388,6 +388,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/woocommerce/woo/products-by-sku', [\App\Http\Controllers\Woocommerce\WooProductController::class, 'getProductsBySkuAllStores']);
     Route::put('/woocommerce/woo/products-by-sku', [\App\Http\Controllers\Woocommerce\WooProductController::class, 'updateProductsBySkuAllStores']);
     
+    // Endpoints para crear y eliminar productos en todas las tiendas
+    Route::post('/woocommerce/woo/create-product-all-stores', [\App\Http\Controllers\Woocommerce\WooProductController::class, 'createProductAllStores']); // Crear producto en todas las tiendas
+    Route::delete('/woocommerce/woo/delete-product-by-sku-all-stores', [\App\Http\Controllers\Woocommerce\WooProductController::class, 'deleteProductBySkuAllStores']); // Eliminar producto por SKU en todas las tiendas
+    
     // Endpoint de debugging para listar SKUs disponibles
     Route::get('/woocommerce/woo/list-available-skus', [\App\Http\Controllers\Woocommerce\WooProductController::class, 'listAvailableSkus']);
 
