@@ -86,6 +86,18 @@ class getProductSellerController extends Controller
                         'pictures' => $productData['pictures'],
                         'atributes' => $productData['attributes'],
                         'permalink' => $productData['permalink'],
+                        'sku' => $productData['seller_custom_field'] ?? 'No disponible', // SKU principal
+                        'variations' => collect($productData['variations'] ?? [])->map(function ($v) {
+                            return [
+                                'variation_id' => $v['id'],
+                                'seller_custom_field' => $v['seller_custom_field'] ?? 'No disponible',
+                                'seller_sku' => $v['seller_sku'] ?? 'No disponible',
+                                'sku' => $v['seller_custom_field'] ?? 'No disponible', // puedes ajustar si tu lógica define otro campo
+                                'available_quantity' => $v['available_quantity'],
+                                'pictures' => $v['picture_ids'] ?? [],
+                                'attribute_combinations' => $v['attribute_combinations'] ?? []
+                            ];
+                        })->toArray()
                     ]],
                     'cantidad_total' => 1,
                 ]);
@@ -142,16 +154,18 @@ class getProductSellerController extends Controller
                     'attributes' => $productData['attributes'], 
                     'permalink' => $productData['permalink'],
                     'sku' => $productData['seller_custom_field'] ?? 'No disponible', // SKU principal
-                    'variations' => collect($productData['variations'] ?? [])->map(function ($v) {
-                        return [
-                            'variation_id' => $v['id'],
-                            'seller_custom_field' => $v['seller_custom_field'] ?? 'No disponible',
-                            'available_quantity' => $v['available_quantity'],
-                            'pictures' => $v['picture_ids'] ?? [],
-                            'attribute_combinations' => $v['attribute_combinations'] ?? []
-                        ];
-                    })->toArray()
-                                ];
+                        'variations' => collect($productData['variations'] ?? [])->map(function ($v) {
+                            return [
+                                'variation_id' => $v['id'],
+                                'seller_custom_field' => $v['seller_custom_field'] ?? 'No disponible',
+                                'seller_sku' => $v['seller_sku'] ?? 'No disponible',
+                                'sku' => $v['seller_custom_field'] ?? 'No disponible', // puedes ajustar si tu lógica define otro campo
+                                'available_quantity' => $v['available_quantity'],
+                                'pictures' => $v['picture_ids'] ?? [],
+                                'attribute_combinations' => $v['attribute_combinations'] ?? []
+                            ];
+                        })->toArray()
+                            ];
             }
         }
 
