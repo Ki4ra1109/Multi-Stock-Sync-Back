@@ -16,11 +16,19 @@ class warehouseDeleteWarehouseByIdController{
     {
         $warehouse = Warehouse::find($id);
 
-        if ($warehouse) {
-            $warehouse->delete();
-            return response()->json(['message' => 'Bodega eliminada con éxito.']);
+        if (!$warehouse) {
+            return response()->json(['message' => 'No se encontró la bodega especificada.'], 404);
         }
 
-        return response()->json(['message' => 'Bodega no encontrada.'], 404);
+        // Evitar eliminar si tiene productos asociados en stock_warehouses
+        $hasAssociatedProducts = $warehouse->stockWarehouses()->exists();
+        if ($hasAssociatedProducts) {
+            return response()->json([
+                'message' => 'No es posible eliminar la bodega porque registra productos asociados.'
+            ], 409);
+        }
+
+        $warehouse->delete();
+        return response()->json(['message' => 'La bodega se eliminó correctamente.']);
     }
 }
