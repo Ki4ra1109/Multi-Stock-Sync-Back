@@ -15,8 +15,10 @@ use GuzzleHttp\Promise;
 class getChinaCarrier extends Controller
 {
     public function chinaProductsAllCompanies(Request $request)
+
+
     {
-        set_time_limit(600);
+        set_time_limit(1000);
         Log::info('Inicio de consulta de productos internacionales China Carrier', ['request' => $request->all()]);
 
         // Validar parámetro
