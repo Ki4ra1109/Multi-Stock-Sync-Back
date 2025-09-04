@@ -6,6 +6,8 @@ use App\Models\MercadoLibreCredential;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
 use Exception;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class getStockSalesHistoryController
 {
@@ -14,35 +16,55 @@ class getStockSalesHistoryController
         try {
             set_time_limit(180); // Extender tiempo máximo de ejecución
 
-            $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
+            // Cachear credenciales por 10 minutos
+            $cacheKey = 'ml_credentials_' . $clientId;
+            $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($clientId) {
+                Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $clientId");
+                return MercadoLibreCredential::where('client_id', $clientId)->first();
+            });
 
+            // Check if credentials exist
             if (!$credentials) {
+                Log::error("No credentials found for client_id: $clientId");
                 return response()->json([
                     'status' => 'error',
                     'message' => 'No se encontraron credenciales válidas.',
                 ], 404);
             }
 
+            // Refresh token if expired
             if ($credentials->isTokenExpired()) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => 'El token ha expirado.',
-                ], 401);
+                $refreshResponse = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
+                    'grant_type' => 'refresh_token',
+                    'client_id' => $credentials->client_id,
+                    'client_secret' => $credentials->client_secret,
+                    'refresh_token' => $credentials->refresh_token,
+                ]);
+                if ($refreshResponse->failed()) {
+                    Log::error("Token refresh failed for client_id: $clientId");
+                    return response()->json(['error' => 'No se pudo refrescar el token'], 401);
+                }
+                $data = $refreshResponse->json();
+                $credentials->update([
+                    'access_token' => $data['access_token'],
+                    'refresh_token' => $data['refresh_token'],
+                    'expires_at' => now()->addSeconds($data['expires_in']),
+                ]);
             }
 
             // Obtener userId del vendedor
-            $response = Http::withToken($credentials->access_token)
+            $userResponse = Http::withToken($credentials->access_token)
                 ->get('https://api.mercadolibre.com/users/me');
-
-            if ($response->failed()) {
+            if ($userResponse->failed()) {
+                Log::error("Failed to get user ID for client_id: $clientId. URL: " . request()->fullUrl());
                 return response()->json([
                     'status' => 'error',
                     'message' => 'No se pudo obtener el ID del usuario.',
-                    'error' => $response->json(),
-                ], $response->status());
+                    'error' => $userResponse->json(),
+                ], $userResponse->status());
             }
 
-            $userId = $response->json()['id'] ?? null;
+            $userId = $userResponse->json()['id'] ?? null;
 
             if (!$userId) {
                 throw new Exception('El ID del usuario no está definido.');
@@ -52,6 +74,7 @@ class getStockSalesHistoryController
             $allSales = [];
             $offset = 0;
             $limit = 50;
+            $totalProducts = 0; // Contador de productos
 
             // Obtener todas las órdenes pagadas filtradas por producto
             do {
@@ -72,9 +95,10 @@ class getStockSalesHistoryController
                 // Filtrar las órdenes para incluir solo las que contienen el producto específico
                 foreach ($orders as $order) {
                     foreach ($order['order_items'] as $item) {
+                        $totalProducts++; // Incrementar el contador de productos por cada ítem en el pedido
                         if ($item['item']['id'] == $productId) {
                             $allSales[] = $order;
-                            break; // Salta al siguiente pedido si ya encontró el producto
+                            break; // Salta al siguiente pedido si ya encontró el producto específico
                         }
                     }
                 }
@@ -116,13 +140,18 @@ class getStockSalesHistoryController
                 }
             }
 
+            // Obtener la fecha de la última venta
+            $lastSaleDate = !empty($salesDetails) ? end($salesDetails)['sale_date'] : 'No hay ventas registradas';
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Historial de ventas del producto',
                 'total_sales' => $totalSales,
                 'sales_count' => count($salesDetails),
+                'last_sale_date' => $lastSaleDate, // Se agrega la fecha de la última venta
+                'total_products' => $totalProducts, // Añadir el contador de productos
                 'data' => array_values($salesData),
-                'sales' => $salesDetails, // Cambio de "orders" a "sales"
+                'sales' => $salesDetails, 
             ]);
 
         } catch (Exception $e) {

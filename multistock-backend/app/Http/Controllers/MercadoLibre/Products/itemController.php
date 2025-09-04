@@ -7,6 +7,8 @@ use App\Models\MercadoLibreCredential;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class itemController
 {
@@ -28,8 +30,13 @@ class itemController
             'image_urls.*'=> 'url',
         ]);
 
-        // Buscar credenciales de MercadoLibre
-        $credentials = MercadoLibreCredential::where('client_id', $request->client_id)->first();
+        // Cachear credenciales por 10 minutos
+        $cacheKey = 'ml_credentials_' . $request->client_id;
+        $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($request) {
+            Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: {$request->client_id}");
+            return MercadoLibreCredential::where('client_id', $request->client_id)->first();
+        });
+
         if (!$credentials || $credentials->isTokenExpired()) {
             return response()->json(['status' => 'error', 'message' => 'Credenciales no válidas o token expirado.'], 401);
         }
@@ -103,8 +110,13 @@ class itemController
             'image_urls.*'=> 'url',
         ]);
 
-        // Buscar credenciales de MercadoLibre
-        $credentials = MercadoLibreCredential::where('client_id', $request->client_id)->first();
+        // Cachear credenciales por 10 minutos
+        $cacheKey = 'ml_credentials_' . $request->client_id;
+        $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($request) {
+            Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: {$request->client_id}");
+            return MercadoLibreCredential::where('client_id', $request->client_id)->first();
+        });
+
         if (!$credentials || $credentials->isTokenExpired()) {
             return response()->json(['status' => 'error', 'message' => 'Credenciales no válidas o token expirado.'], 401);
         }

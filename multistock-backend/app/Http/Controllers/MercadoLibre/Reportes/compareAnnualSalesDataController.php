@@ -4,93 +4,134 @@ namespace App\Http\Controllers\MercadoLibre\Reportes;
 
 use App\Models\MercadoLibreCredential;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
+use GuzzleHttp\Client;
+use GuzzleHttp\Promise;
+use Illuminate\Support\Facades\Cache;
 
 class compareAnnualSalesDataController
 {
-
     /**
      * Compare sales data between two years.
      */
     public function compareAnnualSalesData($clientId)
     {
-        // Get credentials by client_id
-        $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
+        // Cachear credenciales por 10 minutos
+        $cacheKey = 'ml_credentials_' . $clientId;
+        $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($clientId) {
+            Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $clientId");
+            return MercadoLibreCredential::where('client_id', $clientId)->first();
+        });
+
+        if (Cache::has($cacheKey)) {
+            Log::info("Credenciales Mercado Libre obtenidas desde cache para client_id: $clientId");
+        } else {
+            Log::info("Credenciales Mercado Libre cacheadas por primera vez para client_id: $clientId");
+        }
 
         // Check if credentials exist
         if (!$credentials) {
+            Log::error("No credentials found for client_id: $clientId");
             return response()->json([
                 'status' => 'error',
                 'message' => 'No se encontraron credenciales válidas para el client_id proporcionado.',
             ], 404);
         }
 
-        // Check if token is expired
+        // Refresh token if expired
         if ($credentials->isTokenExpired()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'El token ha expirado. Por favor, renueve su token.',
-            ], 401);
+            $refreshResponse = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
+                'grant_type' => 'refresh_token',
+                'client_id' => $credentials->client_id,
+                'client_secret' => $credentials->client_secret,
+                'refresh_token' => $credentials->refresh_token,
+            ]);
+            if ($refreshResponse->failed()) {
+                Log::error("Token refresh failed for client_id: $clientId");
+                return response()->json(['error' => 'No se pudo refrescar el token'], 401);
+            }
+            // Check if token is expired
+            $data = $refreshResponse->json();
+            $credentials->update([
+                'access_token' => $data['access_token'],
+                'refresh_token' => $data['refresh_token'],
+                'expires_at' => now()->addSeconds($data['expires_in']),
+            ]);
         }
 
         // Get user id from token
-        $response = Http::withToken($credentials->access_token)
+        $userResponse = Http::withToken($credentials->access_token)
             ->get('https://api.mercadolibre.com/users/me');
-
-        if ($response->failed()) {
+        if ($userResponse->failed()) {
+            Log::error("Failed to get user ID for client_id: $clientId. URL: " . request()->fullUrl());
             return response()->json([
                 'status' => 'error',
-                'message' => 'No se pudo obtener el ID del usuario. Por favor, valide su token.',
-                'error' => $response->json(),
+                'message' => 'No se pudo obtener el ID del usuario. Valide su token.',
+                'error' => $userResponse->json(),
             ], 500);
         }
-
-        $userId = $response->json()['id'];
+        $userId = $userResponse->json()['id'];
 
         // Get query parameters for the two years to compare
         $year1 = request()->query('year1');
         $year2 = request()->query('year2');
-
         // Validate query parameters
         if (!$year1 || !$year2) {
+            Log::error("Missing year1 or year2 query parameters. URL: " . request()->fullUrl());
             return response()->json([
                 'status' => 'error',
                 'message' => 'Los parámetros de consulta year1 y year2 son obligatorios.',
             ], 400);
         }
 
-        // Calculate date range for the two years
-        $dateFrom1 = "{$year1}-01-01T00:00:00.000-00:00";
-        $dateTo1 = "{$year1}-12-31T23:59:59.999-00:00";
-        $dateFrom2 = "{$year2}-01-01T00:00:00.000-00:00";
-        $dateTo2 = "{$year2}-12-31T23:59:59.999-00:00";
-
-        // Function to fetch paginated data
-        $fetchPaginatedData = function ($dateFrom, $dateTo) use ($credentials, $userId) {
-            $totalSales = 0;
-            $soldProducts = [];
-            $offset = 0;
-            $limit = 50; // Adjust limit as needed
-
-            do {
-                $response = Http::withToken($credentials->access_token)
-                    ->get("https://api.mercadolibre.com/orders/search", [
+        // Function to fetch data in parallel by month
+        $fetchAnnualData = function ($year) use ($credentials, $userId) {
+            $client = new Client([
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $credentials->access_token,
+                ],
+                'timeout' => 30,
+            ]);
+            $promises = [];
+            for ($month = 1; $month <= 12; $month++) {
+                $from = sprintf('%s-%02d-01T00:00:00.000-00:00', $year, $month);
+                $to = date('Y-m-t\T23:59:59.999-00:00', strtotime("$year-$month-01"));
+                $promises[] = $client->getAsync('https://api.mercadolibre.com/orders/search', [
+                    'query' => [
                         'seller' => $userId,
                         'order.status' => 'paid',
-                        'order.date_created.from' => $dateFrom,
-                        'order.date_created.to' => $dateTo,
-                        'offset' => $offset,
-                        'limit' => $limit,
-                    ]);
+                        'order.date_created.from' => $from,
+                        'order.date_created.to' => $to,
+                        'limit' => 50,
+                        'offset' => 0,
+                    ]
+                ]);
+            }
+            try {
+                $results = Promise\Utils::unwrap($promises);
+            } catch (\Exception $e) {
+                Log::error("Error fetching annual data for year $year");
+                return [
+                    'error' => true,
+                    'total_sales' => 0,
+                    'sold_products' => [],
+                    'total_orders' => 0,
+                ];
+            }
 
-                if ($response->failed()) {
-                    return [
-                        'error' => true,
-                        'response' => $response,
-                    ];
+            $totalSales = 0;
+            $soldProducts = [];
+            $ordersCount = 0;
+
+            foreach ($results as $response) {
+                if ($response->getStatusCode() !== 200) {
+                    Log::error("API response not 200 for year $year");
+                    continue;
                 }
-
-                $orders = $response->json()['results'];
+                $data = json_decode($response->getBody()->getContents(), true);
+                $orders = $data['results'] ?? [];
+                $ordersCount += count($orders);
                 foreach ($orders as $order) {
                     $totalSales += $order['total_amount'];
                     foreach ($order['order_items'] as $item) {
@@ -103,40 +144,52 @@ class compareAnnualSalesDataController
                         ];
                     }
                 }
-
-                $offset += $limit;
-            } while (count($orders) === $limit);
+            }
 
             return [
                 'error' => false,
                 'total_sales' => $totalSales,
                 'sold_products' => $soldProducts,
+                'total_orders' => $ordersCount,
             ];
         };
+        // Fetch data for both years
+        $data1 = $fetchAnnualData($year1);
+        $data2 = $fetchAnnualData($year2);
 
-        // Fetch data for the first year
-        $data1 = $fetchPaginatedData($dateFrom1, $dateTo1);
-        if ($data1['error']) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Error al conectar con la API de MercadoLibre.',
-                'error' => $data1['response']->json(),
-            ], $data1['response']->status());
+        if ($data1['error'] || $data2['error']) {
+            Log::error("Error fetching data for one or both years");
         }
 
-        // Fetch data for the second year
-        $data2 = $fetchPaginatedData($dateFrom2, $dateTo2);
-        if ($data2['error']) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Error al conectar con la API de MercadoLibre.',
-                'error' => $data2['response']->json(),
-            ], $data2['response']->status());
+        // 
+        $difference = abs($data2['total_sales'] - $data1['total_sales']);
+
+        if ($data1['total_sales'] > $data2['total_sales']) {
+            $mostSoldYear = $year1;
+            $mostSoldAmount = $data1['total_sales'];
+            $leastSoldYear = $year2;
+            $leastSoldAmount = $data2['total_sales'];
+            $percentageChange = $mostSoldAmount > 0
+                ? round(($difference / $mostSoldAmount) * 100, 2)
+                : 0;
+        } elseif ($data2['total_sales'] > $data1['total_sales']) {
+            $mostSoldYear = $year2;
+            $mostSoldAmount = $data2['total_sales'];
+            $leastSoldYear = $year1;
+            $leastSoldAmount = $data1['total_sales'];
+            $percentageChange = $mostSoldAmount > 0
+                ? round(($difference / $mostSoldAmount) * 100, 2)
+                : 0;
+        } else {
+            $mostSoldYear = 'Igual';
+            $mostSoldAmount = $data1['total_sales'];
+            $leastSoldYear = 'Igual';
+            $leastSoldAmount = $data1['total_sales'];
+            $percentageChange = 0;
         }
 
-        // Determine increase or decrease
-        $difference = $data2['total_sales'] - $data1['total_sales'];
-        $percentageChange = $data1['total_sales'] > 0 ? ($difference / $data1['total_sales']) * 100 : 0;
+        // Combine all sold products from both years
+        $allSoldProducts = array_merge($data1['sold_products'], $data2['sold_products']);
 
         // Return comparison data
         return response()->json([
@@ -146,17 +199,23 @@ class compareAnnualSalesDataController
                 'year1' => [
                     'year' => $year1,
                     'total_sales' => $data1['total_sales'],
+                    'total_orders' => $data1['total_orders'],
                     'sold_products' => $data1['sold_products'],
                 ],
                 'year2' => [
                     'year' => $year2,
                     'total_sales' => $data2['total_sales'],
+                    'total_orders' => $data2['total_orders'],
                     'sold_products' => $data2['sold_products'],
                 ],
+                'all_sold_products' => $allSoldProducts,
                 'difference' => $difference,
                 'percentage_change' => $percentageChange,
+                'most_sold_year' => $mostSoldYear,
+                'most_sold_amount' => $mostSoldAmount,
+                'least_sold_year' => $leastSoldYear,
+                'least_sold_amount' => $leastSoldAmount,
             ],
         ]);
     }
-    
 }

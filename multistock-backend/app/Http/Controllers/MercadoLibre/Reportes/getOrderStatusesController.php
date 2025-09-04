@@ -6,15 +6,22 @@ use App\Models\MercadoLibreCredential;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class getOrderStatusesController
 {
     /**
      * Get order statuses (paid, pending, canceled) from MercadoLibre API using client_id.
-    */
+     */
     public function getOrderStatuses(Request $request, $clientId)
     {
-        $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
+        // Cachear credenciales por 10 minutos
+        $cacheKey = 'ml_credentials_' . $clientId;
+        $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($clientId) {
+            Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $clientId");
+            return MercadoLibreCredential::where('client_id', $clientId)->first();
+        });
 
         if (!$credentials) {
             return response()->json([
@@ -24,10 +31,23 @@ class getOrderStatusesController
         }
 
         if ($credentials->isTokenExpired()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'El token ha expirado. Por favor, renueve su token.',
-            ], 401);
+            $refreshResponse = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
+                'grant_type' => 'refresh_token',
+                'client_id' => $credentials->client_id,
+                'client_secret' => $credentials->client_secret,
+                'refresh_token' => $credentials->refresh_token,
+            ]);
+
+            if ($refreshResponse->failed()) {
+                return response()->json(['error' => 'No se pudo refrescar el token'], 401);
+            }
+
+            $data = $refreshResponse->json();
+            $credentials->update([
+                'access_token' => $data['access_token'],
+                'refresh_token' => $data['refresh_token'],
+                'expires_at' => now()->addSeconds($data['expires_in']),
+            ]);
         }
 
         $response = Http::withToken($credentials->access_token)
@@ -47,7 +67,7 @@ class getOrderStatusesController
         $year = $request->query('year', Carbon::now()->year);
 
         $response = Http::withToken($credentials->access_token)
-            ->get("https://api.mercadolibre.com/orders/search?seller={$userId}&order.date_created.from={$year}-{$month}-01T00:00:00.000-00:00&order.date_created.to={$year}-{$month}-".Carbon::now()->daysInMonth."T23:59:59.999-00:00");
+            ->get("https://api.mercadolibre.com/orders/search?seller={$userId}&order.date_created.from={$year}-{$month}-01T00:00:00.000-00:00&order.date_created.to={$year}-{$month}-" . Carbon::now()->daysInMonth . "T23:59:59.999-00:00");
 
         if ($response->failed()) {
             return response()->json([
@@ -71,64 +91,65 @@ class getOrderStatusesController
                 $statuses[$order['status']]++;
             }
             foreach ($order['order_items'] as $item) {
-                // Obtener SKU del producto
                 $productId = $item['item']['id'];
-                $sku = 'No se encuentra disponible en mercado libre'; 
+                $variationId = $item['item']['variation_id'] ?? null;
 
-                // Obtener detalles del producto para obtener el SKU
+                // Obtener SKU de la misma manera que en getTopSellingProducts
+                $sku = $item['item']['seller_sku'] ?? null;
+
                 $productDetailsResponse = Http::withToken($credentials->access_token)
                     ->get("https://api.mercadolibre.com/items/{$productId}");
 
                 if ($productDetailsResponse->successful()) {
                     $productData = $productDetailsResponse->json();
-                
-                    // Inicializar valores por defecto
-                    $sku = 'No tiene SKU';
-                
-                    // Verificar si el producto tiene atributos
-                    if (empty($productData['attributes'])) {
-                        $sku = 'No posee atributos';
-                        $productData['attributes'][] = [
-                            'name' => 'No posee atributos',
-                            'id' => 'NO_ATTRIBUTES',
-                            'value_id' => null,
-                            'value_name' => 'No posee atributos'
-                        ];
-                    } else {
-                        // Buscar SKU entre los atributos del producto
+
+                    // Si no se encontró SKU en el ítem, intenta obtenerlo del producto
+                    if (empty($sku)) {
+                        if (isset($productData['seller_sku'])) {
+                            $sku = $productData['seller_sku'];
+                        }
+                    }
+
+                    // 4. Si aún no se encontró, buscar en los atributos del producto
+                    if (empty($sku) && isset($productData['attributes'])) {
                         foreach ($productData['attributes'] as $attribute) {
-                            if (strtolower($attribute['name']) === 'sku' || strtolower($attribute['id']) === 'SELLER_SKU' || strtolower($attribute['name']) === 'seller custom field') {
+                            if (
+                                in_array(strtolower($attribute['id']), ['seller_sku', 'sku', 'codigo', 'reference', 'product_code']) ||
+                                in_array(strtolower($attribute['name']), ['sku', 'código', 'referencia', 'codigo', 'código de producto'])
+                            ) {
                                 $sku = $attribute['value_name'];
                                 break;
                             }
                         }
                     }
-                
-                    // Verificar si el SKU está en el campo 'seller_custom_field'
-                    if ($sku === 'No tiene SKU' && isset($productData['seller_custom_field'])) {
-                        $sku = $productData['seller_custom_field'];
+
+                    // 5. Si sigue sin encontrarse, intentar con el modelo como último recurso
+                    if (empty($sku) && isset($productData['attributes'])) {
+                        foreach ($productData['attributes'] as $attribute) {
+                            if (
+                                strtolower($attribute['id']) === 'model' ||
+                                strtolower($attribute['name']) === 'modelo'
+                            ) {
+                                $sku = $attribute['value_name'];
+                                break;
+                            }
+                        }
                     }
 
-                    // Verificar si el SKU está en el campo 'seller_sku'
-                    if ($sku === 'No tiene SKU' && isset($productData['seller_sku'])) {
-                        $sku = $productData['seller_sku'];
-                    }
+                    // Asignar el SKU, título y número de venta al producto y agregarlo a la lista de productos
+                    $item['item']['sku'] = $sku;
+                    $item['item']['status'] = $order['status'];
+                    $item['item']['title'] = $item['item']['title'];
+                    $item['item']['sale_number'] = $order['id'];
+                    $item['item']['variation_attributes'] = $productData['attributes'];
+
+                    // Remove condition
+                    unset($item['item']['condition']);
+                    $products[] = $item['item'];
                 }
-
-                // Asignar el SKU, título y número de venta al producto y agregarlo a la lista de productos
-                $item['item']['sku'] = $sku;
-                $item['item']['status'] = $order['status'];
-                $item['item']['title'] = $item['item']['title'];
-                $item['item']['sale_number'] = $order['id'];
-                $item['item']['variation_attributes'] = $productData['attributes'];
-
-                // Remove condition
-                unset($item['item']['condition']);
-                $products[] = $item['item'];
             }
         }
 
-        // Return order statuses and related products data
         return response()->json([
             'status' => 'success',
             'message' => 'Estados de órdenes y productos relacionados obtenidos con éxito.',
@@ -174,7 +195,7 @@ class getOrderStatusesController
         $year = $request->query('year', Carbon::now()->year);
 
         $response = Http::withToken($credentials->access_token)
-            ->get("https://api.mercadolibre.com/orders/search?seller={$userId}&order.date_created.from={$year}-{$month}-01T00:00:00.000-00:00&order.date_created.to={$year}-{$month}-".Carbon::now()->daysInMonth."T23:59:59.999-00:00");
+            ->get("https://api.mercadolibre.com/orders/search?seller={$userId}&order.date_created.from={$year}-{$month}-01T00:00:00.000-00:00&order.date_created.to={$year}-{$month}-" . Carbon::now()->daysInMonth . "T23:59:59.999-00:00");
 
         if ($response->failed()) {
             return response()->json([
@@ -198,57 +219,66 @@ class getOrderStatusesController
                 $statuses[$order['status']]++;
             }
             foreach ($order['order_items'] as $item) {
-                // Obtener SKU del producto
                 $productId = $item['item']['id'];
-                $sku = 'No se encuentra disponible en mercado libre'; 
+                $variationId = $item['item']['variation_id'] ?? null;
+                $skuSource = 'not_found';
 
-                // Obtener detalles del producto para obtener el SKU
+                // Obtener SKU de la misma manera que en getTopSellingProducts
+                $sku = $item['item']['seller_sku'] ?? null;
+
                 $productDetailsResponse = Http::withToken($credentials->access_token)
                     ->get("https://api.mercadolibre.com/items/{$productId}");
 
                 if ($productDetailsResponse->successful()) {
                     $productData = $productDetailsResponse->json();
-                    
-                    $sku = 'No tiene SKU';
-                    // Verificar si el producto tiene atributos
-                    if (empty($productData['attributes'])) {
-                        $sku = 'No posee atributos';
-                        $productData['attributes'][] = [
-                            'name' => 'No posee atributos',
-                            'id' => 'NO_ATTRIBUTES',
-                            'value_id' => null,
-                            'value_name' => 'No posee atributos'
-                        ];
-                    } else {
-                        // Buscar el SKU en los atributos del producto
+
+                    // Si no se encontró SKU en el ítem, intenta obtenerlo del producto
+                    if (empty($sku)) {
+                        if (isset($productData['seller_sku'])) {
+                            $sku = $productData['seller_sku'];
+                        }
+                    }
+
+                    // 4. Si aún no se encontró, buscar en los atributos del producto
+                    if (empty($sku) && isset($productData['attributes'])) {
                         foreach ($productData['attributes'] as $attribute) {
-                            if (strtolower($attribute['name']) === 'sku' || strtolower($attribute['id']) === 'SELLER_SKU' || strtolower($attribute['name']) === 'seller custom field') {
+                            if (
+                                in_array(strtolower($attribute['id']), ['seller_sku', 'sku', 'codigo', 'reference', 'product_code']) ||
+                                in_array(strtolower($attribute['name']), ['sku', 'código', 'referencia', 'codigo', 'código de producto'])
+                            ) {
                                 $sku = $attribute['value_name'];
                                 break;
                             }
                         }
                     }
 
-                    // Verificar si el SKU está en el campo 'seller_custom_field'
-                    if ($sku === 'No tiene SKU' && isset($productData['seller_custom_field'])) {
-                        $sku = $productData['seller_custom_field'];
+                    // 5. Si sigue sin encontrarse, intentar con el modelo como último recurso
+                    if (empty($sku) && isset($productData['attributes'])) {
+                        foreach ($productData['attributes'] as $attribute) {
+                            if (
+                                strtolower($attribute['id']) === 'model' ||
+                                strtolower($attribute['name']) === 'modelo'
+                            ) {
+                                $sku = $attribute['value_name'];
+                                break;
+                            }
+                        }
                     }
+
+                    // Asignar el SKU, título y número de venta al producto
+                    $item['item']['sku'] = $sku;
+                    $item['item']['status'] = $order['status'];
+                    $item['item']['title'] = $item['item']['title'];
+                    $item['item']['sale_number'] = $order['id'];
+                    $item['item']['variation_attributes'] = $productData['attributes'];
+
+                    // Remove condition
+                    unset($item['item']['condition']);
+                    $products[] = $item['item'];
                 }
-
-                // Asignar el SKU, título y número de venta al producto
-                $item['item']['sku'] = $sku;
-                $item['item']['status'] = $order['status'];
-                $item['item']['title'] = $item['item']['title'];
-                $item['item']['sale_number'] = $order['id'];
-                $item['item']['variation_attributes'] = $productData['attributes'];
-
-                // Remove condition
-                unset($item['item']['condition']);
-                $products[] = $item['item'];
             }
         }
 
-        // Return order statuses and related products data
         return response()->json([
             'status' => 'success',
             'message' => 'Estados de órdenes y productos relacionados obtenidos con éxito.',

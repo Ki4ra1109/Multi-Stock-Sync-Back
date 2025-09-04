@@ -9,7 +9,22 @@ class StockWarehouse extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['thumbnail', 'id_mlc', 'title', 'price_clp', 'warehouse_stock' , 'warehouse_id'];
+    protected $fillable = [
+        'id_mlc',
+        'warehouse_id',
+        'title',
+        'price',
+        'available_quantity',
+        'pictures',
+        'category_id',
+        'attribute',
+        'condicion',
+        'currency_id',
+        'listing_type_id',
+        'sale_terms',
+        'shipping',
+        'description',
+    ];
 
     /**
      * Define a many-to-one relationship with Warehouse.
@@ -17,5 +32,22 @@ class StockWarehouse extends Model
     public function warehouse()
     {
         return $this->belongsTo(Warehouse::class, 'warehouse_id');
+    }
+    
+    public function productSales()
+    {
+        return $this->hasMany(ProductSale::class, 'product_id');
+    }
+    
+    public function company()
+    {
+        return $this->hasOneThrough(
+            Company::class,
+            Warehouse::class,
+            'id', // Foreign key en warehouses
+            'id', // Foreign key en companies
+            'warehouse_id', // Local key en stock_warehouses
+            'assigned_company_id' // Cambiado de 'company_id' a 'assigned_company_id'
+        );
     }
 }

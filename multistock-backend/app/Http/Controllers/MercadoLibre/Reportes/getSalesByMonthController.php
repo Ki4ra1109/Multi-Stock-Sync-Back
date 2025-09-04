@@ -5,14 +5,21 @@ namespace App\Http\Controllers\MercadoLibre\Reportes;
 use App\Models\MercadoLibreCredential;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class getSalesByMonthController
 {
 
     public function getSalesByMonth($clientId)
     {
-        // Get credentials by client_id
-        $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
+        // Cachear credenciales por 10 minutos
+        $cacheKey = 'ml_credentials_' . $clientId;
+        $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($clientId) {
+            Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $clientId");
+            return MercadoLibreCredential::where('client_id', $clientId)->first();
+        });
 
         // Check if credentials exist
         if (!$credentials) {
@@ -24,37 +31,93 @@ class getSalesByMonthController
 
         // Check if token is expired
         if ($credentials->isTokenExpired()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'El token ha expirado. Por favor, renueve su token.',
-            ], 401);
+            $refreshResponse = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
+                'grant_type' => 'refresh_token',
+                'client_id' => env('MELI_CLIENT_ID'),
+                'client_secret' => env('MELI_CLIENT_SECRET'),
+                'refresh_token' => $credentials->refresh_token,
+            ]);
+
+            if ($refreshResponse->failed()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'El token ha expirado y no se pudo refrescar',
+                    'error' => $refreshResponse->json(),
+                ], 401);
+            }
+
+            $newTokenData = $refreshResponse->json();
+            $credentials->access_token = $newTokenData['access_token'];
+            $credentials->refresh_token = $newTokenData['refresh_token'] ?? $credentials->refresh_token;
+            $credentials->expires_in = $newTokenData['expires_in'];
+            $credentials->updated_at = now();
+            $credentials->save();
         }
 
-        // Get user id from token
-        $response = Http::withToken($credentials->access_token)
-            ->get('https://api.mercadolibre.com/users/me');
+        $userResponse = Http::withToken($credentials->access_token)->get('https://api.mercadolibre.com/users/me');
 
-        if ($response->failed()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'No se pudo obtener el ID del usuario. Por favor, valide su token.',
-                'error' => $response->json(),
-            ], 500);
+        // If it fails by token, try refreshing again
+        if ($userResponse->status() === 401) {
+            $refreshResponse = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
+                'grant_type' => 'refresh_token',
+                'client_id' => env('MELI_CLIENT_ID'),
+                'client_secret' => env('MELI_CLIENT_SECRET'),
+                'refresh_token' => $credentials->refresh_token,
+            ]);
+
+            if ($refreshResponse->failed()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'El token ha expirado y no se pudo refrescar',
+                    'error' => $refreshResponse->json(),
+                ], 401);
+            }
+
+            $newTokenData = $refreshResponse->json();
+            $credentials->access_token = $newTokenData['access_token'];
+            $credentials->refresh_token = $newTokenData['refresh_token'] ?? $credentials->refresh_token;
+            $credentials->expires_in = $newTokenData['expires_in'];
+            $credentials->updated_at = now();
+            $credentials->save();
+
+            // Retry the request
+            $userResponse = Http::withToken($credentials->access_token)->get('https://api.mercadolibre.com/users/me');
+
+            if ($userResponse->failed()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'No se pudo obtener el ID del usuario. Por favor, valide su token.',
+                    'error' => $userResponse->json(),
+                ], 500);
+            }
         }
 
-        $userId = $response->json()['id'];
+        $userId = $userResponse->json()['id'];
 
         // Get query parameters for month and year
-        $month = request()->query('month', date('m')); // Default to current month
-        $year = request()->query('year', date('Y')); // Default to current year
+        $month = request()->query('month', date('m'));
+        $year = request()->query('year', date('Y'));
 
-        // Calculate date range for the specified month and year
-        $dateFrom = "{$year}-{$month}-01T00:00:00.000-00:00";
-        $dateTo = date("Y-m-t\T23:59:59.999-00:00", strtotime($dateFrom));
+        $start = Carbon::create($year, $month, 1, 0, 0, 0, 'UTC')->startOfMonth();
+        $end = Carbon::create($year, $month, 1, 0, 0, 0, 'UTC')->endOfMonth();
+
+        $dateFrom = $start->toIso8601String(); 
+        $dateTo = $end->toIso8601String();     
+        $offset = 0;
+        $limit = 50;
+        $salesByMonth = [];
 
         // API request to get sales by month
+        do{
         $response = Http::withToken($credentials->access_token)
-            ->get("https://api.mercadolibre.com/orders/search?seller={$userId}&order.status=paid&order.date_created.from={$dateFrom}&order.date_created.to={$dateTo}");
+            ->get("https://api.mercadolibre.com/orders/search",[
+                "seller" => $userId,
+                'order.status' => 'paid',
+                'order.date_created.from' => $dateFrom,
+                'order.date_created.to' => $dateTo,
+                'offset' => $offset,
+                'limit' => $limit,
+            ]);
 
         // Validate response
         if ($response->failed()) {
@@ -67,7 +130,6 @@ class getSalesByMonthController
 
         // Process sales data
         $orders = $response->json()['results'];
-        $salesByMonth = [];
 
         foreach ($orders as $order) {
             $month = date('Y-m', strtotime($order['date_created']));
@@ -97,6 +159,8 @@ class getSalesByMonthController
                 ];
             }
         }
+        $offset += $limit;
+        } while (count($orders) == $limit);
 
         // Return sales by month data
         return response()->json([

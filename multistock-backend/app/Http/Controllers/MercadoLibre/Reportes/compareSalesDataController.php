@@ -5,55 +5,79 @@ namespace App\Http\Controllers\MercadoLibre\Reportes;
 use App\Models\MercadoLibreCredential;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class compareSalesDataController
 {
 
-    /**
-     *  Compare sales data between two months
-    */
-
     public function compareSalesData($clientId)
     {
-        // Get credentials by client_id
-        $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
+        // Cachear credenciales por 10 minutos
+        $cacheKey = 'ml_credentials_' . $clientId;
+        $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($clientId) {
+            Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $clientId");
+            return MercadoLibreCredential::where('client_id', $clientId)->first();
+        });
+
+        if (Cache::has($cacheKey)) {
+            Log::info("Credenciales Mercado Libre obtenidas desde cache para client_id: $clientId");
+        } else {
+            Log::info("Credenciales Mercado Libre cacheadas por primera vez para client_id: $clientId");
+        }
 
         // Check if credentials exist
         if (!$credentials) {
+            Log::error("No credentials found for client_id: $clientId");
             return response()->json([
                 'status' => 'error',
                 'message' => 'No se encontraron credenciales válidas para el client_id proporcionado.',
             ], 404);
         }
 
-        // Check if token is expired
+        // Refresh token if expired
         if ($credentials->isTokenExpired()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'El token ha expirado. Por favor, renueve su token.',
-            ], 401);
+
+            $refreshResponse = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
+                'grant_type' => 'refresh_token',
+                'client_id' => $credentials->client_id,
+                'client_secret' => $credentials->client_secret,
+                'refresh_token' => $credentials->refresh_token,
+            ]);
+            if ($refreshResponse->failed()) {
+                Log::error("Token refresh failed for client_id: $clientId");
+                return response()->json(['error' => 'No se pudo refrescar el token'], 401);
+            }
+            $data = $refreshResponse->json();
+            $credentials->update([
+                'access_token' => $data['access_token'],
+                'refresh_token' => $data['refresh_token'],
+                'expires_at' => now()->addSeconds($data['expires_in']),
+            ]);
         }
 
         // Get user id from token
-        $response = Http::withToken($credentials->access_token)
+        $Response = Http::withToken($credentials->access_token)
             ->get('https://api.mercadolibre.com/users/me');
-
-        if ($response->failed()) {
+        if ($Response->failed()) {
+            Log::error("Failed to get user ID for client_id: $clientId. URL: " . request()->fullUrl());
             return response()->json([
                 'status' => 'error',
-                'message' => 'No se pudo obtener el ID del usuario. Por favor, valide su token.',
-                'error' => $response->json(),
+                'message' => 'No se pudo obtener el ID del usuario. Valide su token.',
+                'error' => $Response->json(),
             ], 500);
         }
+        $userId = $Response->json()['id'];
 
-        $userId = $response->json()['id'];
-
-        // Get query parameters for the two months to compare
+        // Get query parameters
         $month1 = request()->query('month1');
         $year1 = request()->query('year1');
         $month2 = request()->query('month2');
         $year2 = request()->query('year2');
 
+        
+
+        
         // Validate query parameters
         if (!$month1 || !$year1 || !$month2 || !$year2) {
             return response()->json([
@@ -62,31 +86,15 @@ class compareSalesDataController
             ], 400);
         }
 
-        // Calculate date range for the two months
+        // Date ranges
         $dateFrom1 = "{$year1}-{$month1}-01T00:00:00.000-00:00";
         $dateTo1 = date("Y-m-t\T23:59:59.999-00:00", strtotime($dateFrom1));
         $dateFrom2 = "{$year2}-{$month2}-01T00:00:00.000-00:00";
         $dateTo2 = date("Y-m-t\T23:59:59.999-00:00", strtotime($dateFrom2));
 
-        // API request to get sales for the two months
-        $response1 = Http::withToken($credentials->access_token)
-            ->get("https://api.mercadolibre.com/orders/search?seller={$userId}&order.status=paid&order.date_created.from={$dateFrom1}&order.date_created.to={$dateTo1}");
-
-        $response2 = Http::withToken($credentials->access_token)
-            ->get("https://api.mercadolibre.com/orders/search?seller={$userId}&order.status=paid&order.date_created.from={$dateFrom2}&order.date_created.to={$dateTo2}");
-
-        // Validate responses
-        if ($response1->failed() || $response2->failed()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Error al conectar con la API de MercadoLibre.',
-                'error' => $response1->failed() ? $response1->json() : $response2->json(),
-            ], $response1->failed() ? $response1->status() : $response2->status());
-        }
-
-        // Process sales data
-        $orders1 = $response1->json()['results'];
-        $orders2 = $response2->json()['results'];
+        // Get paginated orders
+        $orders1 = $this->getPaginatedOrders($credentials->access_token, $userId, $dateFrom1, $dateTo1);
+        $orders2 = $this->getPaginatedOrders($credentials->access_token, $userId, $dateFrom2, $dateTo2);
 
         $totalSales1 = 0;
         $totalSales2 = 0;
@@ -119,7 +127,7 @@ class compareSalesDataController
             }
         }
 
-        // Ensure month1 is the older month and month2 is the newer month
+        // Comparison
         $olderMonthSales = $totalSales1;
         $newerMonthSales = $totalSales2;
         if (strtotime("{$year1}-{$month1}-01") > strtotime("{$year2}-{$month2}-01")) {
@@ -127,18 +135,15 @@ class compareSalesDataController
             $newerMonthSales = $totalSales1;
         }
 
-        // Determine increase or decrease
         $difference = $newerMonthSales - $olderMonthSales;
+        $percentageChange = 0;
         if ($olderMonthSales > 0) {
             $percentageChange = ($difference / $olderMonthSales) * 100;
         } elseif ($newerMonthSales > 0) {
             $percentageChange = 100;
-        } else {
-            $percentageChange = 0;
         }
         $percentageChange = round($percentageChange, 2);
 
-        // Return comparison data
         return response()->json([
             'status' => 'success',
             'message' => 'Comparación de ventas obtenida con éxito.',
@@ -147,18 +152,53 @@ class compareSalesDataController
                     'year' => $year1,
                     'month' => $month1,
                     'total_sales' => $totalSales1,
+                    'total_orders' => count($orders1),
                     'sold_products' => $soldProducts1,
                 ],
                 'month2' => [
                     'year' => $year2,
                     'month' => $month2,
                     'total_sales' => $totalSales2,
+                    'total_orders' => count($orders2),
                     'sold_products' => $soldProducts2,
                 ],
                 'difference' => $difference,
                 'percentage_change' => $percentageChange,
+
+
+
             ],
         ]);
     }
-    
+
+    /**
+     * Get all orders with pagination
+     */
+    private function getPaginatedOrders($token, $userId, $dateFrom, $dateTo)
+    {
+        $orders = [];
+        $offset = 0;
+        $limit = 50;
+
+        do {
+            $response = Http::withToken($token)->get("https://api.mercadolibre.com/orders/search", [
+                'seller' => $userId,
+                'order.status' => 'paid',
+                'order.date_created.from' => $dateFrom,
+                'order.date_created.to' => $dateTo,
+                'offset' => $offset,
+                'limit' => $limit,
+            ]);
+
+            if ($response->failed()) {
+                break; // Salimos del bucle si falla
+            }
+
+            $batch = $response->json()['results'] ?? [];
+            $orders = array_merge($orders, $batch);
+            $offset += $limit;
+        } while (count($batch) === $limit);
+
+        return $orders;
+    }
 }

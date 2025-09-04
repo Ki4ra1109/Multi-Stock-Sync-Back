@@ -5,6 +5,8 @@ namespace App\Http\Controllers\MercadoLibre\Reportes;
 use App\Models\MercadoLibreCredential;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class getAnnualSalesController
 {
@@ -15,8 +17,12 @@ class getAnnualSalesController
 
     public function getAnnualSales($clientId)
     {
-        // Get credentials by client_id
-        $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
+        // Cachear credenciales por 10 minutos
+        $cacheKey = 'ml_credentials_' . $clientId;
+        $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($clientId) {
+            Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $clientId");
+            return MercadoLibreCredential::where('client_id', $clientId)->first();
+        });
 
         // Check if credentials exist
         if (!$credentials) {
@@ -54,52 +60,63 @@ class getAnnualSalesController
         // Calculate date range for the entire year
         $dateFrom = "{$year}-01-01T00:00:00.000-00:00";
         $dateTo = "{$year}-12-31T23:59:59.999-00:00";
-
-        // API request to get sales for the entire year
-        $response = Http::withToken($credentials->access_token)
-            ->get("https://api.mercadolibre.com/orders/search?seller={$userId}&order.status=paid&order.date_created.from={$dateFrom}&order.date_created.to={$dateTo}");
-
-        // Validate response
-        if ($response->failed()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Error al conectar con la API de MercadoLibre.',
-                'error' => $response->json(),
-            ], $response->status());
-        }
-
-        // Process sales data
-        $orders = $response->json()['results'];
+        $offset = 0;
+        $limit = 50; // Set a limit for the number of results per request
         $salesByMonth = [];
 
-        foreach ($orders as $order) {
-            $month = date('Y-m', strtotime($order['date_created']));
-            if (!isset($salesByMonth[$month])) {
-            $salesByMonth[$month] = [
-                'total_amount' => 0,
-                'orders' => []
-            ];
-            }
-            $salesByMonth[$month]['total_amount'] += $order['total_amount'];
-            $salesByMonth[$month]['orders'][] = [
-            'id' => $order['id'],
-            'date_created' => $order['date_created'],
-            'total_amount' => $order['total_amount'],
-            'status' => $order['status'],
-            'sold_products' => []
-            ];
+        do{
+            $response = Http::withToken($credentials->access_token)
+                ->get("https://api.mercadolibre.com/orders/search",[
+                    "seller" => $userId,
+                    "order.status" => "paid",
+                    "order.date_created.from" => $dateFrom,
+                    "order.date_created.to" => $dateTo,
+                    'offset' => $offset,
+                    'limit' => $limit,
+                ]);
 
-            // Extract sold products (titles and quantities)
-            foreach ($order['order_items'] as $item) {
-            $salesByMonth[$month]['orders'][count($salesByMonth[$month]['orders']) - 1]['sold_products'][] = [
-                'order_id' => $order['id'], // MercadoLibre Order ID
-                'order_date' => $order['date_created'], // Order date
-                'title' => $item['item']['title'], // Product title
-                'quantity' => $item['quantity'],  // Quantity sold
-                'price' => $item['unit_price'],   // Price per unit
-            ];
+            // Validate response
+            if ($response->failed()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Error al conectar con la API de MercadoLibre.',
+                    'error' => $response->json(),
+                ], $response->status());
             }
-        }
+
+            // Process sales data
+            $orders = $response->json()['results'];
+
+            foreach ($orders as $order) {
+                $month = date('Y-m', strtotime($order['date_created']));
+                if (!isset($salesByMonth[$month])) {
+                $salesByMonth[$month] = [
+                    'total_amount' => 0,
+                    'orders' => []
+                ];
+                }
+                $salesByMonth[$month]['total_amount'] += $order['total_amount'];
+                $salesByMonth[$month]['orders'][] = [
+                'id' => $order['id'],
+                'date_created' => $order['date_created'],
+                'total_amount' => $order['total_amount'],
+                'status' => $order['status'],
+                'sold_products' => []
+                ];
+
+                // Extract sold products (titles and quantities)
+                foreach ($order['order_items'] as $item) {
+                $salesByMonth[$month]['orders'][count($salesByMonth[$month]['orders']) - 1]['sold_products'][] = [
+                    'order_id' => $order['id'], // MercadoLibre Order ID
+                    'order_date' => $order['date_created'], // Order date
+                    'title' => $item['item']['title'], // Product title
+                    'quantity' => $item['quantity'],  // Quantity sold
+                    'price' => $item['unit_price'],   // Price per unit
+                ];
+                }
+            }
+            $offset += $limit;
+        }while(count($orders) === $limit);
 
         // Return sales by month data
         return response()->json([

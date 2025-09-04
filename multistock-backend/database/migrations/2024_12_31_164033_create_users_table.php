@@ -17,9 +17,14 @@ return new class extends Migration
             $table->string('apellidos');
             $table->string('telefono');
             $table->string('email')->unique();
+            $table->timestamp('email_verified_at')->nullable(); 
             $table->string('password');
             $table->rememberToken();
             $table->timestamps();
+            $table->unsignedBigInteger('role_id')->nullable();
+        });
+        Schema::table('users', function (Blueprint $table) {
+            $table->timestamp('email_verified_at')->nullable();
         });
     }
 

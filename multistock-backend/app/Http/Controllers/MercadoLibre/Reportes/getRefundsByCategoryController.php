@@ -5,13 +5,19 @@ namespace App\Http\Controllers\MercadoLibre\Reportes;
 use App\Models\MercadoLibreCredential;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class getRefundsByCategoryController
 {
     public function getRefundsByCategory($clientId)
     {
-        // Get credentials by client_id
-        $credentials = MercadoLibreCredential::where('client_id', $clientId)->first();
+        // Cachear credenciales por 10 minutos
+        $cacheKey = 'ml_credentials_' . $clientId;
+        $credentials = Cache::remember($cacheKey, now()->addMinutes(10), function () use ($clientId) {
+            Log::info("Consultando credenciales Mercado Libre en MySQL para client_id: $clientId");
+            return MercadoLibreCredential::where('client_id', $clientId)->first();
+        });
 
         // Check if credentials exist
         if (!$credentials) {
@@ -23,10 +29,23 @@ class getRefundsByCategoryController
 
         // Check if token is expired
         if ($credentials->isTokenExpired()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Token has expired. Please renew your token.',
-            ], 401);
+        $refreshResponse = Http::asForm()->post('https://api.mercadolibre.com/oauth/token', [
+            'grant_type' => 'refresh_token',
+            'client_id' => $credentials->client_id,
+            'client_secret' => $credentials->client_secret,
+            'refresh_token' => $credentials->refresh_token,
+        ]);
+
+        if ($refreshResponse->failed()) {
+            return response()->json(['error' => 'No se pudo refrescar el token'], 401);
+        }
+
+        $data = $refreshResponse->json();
+        $credentials->update([
+            'access_token' => $data['access_token'],
+            'refresh_token' => $data['refresh_token'],
+            'expires_at' => now()->addSeconds($data['expires_in']),
+        ]);
         }
 
         // Get user id from token
@@ -112,22 +131,6 @@ class getRefundsByCategoryController
                     'comments' => $shippingDetails['receiver_address']['comment'] ?? '',
                 ] : null;
 
-                // Prepare buyer information
-                $buyerInfo = $buyerDetails ? [
-                    'id' => $buyerDetails['id'],
-                    'name' => $buyerDetails['nickname'],
-                ] : null;
-
-                // Prepare billing information
-                $billingInfoFormatted = $billingInfo ? [
-                    'first_name' => $billingInfo['buyer']['billing_info']['name'] ?? '',
-                    'last_name' => $billingInfo['buyer']['billing_info']['last_name'] ?? '',
-                    'identification' => [
-                        'type' => $billingInfo['buyer']['billing_info']['identification']['type'] ?? '',
-                        'number' => $billingInfo['buyer']['billing_info']['identification']['number'] ?? '',
-                    ],
-                ] : null;
-
                 $refundsByCategory[$categoryId]['orders'][] = [
                     'id' => $order['id'],
                     'created_date' => $order['date_created'],
@@ -137,14 +140,6 @@ class getRefundsByCategoryController
                         'title' => $item['item']['title'],
                         'quantity' => $item['quantity'],
                         'price' => $item['unit_price'],
-                    ],
-                    'buyer' => $buyerInfo,
-                    'billing' => $billingInfoFormatted,
-                    'shipping' => [
-                        'shipping_id' => $order['shipping']['id'] ?? null,
-                        'tracking_number' => $shippingDetails['tracking_number'] ?? null,
-                        'shipping_status' => $shippingDetails['status'] ?? null,
-                        'shipping_address' => $shippingAddress,
                     ]
                 ];
             }

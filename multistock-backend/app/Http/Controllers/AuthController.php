@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {
@@ -63,5 +64,76 @@ class AuthController extends Controller
         $request->user()->currentAccessToken()->delete();
 
         return response()->json(['message' => 'Sesión cerrada correctamente']);
+    }
+
+    /**
+     * Change user password.
+     */
+    public function changePassword(Request $request)
+    {
+        Log::info('Intento de cambio de contraseña', [
+            'user_id' => Auth::id(),
+            'request' => $request->all()
+        ]);
+
+        $request->validate([
+            'current_password' => 'required',
+            'new_password' => 'required|min:8|confirmed',
+        ]);
+
+        $user = User::find(Auth::id());
+        
+        if (!$user) {
+            return response()->json(['message' => 'Usuario no encontrado.'], 404);
+        }
+
+        if (!Hash::check($request->current_password, $user->password)) {
+            Log::warning('Contraseña actual incorrecta', ['user_id' => $user->id]);
+            return response()->json(['message' => 'La contraseña actual es incorrecta.'], 422);
+        }
+
+        $user->password = Hash::make($request->new_password);
+        $user->save();
+
+        Log::info('Contraseña cambiada correctamente', ['user_id' => $user->id]);
+
+        return response()->json(['message' => 'Contraseña actualizada correctamente.']);
+    }
+
+    
+    public function resendVerificationEmail(Request $request)
+    {
+        $request->validate(['email' => 'required|email']);
+
+        $user = \App\Models\User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return response()->json(['message' => 'La cuenta no está verificada.'], 404);
+        }
+
+        if ($user->hasVerifiedEmail()) {
+            return response()->json(['message' => 'El correo ya fue verificado.'], 409);
+        }
+
+        $user->sendEmailVerificationNotification();
+        return response()->json(['message' => 'Correo de verificación reenviado.']);
+    }
+
+  
+    public function emailVerifiedStatus(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Usuario no autenticado.'], 401);
+        }
+
+        return response()->json([
+            'email' => $user->email,
+            'verified' => $user->hasVerifiedEmail(),
+            'message' => $user->hasVerifiedEmail()
+                ? 'La cuenta ya está verificada.'
+                : 'La cuenta no está verificada.'
+        ]);
     }
 }
