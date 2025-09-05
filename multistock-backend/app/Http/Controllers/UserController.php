@@ -83,7 +83,7 @@ class UserController extends Controller
                 'telefono' => $validated['telefono'],
                 'email' => $validated['email'],
                 'password' => Hash::make($validated['password']),
-                'role_id' => $validated['role_id'] ?? 10
+                'role_id' => $validated['role_id'] ?? 1
             ]);
 
             
