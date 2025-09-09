@@ -27,6 +27,15 @@ class User extends Authenticatable implements MustVerifyEmail
     ];
 
     /**
+     * Default attributes for the model.
+     *
+     * @var array
+     */
+    protected $attributes = [
+        'role_id' => 1,
+    ];
+
+    /**
      * The attributes that should be hidden for arrays.
      *
      * @var array
