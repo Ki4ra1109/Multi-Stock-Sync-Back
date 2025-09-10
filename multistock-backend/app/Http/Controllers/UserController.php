@@ -41,7 +41,6 @@ class UserController extends Controller
 
         return response()->json([
             'user' => $userData
-
         ]);
     }
 
@@ -59,7 +58,7 @@ class UserController extends Controller
                 'email' => 'required|string|email|max:255|unique:users',
                 'password' => 'required|string|min:6|confirmed',
                 'password_confirmation' => 'required|string|min:6',
-                'role_id' => 'nullable|exists:rols,id'  // lo ve el admin
+                // quitamos role_id del request, siempre será 1
             ], [
                 'required' => 'El campo :attribute es obligatorio.',
                 'string' => 'El campo :attribute debe ser una cadena de texto.',
@@ -76,17 +75,17 @@ class UserController extends Controller
 
             $validated = $validator->validated();
 
-            // Create user
+            // Create user (FORZAMOS role_id = 1)
             $user = User::create([
                 'nombre' => $validated['nombre'],
                 'apellidos' => $validated['apellidos'],
                 'telefono' => $validated['telefono'],
                 'email' => $validated['email'],
                 'password' => Hash::make($validated['password']),
-                'role_id' => $validated['role_id'] ?? 1
+                // FORZAR ADMIN:
+                'role_id' => 1
             ]);
 
-            
             $user->sendEmailVerificationNotification();
 
             Log::info('Usuario creado', ['user_id' => $user->id]);
@@ -116,7 +115,7 @@ class UserController extends Controller
             'nombre' => 'nullable|string|max:255',
             'apellidos' => 'nullable|string|max:255',
             'telefono' => 'nullable|string|max:20',
-            'email' => 'nullable|string|email|max:255|unique:users,email',
+            'email' => 'nullable|string|email|max:255|unique:users,email,' . $id,
             'role_id' => 'nullable|integer|exists:rols,id',
         ]);
 
@@ -144,7 +143,6 @@ class UserController extends Controller
             return response()->json(['message' => 'Usuario no encontrado'], 404);
         }
 
-       
         if (
             $user->rol &&
             (
@@ -160,7 +158,6 @@ class UserController extends Controller
         $user->delete();
         return response()->json(['message' => 'Usuario eliminado correctamente']);
     }
-
 
     public function asignarRol(Request $request, $userId)
     {
@@ -181,9 +178,6 @@ class UserController extends Controller
 
         $user = User::findOrFail($userId);
         $rol = \App\Models\Rol::findOrFail($request->role_id);
-
-
-
 
         $rolesPermitidosRRHH = [2, 3, 4];
         $userAuth = Auth::user();
@@ -209,4 +203,3 @@ class UserController extends Controller
         return response()->json(['message' => 'Rol asignado correctamente']);
     }
 }
-
