@@ -111,6 +111,7 @@ use App\Http\Controllers\MercadoLibre\Credentials\refreshAccessTokenController;
 
 use App\Http\Controllers\MercadoLibre\Products\listProductByClientIdController;
 use App\Http\Controllers\MercadoLibre\Products\searchProductsController;
+use App\Http\Controllers\MercadoLibre\Products\SyncWithWooCommerceController;
 //use App\Http\Controllers\MercadoLibre\Products\getProductReviewsController;
 use App\Http\Controllers\MercadoLibre\Products\saveProductsController;
 use App\Http\Controllers\MercadoLibre\Products\itemController;
@@ -254,6 +255,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // PRODUCTOS MERCADO LIBRE
     Route::get('/mercadolibre/products/{client_id}', [listProductByClientIdController::class, 'listProductsByClientId']); // Listar productos por client_id
+    Route::post('/mercadolibre/products/{client_id}/sync-woocommerce', [SyncWithWooCommerceController::class, 'syncProducts']); // Sincronizar productos con WooCommerce (síncrono)
+    Route::post('/mercadolibre/products/{client_id}/sync-woocommerce-async', [SyncWithWooCommerceController::class, 'syncProductsAsync']); // Sincronizar productos con WooCommerce (asíncrono)
     Route::get('mercadolibre/categoria/{id}/atributos', [getAtributosCategoriaController::class, 'getAtributos']); // Obtener atributos por categoría
     Route::get('/mercadolibre/products/{client_id}/catalogo', [getCatalogProductController::class, 'getCatalogProducts']); // Obtener productos del catálogo
     Route::get('mercadolibre/categoria/{id}', [getCategoriaController::class, 'getCategoria']); // Obtener categoría
@@ -381,6 +384,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/woocommerce/woo/{storeId}/product/{productId}/variation/{variationId}', [WooProductController::class, 'deleteVariation']); // Eliminar variación de producto
     Route::get('/woocommerce/woo/{storeId}/products-not-in-warehouse/export', [\App\Http\Controllers\Woocommerce\WooProductController::class, 'exportProductsNotInWarehouse']);
     Route::get('/woocommerce/woo/export-all-products-all-stores', [\App\Http\Controllers\Woocommerce\WooProductController::class, 'exportAllProductsFromAllStores']);
+    Route::get('/woocommerce/woo/export-products-test', [\App\Http\Controllers\Woocommerce\WooProductController::class, 'exportProductsFromFirstStores']);
     
     // Endpoints para productos por SKU en todas las tiendas
     Route::get('/woocommerce/woo/products-by-sku', [\App\Http\Controllers\Woocommerce\WooProductController::class, 'getProductsBySkuAllStores']);
