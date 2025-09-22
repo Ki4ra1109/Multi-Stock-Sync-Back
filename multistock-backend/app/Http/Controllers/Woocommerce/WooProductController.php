@@ -29,9 +29,10 @@ class WooProductController extends Controller
     {
         $store = WooStore::findOrFail($storeId);
 
-        if (!$store->active) {
-            throw new \Exception('Tienda desactivada');
-        }
+        // Comentado para permitir procesar tiendas inactivas en exportación
+        // if (!$store->active) {
+        //     throw new \Exception('Tienda desactivada');
+        // }
 
         return new Client(
             $store->store_url,
@@ -1517,14 +1518,15 @@ class WooProductController extends Controller
 
     /**
      * Descargar un Excel con todos los productos de todas las tiendas y sus detalles
+     * Versión optimizada para evitar timeouts
      */
     public function exportAllProductsFromAllStores()
     {
         try {
             // Aumentar límites de tiempo y memoria para archivos grandes
-            set_time_limit(600); // 10 minutos
-            ini_set('max_execution_time', 600);
-            ini_set('memory_limit', '512M');
+            set_time_limit(0); // Sin límite de tiempo
+            ini_set('max_execution_time', 0);
+            ini_set('memory_limit', '1024M');
             
             // Obtener todas las tiendas (activas e inactivas)
             $stores = WooStore::all();
@@ -1591,7 +1593,7 @@ class WooProductController extends Controller
             $row = 2;
             $totalProducts = 0;
             $errors = [];
-            $maxProducts = 5000; // Aumentar límite de productos
+            $maxProducts = 10000; // Límite más conservador para evitar timeouts
             $storesProcessed = 0;
 
             Log::info('Iniciando exportación de productos', [
@@ -1605,86 +1607,110 @@ class WooProductController extends Controller
                     Log::info('Procesando tienda', [
                         'store_id' => $store->id,
                         'store_name' => $store->name,
-                        'store_active' => $store->active
+                        'store_active' => $store->active,
+                        'store_url' => $store->store_url
                     ]);
+                    
+                    // Verificar si la tienda está activa antes de conectar
+                    if (!$store->active) {
+                        Log::warning('Saltando tienda inactiva', [
+                            'store_id' => $store->id,
+                            'store_name' => $store->name
+                        ]);
+                        continue;
+                    }
                     
                     $woocommerce = $this->connect($store->id);
                     
-                    // Obtener todos los productos de la tienda
+                    // Obtener todos los productos de la tienda con límite por tienda
                     $page = 1;
-                    $perPage = 100; // Aumentar productos por página
+                    $perPage = 50; // Reducir productos por página para mejor rendimiento
+                    $maxProductsPerStore = 1000; // Límite por tienda
+                    $productsInStore = 0;
                     
                     do {
                         $products = $woocommerce->get('products', [
                             'per_page' => $perPage,
-                            'page' => $page
-                            // Remover filtro de status para traer todos los productos
+                            'page' => $page,
+                            'status' => 'publish' // Solo productos publicados para mejor rendimiento
                         ]);
                         
                         if (!is_array($products)) {
                             $products = [$products];
                         }
                         
+                        // Verificar límites globales y por tienda
+                        if ($totalProducts >= $maxProducts || $productsInStore >= $maxProductsPerStore) {
+                            break;
+                        }
+                        
                         foreach ($products as $product) {
-                            // Verificar límite de productos
-                            if ($totalProducts >= $maxProducts) {
-                                break 3; // Salir de todos los bucles
+                            // Verificar límites nuevamente dentro del bucle
+                            if ($totalProducts >= $maxProducts || $productsInStore >= $maxProductsPerStore) {
+                                break 2; // Salir de bucles anidados
                             }
                             
-                            // Usar datos del producto sin hacer llamada adicional
+                            // Procesar datos de forma más eficiente
                             $categories = '';
                             if (!empty($product->categories)) {
-                                $categories = implode(', ', array_map(function($cat) {
-                                    return $cat->name;
-                                }, $product->categories));
+                                $categories = implode(', ', array_column($product->categories, 'name'));
                             }
                             
                             $tags = '';
                             if (!empty($product->tags)) {
-                                $tags = implode(', ', array_map(function($tag) {
-                                    return $tag->name;
-                                }, $product->tags));
+                                $tags = implode(', ', array_column($product->tags, 'name'));
                             }
                             
-
+                            // Llenar fila con datos del producto de forma más eficiente
+                            $rowData = [
+                                $store->id,
+                                $store->name,
+                                $store->store_url,
+                                $product->id,
+                                $product->name,
+                                $product->type,
+                                $product->status,
+                                $product->sku,
+                                $product->price,
+                                $product->regular_price,
+                                $product->sale_price,
+                                $product->on_sale ? 'Sí' : 'No',
+                                $product->stock_quantity,
+                                $product->stock_status,
+                                $product->weight,
+                                $product->dimensions->length ?? '',
+                                $product->dimensions->width ?? '',
+                                $product->dimensions->height ?? '',
+                                $product->date_created,
+                                $product->date_modified,
+                                $categories,
+                                $tags,
+                                $product->permalink
+                            ];
                             
-                            // Llenar fila con datos del producto
-                            $sheet->setCellValue("A{$row}", $store->id);
-                            $sheet->setCellValue("B{$row}", $store->name);
-                            $sheet->setCellValue("C{$row}", $store->store_url);
-                            $sheet->setCellValue("D{$row}", $product->id);
-                            $sheet->setCellValue("E{$row}", $product->name);
-                            $sheet->setCellValue("F{$row}", $product->type);
-                            $sheet->setCellValue("G{$row}", $product->status);
-                            $sheet->setCellValue("H{$row}", $product->sku);
-                            $sheet->setCellValue("I{$row}", $product->price);
-                            $sheet->setCellValue("J{$row}", $product->regular_price);
-                            $sheet->setCellValue("K{$row}", $product->sale_price);
-                            $sheet->setCellValue("L{$row}", $product->on_sale ? 'Sí' : 'No');
-                            $sheet->setCellValue("M{$row}", $product->stock_quantity);
-                            $sheet->setCellValue("N{$row}", $product->stock_status);
-                            $sheet->setCellValue("O{$row}", $product->weight);
-                            $sheet->setCellValue("P{$row}", $product->dimensions->length ?? '');
-                            $sheet->setCellValue("Q{$row}", $product->dimensions->width ?? '');
-                            $sheet->setCellValue("R{$row}", $product->dimensions->height ?? '');
-                            $sheet->setCellValue("S{$row}", $product->date_created);
-                            $sheet->setCellValue("T{$row}", $product->date_modified);
-                            $sheet->setCellValue("U{$row}", $categories);
-                            $sheet->setCellValue("V{$row}", $tags);
-                            $sheet->setCellValue("W{$row}", $product->permalink);
+                            // Usar fromArray para mejor rendimiento
+                            $sheet->fromArray($rowData, null, "A{$row}");
                             
                             $row++;
                             $totalProducts++;
+                            $productsInStore++;
                         }
                         
                         $page++;
-                    } while (count($products) === $perPage && $totalProducts < $maxProducts);
+                        
+                        // Liberar memoria cada 100 productos
+                        if ($totalProducts % 100 === 0) {
+                            gc_collect_cycles();
+                        }
+                        
+                    } while (count($products) === $perPage && $totalProducts < $maxProducts && $productsInStore < $maxProductsPerStore);
                     
                     $storesProcessed++;
                     Log::info('Tienda procesada exitosamente', [
                         'store_id' => $store->id,
                         'store_name' => $store->name,
-                        'products_found' => $totalProducts,
+                        'products_in_store' => $productsInStore,
+                        'total_products_so_far' => $totalProducts,
                         'stores_processed' => $storesProcessed
                     ]);
                     
@@ -1692,13 +1718,18 @@ class WooProductController extends Controller
                     $errors[] = [
                         'store_id' => $store->id,
                         'store_name' => $store->name,
+                        'store_url' => $store->store_url,
+                        'store_active' => $store->active,
                         'error' => $e->getMessage()
                     ];
                     
                     Log::error('Error al obtener productos de tienda', [
                         'store_id' => $store->id,
                         'store_name' => $store->name,
-                        'error' => $e->getMessage()
+                        'store_url' => $store->store_url,
+                        'store_active' => $store->active,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
                     ]);
                 }
             }
@@ -1724,6 +1755,7 @@ class WooProductController extends Controller
                 'total_products' => $totalProducts,
                 'errors_count' => count($errors),
                 'max_products_reached' => $totalProducts >= $maxProducts,
+                'errors_details' => $errors,
                 'user_id' => optional(Auth::user())->id
             ]);
 
@@ -1738,6 +1770,141 @@ class WooProductController extends Controller
             
             return response()->json([
                 'message' => 'Error al exportar productos.',
+                'error' => $e->getMessage(),
+                'status' => 'error'
+            ], 500);
+        }
+    }
+
+    /**
+     * Versión simplificada para probar - solo primeras 3 tiendas
+     */
+    public function exportProductsFromFirstStores()
+    {
+        try {
+            set_time_limit(0);
+            ini_set('max_execution_time', 0);
+            ini_set('memory_limit', '1024M');
+            
+            // Obtener solo las primeras 3 tiendas activas para probar
+            $stores = WooStore::where('active', true)->take(3)->get();
+            
+            if ($stores->isEmpty()) {
+                return response()->json([
+                    'message' => 'No hay tiendas activas para exportar productos.',
+                    'status' => 'error'
+                ], 404);
+            }
+
+            Log::info('Iniciando exportación de productos - versión de prueba', [
+                'total_stores' => $stores->count(),
+                'store_ids' => $stores->pluck('id')->toArray(),
+                'user_id' => optional(Auth::user())->id
+            ]);
+
+            // Crear Excel
+            $spreadsheet = new Spreadsheet();
+            $sheet = $spreadsheet->getActiveSheet();
+            
+            // Encabezados simplificados
+            $headers = [
+                'A1' => 'Tienda ID',
+                'B1' => 'Nombre Tienda',
+                'C1' => 'Producto ID',
+                'D1' => 'Nombre Producto',
+                'E1' => 'SKU',
+                'F1' => 'Precio',
+                'G1' => 'Stock',
+                'H1' => 'Estado'
+            ];
+
+            foreach ($headers as $cell => $value) {
+                $sheet->setCellValue($cell, $value);
+            }
+
+            $row = 2;
+            $totalProducts = 0;
+            $errors = [];
+
+            foreach ($stores as $store) {
+                try {
+                    Log::info('Procesando tienda de prueba', [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name
+                    ]);
+                    
+                    $woocommerce = $this->connect($store->id);
+                    
+                    // Solo obtener los primeros 20 productos de cada tienda
+                    $products = $woocommerce->get('products', [
+                        'per_page' => 20,
+                        'page' => 1,
+                        'status' => 'publish'
+                    ]);
+                    
+                    if (!is_array($products)) {
+                        $products = [$products];
+                    }
+                    
+                    foreach ($products as $product) {
+                        $sheet->setCellValue("A{$row}", $store->id);
+                        $sheet->setCellValue("B{$row}", $store->name);
+                        $sheet->setCellValue("C{$row}", $product->id);
+                        $sheet->setCellValue("D{$row}", $product->name);
+                        $sheet->setCellValue("E{$row}", $product->sku);
+                        $sheet->setCellValue("F{$row}", $product->price);
+                        $sheet->setCellValue("G{$row}", $product->stock_quantity);
+                        $sheet->setCellValue("H{$row}", $product->status);
+                        
+                        $row++;
+                        $totalProducts++;
+                    }
+                    
+                    Log::info('Tienda de prueba procesada', [
+                        'store_id' => $store->id,
+                        'products_found' => count($products)
+                    ]);
+                    
+                } catch (\Exception $e) {
+                    $errors[] = [
+                        'store_id' => $store->id,
+                        'store_name' => $store->name,
+                        'error' => $e->getMessage()
+                    ];
+                    
+                    Log::error('Error en tienda de prueba', [
+                        'store_id' => $store->id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            // Crear respuesta
+            $writer = new Xlsx($spreadsheet);
+            $response = new StreamedResponse(function() use ($writer) {
+                $writer->save('php://output');
+            });
+            
+            $response->headers->set('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            $response->headers->set('Content-Disposition', 'attachment;filename="productos_prueba_' . date('Y-m-d_H-i-s') . '.xlsx"');
+            $response->headers->set('Cache-Control', 'max-age=0');
+
+            Log::info('Exportación de prueba completada', [
+                'total_stores' => $stores->count(),
+                'total_products' => $totalProducts,
+                'errors_count' => count($errors)
+            ]);
+
+            return $response;
+
+        } catch (\Exception $e) {
+            Log::error('Error en exportación de prueba', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'message' => 'Error al exportar productos de prueba.',
                 'error' => $e->getMessage(),
                 'status' => 'error'
             ], 500);

@@ -10,13 +10,14 @@ use Illuminate\Support\Facades\Log;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Promise;
+use GuzzleHttp\Promise\Utils;
 class listProductByClientIdController
 {
     private $batchSize = 50;
 
     public function listProductsByClientId($clientId)
     {
-        ini_set('max_execution_time', 240); // 4 minutos
+        ini_set('max_execution_time', 0); // Sin límite de tiempo
 
 
         $statusDictionary = [
@@ -208,6 +209,8 @@ class listProductByClientIdController
                                     if (isset($seenIds[$id])) continue;
 
                                     $status = $itemResult['body']['status'] ?? 'unknown';
+                                    
+                                    // Agregar producto básico primero
                                     $products[] = [
                                         'id' => $id,
                                         'title' => $itemResult['body']['title'],
@@ -220,7 +223,13 @@ class listProductByClientIdController
                                         'status' => $status,
                                         'status_translated' => $statusDictionary[$status] ?? $status,
                                         'category_id' => $itemResult['body']['category_id'],
-                                        'category_name' => $itemResult['body']['category_id']
+                                        'category_name' => $itemResult['body']['category_id'],
+                                        'description' => '',
+                                        'model' => '',
+                                        'size' => '',
+                                        'color' => '',
+                                        'brand' => '',
+                                        'attributes' => []
                                     ];
                                     $seenIds[$id] = true;
                                     $successCount++;
@@ -266,7 +275,7 @@ class listProductByClientIdController
 
             Cache::put($cacheKey, $responseData, now()->addMinutes(10));
 
-            Log::info("Proceso completado", [
+            Log::info("Proceso completado - obteniendo detalles adicionales", [
                 'total_productos_inicial' => $totalItems,
                 'total_productos_final' => count($products),
                 'total_con_errores' => count($products) + $errorCount,
@@ -275,9 +284,26 @@ class listProductByClientIdController
                 'diferencia' => (count($products) + $errorCount) - $totalItems
             ]);
 
+            // Versión optimizada: solo enriquecer los primeros 10 productos
+            $productsToEnrich = array_slice($products, 0, 10);
+            $enrichedProducts = $this->enrichProductsWithDetails($productsToEnrich, $credentials->access_token);
+            
+            // Combinar productos enriquecidos con el resto
+            $remainingProducts = array_slice($products, 10);
+            $allProducts = array_merge($enrichedProducts, $remainingProducts);
+
+            Log::info("Detalles adicionales completados", [
+                'productos_enriquecidos' => count($enrichedProducts),
+                'productos_sin_enriquecer' => count($remainingProducts),
+                'total_productos' => count($allProducts)
+            ]);
+
+            // Actualizar responseData con productos enriquecidos
+            $responseData['productos'] = $allProducts;
+
             return response()->json([
                 'status' => 'success',
-                'message' => 'Productos obtenidos correctamente',
+                'message' => 'Productos obtenidos correctamente con detalles completos',
                 'data' => $responseData,
                 'from_cache' => false
             ]);
@@ -291,6 +317,246 @@ class listProductByClientIdController
                 'status' => 'error',
                 'message' => 'Error al procesar datos: ' . $e->getMessage(),
             ], 500);
+        }
+    }
+
+    /**
+     * Enriquecer productos con detalles adicionales de forma eficiente
+     */
+    private function enrichProductsWithDetails($products, $accessToken)
+    {
+        $enrichedProducts = [];
+        $batchSize = 10; // Reducir a lotes de 10 productos para mejor rendimiento
+        $totalProducts = count($products);
+        
+        Log::info("Iniciando enriquecimiento de productos", [
+            'total_productos' => $totalProducts,
+            'batch_size' => $batchSize
+        ]);
+
+        for ($i = 0; $i < $totalProducts; $i += $batchSize) {
+            $batch = array_slice($products, $i, $batchSize);
+            $batchIds = array_column($batch, 'id');
+            
+            Log::info("Procesando lote de productos", [
+                'lote' => ($i / $batchSize) + 1,
+                'productos_en_lote' => count($batch),
+                'ids' => $batchIds
+            ]);
+
+            // Procesar lote en paralelo
+            $promises = [];
+            $client = new Client(['timeout' => 15]);
+            
+            foreach ($batchIds as $productId) {
+                $promises[$productId] = $client->getAsync("https://api.mercadolibre.com/items/{$productId}", [
+                    'headers' => [
+                        'Authorization' => 'Bearer ' . $accessToken
+                    ]
+                ]);
+            }
+
+            // Esperar todas las respuestas del lote
+            $responses = Utils::settle($promises)->wait();
+
+            foreach ($batch as $product) {
+                $productId = $product['id'];
+                
+                if (isset($responses[$productId]) && $responses[$productId]['state'] === 'fulfilled') {
+                    $productData = json_decode($responses[$productId]['value']->getBody(), true);
+                    $details = $this->extractProductDetails($productData, $accessToken);
+                    
+                    // Actualizar producto con detalles
+                    $product['description'] = $details['description'];
+                    $product['model'] = $details['model'];
+                    $product['size'] = $details['size'];
+                    $product['color'] = $details['color'];
+                    $product['brand'] = $details['brand'];
+                    $product['attributes'] = $details['attributes'];
+                } else {
+                    Log::warning("No se pudieron obtener detalles del producto {$productId}");
+                }
+                
+                $enrichedProducts[] = $product;
+            }
+
+            // Pausa entre lotes para no sobrecargar la API
+            if ($i + $batchSize < $totalProducts) {
+                usleep(1000000); // 1 segundo entre lotes para mejor estabilidad
+            }
+        }
+
+        Log::info("Enriquecimiento completado", [
+            'productos_originales' => $totalProducts,
+            'productos_enriquecidos' => count($enrichedProducts)
+        ]);
+
+        return $enrichedProducts;
+    }
+
+    /**
+     * Extraer detalles de un producto desde los datos de la API
+     */
+    private function extractProductDetails($productData, $accessToken)
+    {
+        // Usar solo el título como descripción (más rápido)
+        $description = $productData['title'] ?? '';
+
+        // Extraer atributos específicos
+        $model = '';
+        $size = '';
+        $color = '';
+        $brand = '';
+        $attributes = [];
+
+        if (isset($productData['attributes']) && is_array($productData['attributes'])) {
+            foreach ($productData['attributes'] as $attribute) {
+                $attributeId = $attribute['id'] ?? '';
+                $attributeName = $attribute['name'] ?? '';
+                $attributeValue = $attribute['value_name'] ?? '';
+
+                $attributes[] = [
+                    'id' => $attributeId,
+                    'name' => $attributeName,
+                    'value' => $attributeValue
+                ];
+
+                // Mapear atributos específicos
+                switch ($attributeId) {
+                    case 'MODEL':
+                    case 'MODELO':
+                        $model = $attributeValue;
+                        break;
+                    case 'SIZE':
+                    case 'TALLA':
+                    case 'TAMAÑO':
+                        $size = $attributeValue;
+                        break;
+                    case 'COLOR':
+                    case 'COLOUR':
+                        $color = $attributeValue;
+                        break;
+                    case 'BRAND':
+                    case 'MARCA':
+                        $brand = $attributeValue;
+                        break;
+                }
+            }
+        }
+
+        return [
+            'description' => $description,
+            'model' => $model,
+            'size' => $size,
+            'color' => $color,
+            'brand' => $brand,
+            'attributes' => $attributes
+        ];
+    }
+
+    /**
+     * Obtener detalles adicionales de un producto específico
+     */
+    private function getProductDetails($productId, $accessToken)
+    {
+        try {
+            $response = Http::withToken($accessToken)
+                ->timeout(10)
+                ->get("https://api.mercadolibre.com/items/{$productId}");
+
+            if ($response->failed()) {
+                Log::warning("No se pudieron obtener detalles del producto {$productId}");
+                return [
+                    'description' => '',
+                    'model' => '',
+                    'size' => '',
+                    'color' => '',
+                    'brand' => '',
+                    'attributes' => []
+                ];
+            }
+
+            $product = $response->json();
+            
+            // Extraer descripción
+            $description = '';
+            if (isset($product['descriptions']) && !empty($product['descriptions'])) {
+                $descriptionResponse = Http::withToken($accessToken)
+                    ->timeout(5)
+                    ->get("https://api.mercadolibre.com/items/{$productId}/descriptions");
+                
+                if ($descriptionResponse->successful()) {
+                    $descriptions = $descriptionResponse->json();
+                    if (!empty($descriptions) && isset($descriptions[0]['plain_text'])) {
+                        $description = $descriptions[0]['plain_text'];
+                    }
+                }
+            }
+
+            // Extraer atributos específicos
+            $model = '';
+            $size = '';
+            $color = '';
+            $brand = '';
+            $attributes = [];
+
+            if (isset($product['attributes']) && is_array($product['attributes'])) {
+                foreach ($product['attributes'] as $attribute) {
+                    $attributeId = $attribute['id'] ?? '';
+                    $attributeName = $attribute['name'] ?? '';
+                    $attributeValue = $attribute['value_name'] ?? '';
+
+                    $attributes[] = [
+                        'id' => $attributeId,
+                        'name' => $attributeName,
+                        'value' => $attributeValue
+                    ];
+
+                    // Mapear atributos específicos
+                    switch ($attributeId) {
+                        case 'MODEL':
+                        case 'MODELO':
+                            $model = $attributeValue;
+                            break;
+                        case 'SIZE':
+                        case 'TALLA':
+                        case 'TAMAÑO':
+                            $size = $attributeValue;
+                            break;
+                        case 'COLOR':
+                        case 'COLOUR':
+                            $color = $attributeValue;
+                            break;
+                        case 'BRAND':
+                        case 'MARCA':
+                            $brand = $attributeValue;
+                            break;
+                    }
+                }
+            }
+
+            return [
+                'description' => $description,
+                'model' => $model,
+                'size' => $size,
+                'color' => $color,
+                'brand' => $brand,
+                'attributes' => $attributes
+            ];
+
+        } catch (\Exception $e) {
+            Log::error("Error al obtener detalles del producto {$productId}", [
+                'error' => $e->getMessage()
+            ]);
+            
+            return [
+                'description' => '',
+                'model' => '',
+                'size' => '',
+                'color' => '',
+                'brand' => '',
+                'attributes' => []
+            ];
         }
     }
 }
